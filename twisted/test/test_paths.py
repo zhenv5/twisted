@@ -831,4 +831,13 @@ class URLPathTestCase(unittest.TestCase):
         # here should be equivalent to '.'
         self.assertEquals(str(self.path.here()), 'http://example.com/foo/')
         self.assertEquals(str(self.path.child('').here()), 'http://example.com/foo/bar/')
+        
+    def test_childQuotes(self):
+        """ 
+        This test checks if child path with spaces and slashes is handled in least surprising way:
+        properly escaped and result in single segment path amendment.
+        """ 
+        #child() with quotes (",') and slashes  should be properly escaped
+        self.assertEquals(str(self.path.child("hello/ there")), 'http://example.com/foo/bar/hello%2F%20there')
+
 

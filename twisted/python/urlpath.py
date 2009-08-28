@@ -54,20 +54,33 @@ class URLPath:
                         '/'.join(newpathsegs),
                         query)
 
-    def sibling(self, path, keepQuery=0):
+    def sibling(self, path, keepQuery=False):
         l = self.pathList()
         l[-1] = path
         return self._pathMod(l, keepQuery)
 
-    def child(self, path, keepQuery=0):
+    def child(self, path, keepQuery=False):
+        """
+        Add a child segment to URL path part. 
+        
+        @param path: path segment to add. The path argument should not be quoted.
+        @type path: C{str}
+        @param keepQuery: if set to True, will keep the query part of URL, 
+                          else (and by default) will strip query part.
+        @type keepQuery: C{bool}
+        @return: A new L{URLPath} object with path appended to current object
+        @rtype: L{URLPath}
+        """
+        #Clean up path with urlescaped version
+        fixedPath = urllib.quote(path,'')
         l = self.pathList()
         if l[-1] == '':
-            l[-1] = path
+            l[-1] = fixedPath
         else:
-            l.append(path)
+            l.append(fixedPath)
         return self._pathMod(l, keepQuery)
 
-    def parent(self, keepQuery=0):
+    def parent(self, keepQuery=False):
         l = self.pathList()
         if l[-1] == '':
             del l[-2]
@@ -78,7 +91,7 @@ class URLPath:
             l[-1] = ''
         return self._pathMod(l, keepQuery)
 
-    def here(self, keepQuery=0):
+    def here(self, keepQuery=False):
         l = self.pathList()
         if l[-1] != '':
             l[-1] = ''
