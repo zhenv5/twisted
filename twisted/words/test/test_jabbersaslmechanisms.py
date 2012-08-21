@@ -44,6 +44,11 @@ class DigestMD5Test(unittest.TestCase):
         """
         self.assertIdentical(self.mechanism.getInitialResponse(), None)
 
+    def test_getResponseUnicode(self):
+        self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp', u'example.org', None,
+                                                   u'test', u'\u0418secret')
+        self.test_getResponseNoRealm()
+
     def test_getResponse(self):
         """
         Partially test challenge response.

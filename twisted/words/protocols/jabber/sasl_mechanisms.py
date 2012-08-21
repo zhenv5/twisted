@@ -205,6 +205,8 @@ class DigestMD5(object):
         try:
             username = self.username.encode(charset)
             password = self.password.encode(charset)
+            realm = realm.encode(charset)
+            digest_uri = self.digest_uri.encode(charset)
         except UnicodeError:
             # TODO - add error checking
             raise
@@ -217,7 +219,7 @@ class DigestMD5(object):
         a1 = "%s:%s:%s" % (H("%s:%s:%s" % (username, realm, password)),
                            nonce,
                            cnonce)
-        a2 = "AUTHENTICATE:%s" % self.digest_uri
+        a2 = "AUTHENTICATE:%s" % digest_uri
 
         response = HEX( KD ( HEX(H(a1)),
                              "%s:%s:%s:%s:%s" % (nonce, nc,
@@ -229,7 +231,7 @@ class DigestMD5(object):
                       'cnonce' : cnonce,
                       'nc' : nc,
                       'qop' : qop,
-                      'digest-uri': self.digest_uri,
+                      'digest-uri': digest_uri,
                       'response': response,
                       'charset': charset}
 
