@@ -4,10 +4,12 @@
 """
 Tests for L{twisted.words.protocols.jabber.sasl_mechanisms}.
 """
+import binascii
 
 from twisted.trial import unittest
 
 from twisted.words.protocols.jabber import sasl_mechanisms
+from twisted.python.hashlib import md5
 
 class PlainTest(unittest.TestCase):
     def test_getInitialResponse(self):
@@ -45,9 +47,38 @@ class DigestMD5Test(unittest.TestCase):
         self.assertIdentical(self.mechanism.getInitialResponse(), None)
 
     def test_getResponseUnicode(self):
-        self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp', u'example.org', None,
-                                                   u'test', u'\u0418secret')
-        self.test_getResponseNoRealm()
+        def H(s):
+            return md5(s).digest()
+
+        def HEX(n):
+            return binascii.b2a_hex(n)
+
+        def KD(k, s):
+            return H(u'%s:%s' % (k, s))
+
+        domain = u'\u0418example.org'
+        password = u'\u0418secret'
+        username = u'test\u0418'
+        for encoding in ('utf-8', 'cp1251'):
+            self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp', domain, None,
+                                                       username, password)
+            challenge = 'nonce="1234",qop="auth",charset=%s,algorithm=md5-sess' % (
+                encoding
+            )
+            directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
+            self.assertEqual(directives['realm'], domain.encode(encoding))
+            self.assertEqual(directives['username'], username.encode(encoding))
+            a1 = "%s:%s:%s" % (H(("%s:%s:%s" % (username, domain, password)).encode(encoding)),
+                               1234,
+                               directives['cnonce'])
+            a2 = "AUTHENTICATE:xmpp/%s" % domain
+            a2 = a2.encode(encoding)
+            nc = '%08x' % 1 # TODO: support subsequent auth.
+            response = HEX( KD ( HEX(H(a1)),
+                                "%s:%s:%s:%s:%s" % (1234, nc,
+                                                    directives['cnonce'],
+                                                    "auth", HEX(H(a2)))))
+            self.assertEqual(directives['response'], response)
 
     def test_getResponse(self):
         """

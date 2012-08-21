@@ -85,13 +85,24 @@ class DigestMD5(object):
     name = 'DIGEST-MD5'
 
     def __init__(self, serv_type, host, serv_name, username, password):
+        """
+        @type serv_type: C{unicode}
+
+        @type host: C{unicode}
+
+        @type serv_name: C{unicode}
+        
+        @type username: C{unicode}
+
+        @type password: C{unicode}
+        """
         self.username = username
         self.password = password
         self.defaultRealm = host
 
-        self.digest_uri = '%s/%s' % (serv_type, host)
+        self.digest_uri = u'%s/%s' % (serv_type, host)
         if serv_name is not None:
-            self.digest_uri += '/%s' % serv_name
+            self.digest_uri += u'/%s' % serv_name
 
 
     def getInitialResponse(self):
@@ -200,7 +211,7 @@ class DigestMD5(object):
             return binascii.b2a_hex(n)
 
         def KD(k, s):
-            return H('%s:%s' % (k, s))
+            return H(u'%s:%s' % (k, s))
 
         try:
             username = self.username.encode(charset)
@@ -222,8 +233,8 @@ class DigestMD5(object):
         a2 = "AUTHENTICATE:%s" % digest_uri
 
         response = HEX( KD ( HEX(H(a1)),
-                             "%s:%s:%s:%s:%s" % (nonce, nc,
-                                                 cnonce, "auth", HEX(H(a2)))))
+                            "%s:%s:%s:%s:%s" % (nonce, nc,
+                                                cnonce, "auth", HEX(H(a2)))))
 
         directives = {'username': username,
                       'realm' : realm,
@@ -239,4 +250,6 @@ class DigestMD5(object):
 
 
     def _gen_nonce(self):
-        return md5("%s:%s:%s" % (str(random.random()) , str(time.gmtime()),str(os.getpid()))).hexdigest()
+        return md5("%s:%s:%s" % (random.random(),
+                                 time.gmtime(),
+                                 os.getpid())).hexdigest()
