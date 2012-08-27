@@ -46,6 +46,34 @@ class DigestMD5Test(unittest.TestCase):
         """
         self.assertIdentical(self.mechanism.getInitialResponse(), None)
 
+    def test_getResponse(self):
+        """
+        Partially test challenge response.
+
+        Does not actually test the response-value, yet.
+        """
+
+        challenge = 'realm="localhost",nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
+        directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
+        self.assertEqual(directives['username'], 'test')
+        self.assertEqual(directives['nonce'], '1234')
+        self.assertEqual(directives['nc'], '00000001')
+        self.assertEqual(directives['qop'], ['auth'])
+        self.assertEqual(directives['charset'], 'utf-8')
+        self.assertEqual(directives['digest-uri'], 'xmpp/example.org')
+        self.assertEqual(directives['realm'], 'localhost')
+
+    def test_getResponseNoRealm(self):
+        """
+        Test that we accept challenges without realm.
+
+        The realm should default to the host part of the JID.
+        """
+
+        challenge = 'nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
+        directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
+        self.assertEqual(directives['realm'], 'example.org')
+
     def test_getResponseUnicode(self):
         def H(s):
             return md5(s).digest()
@@ -79,34 +107,6 @@ class DigestMD5Test(unittest.TestCase):
                                                     directives['cnonce'],
                                                     "auth", HEX(H(a2)))))
             self.assertEqual(directives['response'], response)
-
-    def test_getResponse(self):
-        """
-        Partially test challenge response.
-
-        Does not actually test the response-value, yet.
-        """
-
-        challenge = 'realm="localhost",nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
-        directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
-        self.assertEqual(directives['username'], 'test')
-        self.assertEqual(directives['nonce'], '1234')
-        self.assertEqual(directives['nc'], '00000001')
-        self.assertEqual(directives['qop'], ['auth'])
-        self.assertEqual(directives['charset'], 'utf-8')
-        self.assertEqual(directives['digest-uri'], 'xmpp/example.org')
-        self.assertEqual(directives['realm'], 'localhost')
-
-    def test_getResponseNoRealm(self):
-        """
-        Test that we accept challenges without realm.
-
-        The realm should default to the host part of the JID.
-        """
-
-        challenge = 'nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
-        directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
-        self.assertEqual(directives['realm'], 'example.org')
 
     def test__parse(self):
         """

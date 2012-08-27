@@ -211,7 +211,7 @@ class DigestMD5(object):
             return binascii.b2a_hex(n)
 
         def KD(k, s):
-            return H(u'%s:%s' % (k, s))
+            return H('%s:%s' % (k, s))
 
         try:
             username = self.username.encode(charset)
@@ -233,8 +233,8 @@ class DigestMD5(object):
         a2 = "AUTHENTICATE:%s" % digest_uri
 
         response = HEX( KD ( HEX(H(a1)),
-                            "%s:%s:%s:%s:%s" % (nonce, nc,
-                                                cnonce, "auth", HEX(H(a2)))))
+                             "%s:%s:%s:%s:%s" % (nonce, nc,
+                                                 cnonce, "auth", HEX(H(a2)))))
 
         directives = {'username': username,
                       'realm' : realm,
