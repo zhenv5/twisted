@@ -601,8 +601,9 @@ class StdioFactory(protocol.Factory):
     protocol = basic.LineReceiver
 
 
+from twisted.internet.test.test_core import ObjectModelIntegrationMixin
 
-class StandardIOEndpointsTestCase(unittest.TestCase):
+class StandardIOEndpointsTestCase(ObjectModelIntegrationMixin, unittest.TestCase):
     """
     Tests for Standard I/O Endpoints
     """
@@ -676,6 +677,13 @@ class StandardIOEndpointsTestCase(unittest.TestCase):
         of the endpoint
         """
         self.assertEqual(repr(self.ep), '<StandardIOEndpoint>')
+
+
+    def test_newStyle(self):
+        """
+        The endpoint is a new-style class.
+        """
+        self.assertFullyNewStyle(self.ep)
 
 
 

@@ -214,7 +214,7 @@ class _WrappingFactory(ClientFactory):
 
 
 
-class StandardIOEndpoint(FancyStrMixin, object):
+class StandardIOEndpoint(FancyStrMixin):
     """
     A Standard Input/Output endpoint
     """
