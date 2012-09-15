@@ -27,6 +27,7 @@ from twisted.python.systemd import ListenFDs
 from twisted.internet.abstract import isIPv6Address
 from twisted.internet import stdio
 from twisted.internet.stdio import PipeAddress
+from twisted.python.util import FancyStrMixin
 
 
 __all__ = ["clientFromString", "serverFromString",
@@ -213,7 +214,7 @@ class _WrappingFactory(ClientFactory):
 
 
 
-class StandardIOEndpoint(object):
+class StandardIOEndpoint(FancyStrMixin, object):
     """
     A Standard Input/Output endpoint
     """
@@ -235,11 +236,14 @@ class StandardIOEndpoint(object):
 
 
 
-class _TCPServerEndpoint(object):
+class _TCPServerEndpoint(FancyStrMixin, object):
     """
     A TCP server endpoint interface
     """
     implements(interfaces.IStreamServerEndpoint)
+
+    showAttributes = (('_port', 'port', '%r'), ('_backlog', 'backlog', '%r'),
+            ('_interface', 'interface', '%r'))
 
     def __init__(self, reactor, port, backlog, interface):
         """
@@ -314,11 +318,15 @@ class TCP6ServerEndpoint(_TCPServerEndpoint):
 
 
 
-class TCP4ClientEndpoint(object):
+class TCP4ClientEndpoint(FancyStrMixin, object):
     """
     TCP client endpoint with an IPv4 configuration.
     """
     implements(interfaces.IStreamClientEndpoint)
+
+    showAttributes = (('_host', 'host', '%r'), ('_port', 'port', '%r'),
+            ('_timeout', 'timeout', '%r'), ('_bindAddress', 'bindAddress',
+                '%r'))
 
     def __init__(self, reactor, host, port, timeout=30, bindAddress=None):
         """
@@ -433,11 +441,14 @@ class TCP6ClientEndpoint(object):
 
 
 
-class SSL4ServerEndpoint(object):
+class SSL4ServerEndpoint(FancyStrMixin, object):
     """
     SSL secured TCP server endpoint with an IPv4 configuration.
     """
     implements(interfaces.IStreamServerEndpoint)
+
+    showAttributes = (('_port', 'port', '%r'), ('_backlog', 'backlog', '%r'),
+            ('_interface', 'interface', '%r'))
 
     def __init__(self, reactor, port, sslContextFactory,
                  backlog=50, interface=''):
@@ -476,11 +487,15 @@ class SSL4ServerEndpoint(object):
 
 
 
-class SSL4ClientEndpoint(object):
+class SSL4ClientEndpoint(FancyStrMixin, object):
     """
     SSL secured TCP client endpoint with an IPv4 configuration
     """
     implements(interfaces.IStreamClientEndpoint)
+
+    showAttributes = (('_host', 'host', '%r'), ('_port', 'port', '%r'),
+            ('_timeout', 'timeout', '%r'), ('_bindAddress', 'bindAddress',
+                '%r'))
 
     def __init__(self, reactor, host, port, sslContextFactory,
                  timeout=30, bindAddress=None):
@@ -528,11 +543,14 @@ class SSL4ClientEndpoint(object):
 
 
 
-class UNIXServerEndpoint(object):
+class UNIXServerEndpoint(FancyStrMixin, object):
     """
     UnixSocket server endpoint.
     """
     implements(interfaces.IStreamServerEndpoint)
+
+    showAttributes = (('_address', 'address', '%r'), ('_backlog', 'backlog',
+        '%r'), ('_mode', 'mode', '%o'), ('_wantPID', 'wantPID', '%r'))
 
     def __init__(self, reactor, address, backlog=50, mode=0666, wantPID=0):
         """
@@ -563,11 +581,14 @@ class UNIXServerEndpoint(object):
 
 
 
-class UNIXClientEndpoint(object):
+class UNIXClientEndpoint(FancyStrMixin, object):
     """
     UnixSocket client endpoint.
     """
     implements(interfaces.IStreamClientEndpoint)
+
+    showAttributes = (('_path', 'path', '%r'), ('_timeout', 'timeout', '%r'),
+            ('_checkPID', 'checkPID', '%r'))
 
     def __init__(self, reactor, path, timeout=30, checkPID=0):
         """
@@ -607,7 +628,7 @@ class UNIXClientEndpoint(object):
 
 
 
-class AdoptedStreamServerEndpoint(object):
+class AdoptedStreamServerEndpoint(FancyStrMixin, object):
     """
     An endpoint for listening on a file descriptor initialized outside of
     Twisted.
@@ -616,6 +637,8 @@ class AdoptedStreamServerEndpoint(object):
         listen with a factory yet.  C{True} if so.
     """
     implements(interfaces.IStreamServerEndpoint)
+
+    showAttributes = ('fileno', 'addressFamily', ('_used', 'used', '%r'))
 
     _close = os.close
     _setNonBlocking = staticmethod(fdesc.setNonBlocking)

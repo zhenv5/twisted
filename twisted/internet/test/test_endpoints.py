@@ -670,6 +670,14 @@ class StandardIOEndpointsTestCase(unittest.TestCase):
         return self.d
 
 
+    def test_repr(self):
+        """
+        repr() of L{endpoints.StandardIOEndpoint} shows the attributes
+        of the endpoint
+        """
+        self.assertEqual(repr(self.ep), '<StandardIOEndpoint>')
+
+
 
 class TCP4EndpointsTestCase(EndpointTestCaseMixin, unittest.TestCase):
     """
@@ -778,6 +786,27 @@ class TCP4EndpointsTestCase(EndpointTestCaseMixin, unittest.TestCase):
                 address)
 
 
+    def test_reprServer(self):
+        """
+        repr() of L{endpoints.TCP4ServerEndpoint} shows the attributes
+        of the endpoint
+        """
+        serverEndpoint = endpoints.TCP4ServerEndpoint(reactor, 0)
+        self.assertEqual(repr(serverEndpoint),
+            "<TCP4ServerEndpoint port=0 backlog=50 interface=''>")
+
+
+    def test_reprClient(self):
+        """
+        repr() of L{endpoints.TCP4ClientEndpoint} shows the attributes
+        of the endpoint
+        """
+        clientEndpoint = endpoints.TCP4ClientEndpoint(reactor, "localhost", 80)
+        self.assertEqual(repr(clientEndpoint),
+            "<TCP4ClientEndpoint host='localhost' port=80 timeout=30 \
+bindAddress=None>")
+
+
 
 class TCP6EndpointsTestCase(EndpointTestCaseMixin, unittest.TestCase):
     """
@@ -863,6 +892,16 @@ class TCP6EndpointsTestCase(EndpointTestCaseMixin, unittest.TestCase):
                 address)
 
 
+    def test_reprServer(self):
+        """
+        repr() of L{endpoints.TCP6ServerEndpoint} shows the attributes
+        of the endpoint
+        """
+        serverEndpoint = endpoints.TCP6ServerEndpoint(reactor, 0)
+        self.assertEqual(repr(serverEndpoint),
+            "<TCP6ServerEndpoint port=0 backlog=50 interface='::'>")
+
+
     def createClientEndpoint(self, reactor, clientFactory, **connectArgs):
         """
         Create a L{TCP6ClientEndpoint} and return the values needed to verify
@@ -885,6 +924,18 @@ class TCP6EndpointsTestCase(EndpointTestCaseMixin, unittest.TestCase):
                  connectArgs.get('timeout', 30),
                  connectArgs.get('bindAddress', None)),
                 address)
+
+
+    def test_reprClient(self):
+        """
+        repr() of L{endpoints.TCP6ClientEndpoint} shows the attributes
+        of the endpoint
+        """
+        clientEndpoint = endpoints.TCP6ClientEndpoint(reactor, "localhost", 80)
+        self.assertEqual(repr(clientEndpoint),
+            "<TCP6ClientEndpoint host='localhost' port=80 timeout=30 \
+bindAddress=None>")
+
 
 
 class TCP6EndpointNameResolutionTestCase(ClientEndpointTestCaseMixin,
@@ -1123,6 +1174,29 @@ class SSL4EndpointsTestCase(EndpointTestCaseMixin,
                 address)
 
 
+    def test_reprServer(self):
+        """
+        repr() of L{endpoints.SSL4ServerEndpoint} shows the attributes
+        of the endpoint
+        """
+        serverEndpoint = endpoints.SSL4ServerEndpoint(reactor, 0,
+            self.serverSSLContext)
+        self.assertEqual(repr(serverEndpoint),
+            "<SSL4ServerEndpoint port=0 backlog=50 interface=''>")
+
+
+    def test_reprClient(self):
+        """
+        repr() of L{endpoints.SSL4ClientEndpoint} shows the attributes
+        of the endpoint
+        """
+        clientEndpoint = endpoints.SSL4ClientEndpoint(reactor, "localhost",
+            80, self.serverSSLContext)
+        self.assertEqual(repr(clientEndpoint),
+            "<SSL4ClientEndpoint host='localhost' port=80 timeout=30 \
+bindAddress=None>")
+
+
 
 class UNIXEndpointsTestCase(EndpointTestCaseMixin,
                             unittest.TestCase):
@@ -1231,6 +1305,28 @@ class UNIXEndpointsTestCase(EndpointTestCaseMixin,
                  connectArgs.get('checkPID', 0)),
                 address)
 
+    def test_reprServer(self):
+        """
+        repr() of L{endpoints.UNIXServerEndpoint} shows the attributes
+        of the endpoint
+        """
+        serverEndpoint = endpoints.UNIXServerEndpoint(reactor,
+            UNIXAddress(self.mktemp()).name)
+        self.assertEqual(repr(serverEndpoint),
+            "<UNIXServerEndpoint address=%r backlog=50 mode=%o \
+wantPID=0>" % (serverEndpoint._address, serverEndpoint._mode))
+
+
+    def test_reprClient(self):
+        """
+        repr() of L{endpoints.UNIXClientEndpoint} shows the attributes
+        of the endpoint
+        """
+        clientEndpoint = endpoints.UNIXClientEndpoint(reactor,
+            UNIXAddress(self.mktemp()).name)
+        self.assertEqual(repr(clientEndpoint),
+            "<UNIXClientEndpoint path=%r timeout=30 checkPID=0>" %
+            (clientEndpoint._path))
 
 
 class ParserTestCase(unittest.TestCase):
@@ -1865,6 +1961,16 @@ class AdoptedStreamServerEndpointTestCase(ServerEndpointTestCaseMixin,
         d.addCallback(listened)
         return d
 
+
+    def test_repr(self):
+        """
+        repr() of L{endpoints.AdoptedStreamServerEndpoint} shows the
+        attributes of the endpoint
+        """
+        endpoint = self._createStubbedAdoptedEndpoint(reactor, 13, AF_INET)
+        self.assertEqual(repr(endpoint),
+            '<AdoptedStreamServerEndpoint fileno=13 addressFamily=2 \
+used=False>')
 
 
 class SystemdEndpointPluginTests(unittest.TestCase):
