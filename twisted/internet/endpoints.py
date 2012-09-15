@@ -368,7 +368,7 @@ class TCP4ClientEndpoint(FancyStrMixin, object):
 
 
 
-class TCP6ClientEndpoint(object):
+class TCP6ClientEndpoint(FancyStrMixin, object):
     """
     TCP client endpoint with an IPv6 configuration.
 
@@ -383,6 +383,10 @@ class TCP6ClientEndpoint(object):
         5-tuple L{_GAI_ADDRESS}.
     """
     implements(interfaces.IStreamClientEndpoint)
+
+    showAttributes = (('_host', 'host', '%r'), ('_port', 'port', '%r'),
+            ('_timeout', 'timeout', '%r'), ('_bindAddress', 'bindAddress',
+                '%r'))
 
     _getaddrinfo = socket.getaddrinfo
     _deferToThread = threads.deferToThread
