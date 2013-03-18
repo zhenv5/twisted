@@ -120,7 +120,7 @@ class DigestMD5(object):
         try:
             realm = directives['realm']
         except KeyError:
-            realm = self.defaultRealm
+            realm = self.defaultRealm.encode(directives['charset'])
 
         return self._gen_response(directives['charset'],
                                   realm,
@@ -228,7 +228,7 @@ class DigestMD5(object):
         try:
             username = self.username.encode(charset)
             password = self.password.encode(charset)
-            realm = realm.encode(charset)
+            realm = realm
             digest_uri = self.digest_uri.encode(charset)
         except UnicodeError:
             # TODO - add error checking

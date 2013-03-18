@@ -5,12 +5,9 @@
 Tests for L{twisted.words.protocols.jabber.sasl_mechanisms}.
 """
 
-import binascii
-
 from twisted.trial import unittest
 
 from twisted.words.protocols.jabber import sasl_mechanisms
-from twisted.python.hashlib import md5
 
 class PlainTest(unittest.TestCase):
     def test_getInitialResponse(self):
@@ -37,8 +34,8 @@ class AnonymousTest(unittest.TestCase):
 
 class DigestMD5Test(unittest.TestCase):
     def setUp(self):
-        self.mechanism = sasl_mechanisms.DigestMD5('xmpp', 'example.org', None,
-                                                   'test', 'secret')
+        self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp', u'example.org',
+                                                   None, u'test', u'secret')
 
 
     def test_getInitialResponse(self):
@@ -64,6 +61,25 @@ class DigestMD5Test(unittest.TestCase):
         self.assertEqual(directives['digest-uri'], 'xmpp/example.org')
         self.assertEqual(directives['realm'], 'localhost')
 
+
+    def test_getResponseNonAsciiRealm(self):
+        """
+        A encoded realm with non-ascii characters yields a response.
+        """
+
+        challenge = ('realm="\xc3\xa9chec.example.org",nonce="1234",'
+                     'qop="auth",charset=utf-8,algorithm=md5-sess')
+        directives = self.mechanism._parse(
+                self.mechanism.getResponse(challenge))
+        self.assertEqual(directives['username'], 'test')
+        self.assertEqual(directives['nonce'], '1234')
+        self.assertEqual(directives['nc'], '00000001')
+        self.assertEqual(directives['qop'], ['auth'])
+        self.assertEqual(directives['charset'], 'utf-8')
+        self.assertEqual(directives['digest-uri'], 'xmpp/example.org')
+        self.assertEqual(directives['realm'], '\xc3\xa9chec.example.org')
+
+
     def test_getResponseNoRealm(self):
         """
         Test that we accept challenges without realm.
@@ -75,7 +91,21 @@ class DigestMD5Test(unittest.TestCase):
         directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
         self.assertEqual(directives['realm'], 'example.org')
 
-    def test__calculate_response(self):
+
+    def test_getResponseNoRealmIDN(self):
+        """
+        Challenges without realm work with IDN domain names.
+        """
+
+        self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp',
+                                                   u'\u00e9chec.example.org',
+                                                   None, u'test', u'secret')
+        challenge = 'nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
+        directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
+        self.assertEqual(directives['realm'], '\xc3\xa9chec.example.org')
+
+
+    def test_calculate_response(self):
         """
         Tests the response calculation.
 
@@ -87,16 +117,18 @@ class DigestMD5Test(unittest.TestCase):
         nc = '%08x' % 1
         cnonce = 'OA6MHXh6VqTrRk'
 
-        username = u'\u0418chris'.encode(charset)
-        password = u'\u0418secret'.encode(charset)
-        realm = u'\u0418elwood.innosoft.com'.encode(charset)
+        username = u'\u0418chris'
+        password = u'\u0418secret'
+        host = u'\u0418elwood.innosoft.com'
         digest_uri = u'imap/\u0418elwood.innosoft.com'.encode(charset)
-        
-        mechanism = sasl_mechanisms.DigestMD5('imap', realm, None, 
-                                            username, password) 
+
+        mechanism = sasl_mechanisms.DigestMD5('imap', host, None,
+                                              username, password)
         response = mechanism._calculate_response(cnonce, nc, nonce,
-                                                 username, password,
-                                                 realm, digest_uri)
+                                                 username.encode(charset),
+                                                 password.encode(charset),
+                                                 host.encode(charset),
+                                                 digest_uri)
         self.assertEqual(response, '7928f233258be88392424d094453c5e3')
 
     def test__parse(self):
