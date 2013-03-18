@@ -4,6 +4,7 @@
 """
 Tests for L{twisted.words.protocols.jabber.sasl_mechanisms}.
 """
+
 import binascii
 
 from twisted.trial import unittest
@@ -74,39 +75,29 @@ class DigestMD5Test(unittest.TestCase):
         directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
         self.assertEqual(directives['realm'], 'example.org')
 
-    def test_getResponseUnicode(self):
-        def H(s):
-            return md5(s).digest()
+    def test__calculate_response(self):
+        """
+        Tests the response calculation.
 
-        def HEX(n):
-            return binascii.b2a_hex(n)
+        Values were taken from RFC-2831 with additional unicode characters.
+        """
 
-        def KD(k, s):
-            return H(u'%s:%s' % (k, s))
+        charset = 'utf-8'
+        nonce = 'OA6MG9tEQGm2hh'
+        nc = '%08x' % 1
+        cnonce = 'OA6MHXh6VqTrRk'
 
-        domain = u'\u0418example.org'
-        password = u'\u0418secret'
-        username = u'test\u0418'
-        for encoding in ('utf-8', 'cp1251'):
-            self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp', domain, None,
-                                                       username, password)
-            challenge = 'nonce="1234",qop="auth",charset=%s,algorithm=md5-sess' % (
-                encoding
-            )
-            directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
-            self.assertEqual(directives['realm'], domain.encode(encoding))
-            self.assertEqual(directives['username'], username.encode(encoding))
-            a1 = "%s:%s:%s" % (H(("%s:%s:%s" % (username, domain, password)).encode(encoding)),
-                               1234,
-                               directives['cnonce'])
-            a2 = "AUTHENTICATE:xmpp/%s" % domain
-            a2 = a2.encode(encoding)
-            nc = '%08x' % 1 # TODO: support subsequent auth.
-            response = HEX( KD ( HEX(H(a1)),
-                                "%s:%s:%s:%s:%s" % (1234, nc,
-                                                    directives['cnonce'],
-                                                    "auth", HEX(H(a2)))))
-            self.assertEqual(directives['response'], response)
+        username = u'\u0418chris'.encode(charset)
+        password = u'\u0418secret'.encode(charset)
+        realm = u'\u0418elwood.innosoft.com'.encode(charset)
+        digest_uri = u'imap/\u0418elwood.innosoft.com'.encode(charset)
+        
+        mechanism = sasl_mechanisms.DigestMD5('imap', realm, None, 
+                                            username, password) 
+        response = mechanism._calculate_response(cnonce, nc, nonce,
+                                                 username, password,
+                                                 realm, digest_uri)
+        self.assertEqual(response, '7928f233258be88392424d094453c5e3')
 
     def test__parse(self):
         """

@@ -91,7 +91,7 @@ class DigestMD5(object):
         @type host: C{unicode}
 
         @type serv_name: C{unicode}
-        
+
         @type username: C{unicode}
 
         @type password: C{unicode}
@@ -194,6 +194,27 @@ class DigestMD5(object):
 
         return ','.join(directive_list)
 
+    def _calculate_response(self, cnonce, nc, nonce,
+                            username, password, realm, uri):
+        """
+        Calculates response with given encoded parameters.
+        """
+        def H(s):
+            return md5(s).digest()
+
+        def HEX(n):
+            return binascii.b2a_hex(n)
+
+        def KD(k, s):
+            return H('%s:%s' % (k, s))
+
+        a1 = "%s:%s:%s" % (H("%s:%s:%s" % (username, realm, password)),
+                                nonce, cnonce)
+        a2 = "AUTHENTICATE:%s" % uri
+        response = HEX( KD ( HEX(H(a1)),
+                             "%s:%s:%s:%s:%s" % (nonce, nc,
+                                        cnonce, "auth", HEX(H(a2)))))
+        return response
 
     def _gen_response(self, charset, realm, nonce):
         """
@@ -203,15 +224,6 @@ class DigestMD5(object):
         RFC 2831 using the C{charset}, C{realm} and C{nonce} directives
         from the challenge.
         """
-
-        def H(s):
-            return md5(s).digest()
-
-        def HEX(n):
-            return binascii.b2a_hex(n)
-
-        def KD(k, s):
-            return H('%s:%s' % (k, s))
 
         try:
             username = self.username.encode(charset)
@@ -227,14 +239,9 @@ class DigestMD5(object):
         qop = 'auth'
 
         # TODO - add support for authzid
-        a1 = "%s:%s:%s" % (H("%s:%s:%s" % (username, realm, password)),
-                           nonce,
-                           cnonce)
-        a2 = "AUTHENTICATE:%s" % digest_uri
-
-        response = HEX( KD ( HEX(H(a1)),
-                             "%s:%s:%s:%s:%s" % (nonce, nc,
-                                                 cnonce, "auth", HEX(H(a2)))))
+        response = self._calculate_response(cnonce, nc, nonce,
+                                            username, password, realm,
+                                            digest_uri)
 
         directives = {'username': username,
                       'realm' : realm,
