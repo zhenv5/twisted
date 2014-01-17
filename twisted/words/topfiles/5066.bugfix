@@ -1,2 +1,1 @@
-twisted.words.protocols.jabber.sasl_mechansisms.DigestMD5 can work now with
-unicode arguments
+twisted.words.protocols.jabber.sasl_mechansisms.DigestMD5 now works with unicode arguments.
