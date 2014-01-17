@@ -34,8 +34,8 @@ class AnonymousTest(unittest.TestCase):
 
 class DigestMD5Test(unittest.TestCase):
     def setUp(self):
-        self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp', u'example.org',
-                                                   None, u'test', u'secret')
+        self.mechanism = sasl_mechanisms.DigestMD5(
+            u'xmpp', u'example.org', None, u'test', u'secret')
 
 
     def test_getInitialResponse(self):
@@ -44,49 +44,47 @@ class DigestMD5Test(unittest.TestCase):
         """
         self.assertIdentical(self.mechanism.getInitialResponse(), None)
 
+
     def test_getResponse(self):
         """
-        Partially test challenge response.
-
-        Does not actually test the response-value, yet.
+        The response to a Digest-MD5 challenge includes the parameters from the
+        challenge.
         """
-
-        challenge = 'realm="localhost",nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
-        directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
-        self.assertEqual(directives['username'], 'test')
-        self.assertEqual(directives['nonce'], '1234')
-        self.assertEqual(directives['nc'], '00000001')
-        self.assertEqual(directives['qop'], ['auth'])
-        self.assertEqual(directives['charset'], 'utf-8')
-        self.assertEqual(directives['digest-uri'], 'xmpp/example.org')
-        self.assertEqual(directives['realm'], 'localhost')
+        challenge = (
+            'realm="localhost",nonce="1234",qop="auth",charset=utf-8,'
+            'algorithm=md5-sess')
+        directives = self.mechanism._parse(
+            self.mechanism.getResponse(challenge))
+        del directives["cnonce"], directives["response"]
+        self.assertEqual({
+                'username': 'test', 'nonce': '1234', 'nc': '00000001',
+                'qop': ['auth'], 'charset': 'utf-8', 'realm': 'localhost',
+                'digest-uri': 'xmpp/example.org'
+                }, directives)
 
 
     def test_getResponseNonAsciiRealm(self):
         """
-        A encoded realm with non-ascii characters yields a response.
+        Bytes outside the ASCII range in the challenge are nevertheless
+        included in the response.
         """
-
         challenge = ('realm="\xc3\xa9chec.example.org",nonce="1234",'
                      'qop="auth",charset=utf-8,algorithm=md5-sess')
         directives = self.mechanism._parse(
-                self.mechanism.getResponse(challenge))
-        self.assertEqual(directives['username'], 'test')
-        self.assertEqual(directives['nonce'], '1234')
-        self.assertEqual(directives['nc'], '00000001')
-        self.assertEqual(directives['qop'], ['auth'])
-        self.assertEqual(directives['charset'], 'utf-8')
-        self.assertEqual(directives['digest-uri'], 'xmpp/example.org')
-        self.assertEqual(directives['realm'], '\xc3\xa9chec.example.org')
+            self.mechanism.getResponse(challenge))
+        del directives["cnonce"], directives["response"]
+        self.assertEqual({
+                'username': 'test', 'nonce': '1234', 'nc': '00000001',
+                'qop': ['auth'], 'charset': 'utf-8',
+                'realm': '\xc3\xa9chec.example.org',
+                'digest-uri': 'xmpp/example.org'}, directives)
 
 
     def test_getResponseNoRealm(self):
         """
-        Test that we accept challenges without realm.
-
-        The realm should default to the host part of the JID.
+        The response to a challenge without a realm uses the host part of the
+        JID as the realm.
         """
-
         challenge = 'nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
         directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
         self.assertEqual(directives['realm'], 'example.org')
@@ -94,24 +92,23 @@ class DigestMD5Test(unittest.TestCase):
 
     def test_getResponseNoRealmIDN(self):
         """
-        Challenges without realm work with IDN domain names.
+        If the challenge does not include a realm and the host part of the JID
+        includes bytes outside of the ASCII range, the response still includes
+        the host part of the JID as the realm.
         """
-
-        self.mechanism = sasl_mechanisms.DigestMD5(u'xmpp',
-                                                   u'\u00e9chec.example.org',
-                                                   None, u'test', u'secret')
+        self.mechanism = sasl_mechanisms.DigestMD5(
+            u'xmpp', u'\u00e9chec.example.org', None, u'test', u'secret')
         challenge = 'nonce="1234",qop="auth",charset=utf-8,algorithm=md5-sess'
-        directives = self.mechanism._parse(self.mechanism.getResponse(challenge))
+        directives = self.mechanism._parse(
+            self.mechanism.getResponse(challenge))
         self.assertEqual(directives['realm'], '\xc3\xa9chec.example.org')
 
 
-    def test_calculate_response(self):
+    def test_calculateResponse(self):
         """
-        Tests the response calculation.
-
-        Values were taken from RFC-2831 with additional unicode characters.
+        The response to a Digest-MD5 challenge is computed according to RFC
+        2831.
         """
-
         charset = 'utf-8'
         nonce = 'OA6MG9tEQGm2hh'
         nc = '%08x' % 1
@@ -122,28 +119,24 @@ class DigestMD5Test(unittest.TestCase):
         host = u'\u0418elwood.innosoft.com'
         digest_uri = u'imap/\u0418elwood.innosoft.com'.encode(charset)
 
-        mechanism = sasl_mechanisms.DigestMD5('imap', host, None,
-                                              username, password)
-        response = mechanism._calculate_response(cnonce, nc, nonce,
-                                                 username.encode(charset),
-                                                 password.encode(charset),
-                                                 host.encode(charset),
-                                                 digest_uri)
+        mechanism = sasl_mechanisms.DigestMD5(
+            'imap', host, None, username, password)
+        response = mechanism._calculate_response(
+            cnonce, nc, nonce, username.encode(charset),
+            password.encode(charset), host.encode(charset), digest_uri)
         self.assertEqual(response, '7928f233258be88392424d094453c5e3')
 
-    def test__parse(self):
-        """
-        Test challenge decoding.
 
-        Specifically, check for multiple values for the C{qop} and C{cipher}
-        directives.
+    def test_parse(self):
         """
-        challenge = 'nonce="1234",qop="auth,auth-conf",charset=utf-8,' \
-                    'algorithm=md5-sess,cipher="des,3des"'
+        A challenge can be parsed into a L{dict} with L{bytes} or L{list}
+        values.
+        """
+        challenge = (
+            'nonce="1234",qop="auth,auth-conf",charset=utf-8,'
+            'algorithm=md5-sess,cipher="des,3des"')
         directives = self.mechanism._parse(challenge)
-        self.assertEqual('1234', directives['nonce'])
-        self.assertEqual('utf-8', directives['charset'])
-        self.assertIn('auth', directives['qop'])
-        self.assertIn('auth-conf', directives['qop'])
-        self.assertIn('des', directives['cipher'])
-        self.assertIn('3des', directives['cipher'])
+        self.assertEqual({
+                "algorithm": "md5-sess", "nonce": "1234", "charset": "utf-8",
+                "qop": ['auth', 'auth-conf'], "cipher": ['des', '3des']
+                }, directives)
