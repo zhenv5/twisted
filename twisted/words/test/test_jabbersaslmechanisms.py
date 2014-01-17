@@ -121,7 +121,7 @@ class DigestMD5Test(unittest.TestCase):
 
         mechanism = sasl_mechanisms.DigestMD5(
             'imap', host, None, username, password)
-        response = mechanism._calculate_response(
+        response = mechanism._calculateResponse(
             cnonce, nc, nonce, username.encode(charset),
             password.encode(charset), host.encode(charset), digest_uri)
         self.assertEqual(response, '7928f233258be88392424d094453c5e3')
