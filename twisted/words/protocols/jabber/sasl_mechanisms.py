@@ -111,7 +111,7 @@ class DigestMD5(object):
 
         self.digest_uri = u'%s/%s' % (serv_type, host)
         if serv_name is not None:
-            self.digest_uri += u'/%s' % serv_name
+            self.digest_uri += u'/%s' % (serv_name,)
 
 
     def getInitialResponse(self):
@@ -248,7 +248,7 @@ class DigestMD5(object):
             # TODO - add error checking
             raise
 
-        nc = '%08x' % 1 # TODO: support subsequent auth.
+        nc = '%08x' % (1,) # TODO: support subsequent auth.
         cnonce = self._gen_nonce()
         qop = 'auth'
 

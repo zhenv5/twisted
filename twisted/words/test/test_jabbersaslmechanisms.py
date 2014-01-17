@@ -111,19 +111,19 @@ class DigestMD5Test(unittest.TestCase):
         """
         charset = 'utf-8'
         nonce = 'OA6MG9tEQGm2hh'
-        nc = '%08x' % 1
+        nc = '%08x' % (1,)
         cnonce = 'OA6MHXh6VqTrRk'
 
         username = u'\u0418chris'
         password = u'\u0418secret'
         host = u'\u0418elwood.innosoft.com'
-        digest_uri = u'imap/\u0418elwood.innosoft.com'.encode(charset)
+        digestURI = u'imap/\u0418elwood.innosoft.com'.encode(charset)
 
         mechanism = sasl_mechanisms.DigestMD5(
             'imap', host, None, username, password)
         response = mechanism._calculateResponse(
             cnonce, nc, nonce, username.encode(charset),
-            password.encode(charset), host.encode(charset), digest_uri)
+            password.encode(charset), host.encode(charset), digestURI)
         self.assertEqual(response, '7928f233258be88392424d094453c5e3')
 
 
