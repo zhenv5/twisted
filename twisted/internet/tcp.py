@@ -99,7 +99,8 @@ from twisted.internet.task import deferLater
 from twisted.python import log, failure, _reflectpy3 as reflect
 from twisted.python.util import untilConcludes
 from twisted.internet.error import CannotListenError
-from twisted.internet import abstract, main, interfaces, error, protocol
+from twisted.internet import abstract, main, interfaces, error
+from twisted.internet.protocol import Protocol
 
 # Not all platforms have, or support, this flag.
 _AI_NUMERICSERV = getattr(socket, "AI_NUMERICSERV", 0)
@@ -611,7 +612,7 @@ class BaseClient(_BaseBaseClient, _TLSClientMixin, Connection):
         if self.protocol is None:
             # Make up a protocol to satisfy the rest of the implementation;
             # connectionLost is going to be called, for example.
-            self.protocol = protocol.Protocol()
+            self.protocol = Protocol()
             # But dispose of the connection quickly.
             self.loseConnection()
         else:
