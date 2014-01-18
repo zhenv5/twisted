@@ -202,6 +202,42 @@ class WrappingFactoryTests(unittest.TestCase):
         return d
 
 
+    def test_buildNoneProtocol(self):
+        """
+        If the wrapped factory's C{buildProtocol} returns C{None} the
+        C{onConnection} errback fires with L{error.NoProtocol}.
+        """
+        class BogusFactory(ClientFactory):
+            """
+            A one off factory whose C{buildProtocol} returns C{None}.
+            """
+            def buildProtocol(self, addr):
+                return None
+
+        wf = endpoints._WrappingFactory(BogusFactory())
+        wf.buildProtocol(None)
+        self.failureResultOf(wf._onConnection, error.NoProtocol)
+
+
+    def test_buildProtocolReturnsNone(self):
+        """
+        If the wrapped factory's C{buildProtocol} returns C{None} then
+        L{endpoints._WrappingFactory.buildProtocol} returns C{None}.
+        """
+        class BogusFactory(ClientFactory):
+            """
+            A one off factory whose C{buildProtocol} returns C{None}.
+            """
+            def buildProtocol(self, addr):
+                return None
+
+        wf = endpoints._WrappingFactory(BogusFactory())
+        # Discard the failure this Deferred will get
+        wf._onConnection.addErrback(lambda reason: None)
+
+        self.assertIs(None, wf.buildProtocol(None))
+
+
     def test_logPrefixPassthrough(self):
         """
         If the wrapped protocol provides L{ILoggingContext}, whatever is
