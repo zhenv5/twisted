@@ -224,6 +224,8 @@ class _WrappingFactory(ClientFactory):
         """
         try:
             proto = self._wrappedFactory.buildProtocol(addr)
+            if proto is None:
+                raise error.NoProtocol()
         except:
             self._onConnection.errback()
         else:
