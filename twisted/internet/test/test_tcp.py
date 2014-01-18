@@ -25,13 +25,13 @@ from twisted.python import log
 from twisted.trial.unittest import SkipTest, TestCase
 from twisted.internet.error import (
     ConnectionLost, UserError, ConnectionRefusedError, ConnectionDone,
-    ConnectionAborted, DNSLookupError)
+    ConnectionAborted, DNSLookupError, NoProtocol)
 from twisted.internet.test.connectionmixins import (
     LogObserverMixin, ConnectionTestsMixin, StreamClientTestsMixin,
     findFreePort, ConnectableProtocol, EndpointCreator,
     runProtocolsWithReactor, Stop, BrokenContextFactory)
 from twisted.internet.test.reactormixins import (
-    ReactorBuilder, needsRunningReactor)
+    ReactorBuilder, needsRunningReactor, stopOnError)
 from twisted.internet.interfaces import (
     ILoggingContext, IConnector, IReactorFDSet, IReactorSocket, IReactorTCP,
     IResolverSimple, ITLSTransport)
@@ -457,8 +457,9 @@ class TCPClientTestsBase(ReactorBuilder, ConnectionTestsMixin,
     due to some peculiar inheritance ordering concerns, but they are
     effectively abstract methods.
 
-    @ivar endpoints: A L{twisted.internet.test.reactormixins.EndpointCreator}
-      instance.
+    @ivar endpoints: A client/server endpoint creator appropriate to the
+        address family being tested.
+    @type endpoints: L{twisted.internet.test.connectionmixins.EndpointCreator}
 
     @ivar interface: An IP address literal to locally bind a socket to as well
         as to connect to.  This can be any valid interface for the local host.
@@ -536,6 +537,51 @@ class TCPClientTestsBase(ReactorBuilder, ConnectionTestsMixin,
         @return: A TCP connector instance.
         """
         return reactor.connectTCP(self.interface, self.port, factory)
+
+
+    def test_buildProtocolReturnsNone(self):
+        """
+        When the factory's C{buildProtocol} returns C{None} the connection is
+        gracefully closed.
+        """
+        connectionLost = Deferred()
+        reactor = self.buildReactor()
+        serverFactory = MyServerFactory()
+        serverFactory.protocolConnectionLost = connectionLost
+
+        stopOnError(self, reactor)
+
+        class NoneFactory(ServerFactory):
+            def buildProtocol(self, address):
+                return None
+
+        listening = self.endpoints.server(reactor).listen(serverFactory)
+
+        def listened(port):
+            clientFactory = NoneFactory()
+            endpoint = self.endpoints.client(reactor, port.getHost())
+            return endpoint.connect(clientFactory)
+        connecting = listening.addCallback(listened)
+
+        def connectSucceeded(protocol):
+            self.fail(
+                "Stream client endpoint connect succeeded with %r, "
+                "should have failed with NoProtocol." % (protocol,))
+        def connectFailed(reason):
+            reason.trap(NoProtocol)
+        connecting.addCallbacks(connectSucceeded, connectFailed)
+
+        def connected(ignored):
+            return connectionLost
+        disconnecting = connecting.addCallback(connected)
+
+        disconnecting.addErrback(log.err)
+
+        def disconnected(ignored):
+            reactor.stop()
+        disconnecting.addCallback(disconnected)
+
+        self.runReactor(reactor)
 
 
     def test_addresses(self):

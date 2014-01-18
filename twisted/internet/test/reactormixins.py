@@ -76,6 +76,28 @@ def needsRunningReactor(reactor, thunk):
 
 
 
+def stopOnError(case, reactor, publisher=None):
+    """
+    Stop the reactor as soon as any error is logged on the given publisher.
+
+    @param case: A L{SynchronousTestCase} to use to clean up the necessary log
+        observer when the test is over.
+    @param reactor: The reactor to stop.
+    @param publisher: A L{LogPublisher} to watch for errors.  If C{None}, the
+        global log publisher will be watched.
+    """
+    if publisher is None:
+        from twisted.python import log as publisher
+    running = [None]
+    def stopIfError(event):
+        if running and event.get('isError'):
+            running.pop()
+            reactor.stop()
+    publisher.addObserver(stopIfError)
+    case.addCleanup(publisher.removeObserver, stopIfError)
+
+
+
 class ReactorBuilder:
     """
     L{SynchronousTestCase} mixin which provides a reactor-creation API.  This
