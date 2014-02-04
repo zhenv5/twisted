@@ -6,6 +6,8 @@
 from __future__ import division, absolute_import
 
 import itertools
+import string
+
 from hashlib import md5
 
 from OpenSSL import SSL, crypto
@@ -625,6 +627,87 @@ class KeyPair(PublicKey):
 
 
 
+# At some point the upper/lowecase functinality should be moved into general
+# utility function:
+_tolower = string.maketrans(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+                            b"abcdefghijklmnopqrstuvwxyz")
+
+def matchHostname(hostname, certificateNames):
+    """
+    Return whether the names in the certificate match the given hostname.
+
+    This follows the rules of RFC 6125:
+    - Case insensitive.
+    - Wildcard comparision only for left most domain element.
+    - Unicode hostnames are encoded to IDNA before comparison.
+
+    @param hostname: A specific hostname.
+
+    @param certificateNames: A list of names provided by a certificate; some
+        of these may be wildcard names.
+    """
+    def allButFirst(domain):
+        return domain.split(b".")[1:]
+
+    # Convert to A-label domain names:
+    if isinstance(hostname, unicode):
+        hostname = hostname.encode("idna")
+    asciiNames = []
+    for cn in certificateNames:
+        if isinstance(cn, unicode):
+            cn = cn.encode("idna")
+        asciiNames.append(cn)
+
+    # Lowercase the names. We don't use normal .lower() because it is
+    # locale-specific and won't do the right thing in e.g. Turkish locale.
+    hostname = hostname.translate(_tolower)
+    certificateNames = [name.translate(_tolower) for name in asciiNames]
+
+    # Compare:
+    for cn in certificateNames:
+        if cn.startswith(b"*.") and allButFirst(hostname) == allButFirst(cn):
+            return True
+        if hostname == cn:
+            return True
+    return False
+
+
+
+def getDomainsForMatching(x509):
+    """
+    Return a list of domains from a certificate, suitable for use with
+    L{matchHostname}.
+
+    The commonName and subjectAltName DNS entries will be extracted. Following
+    RFC 2818 rules, subjectAltName dNSNames are checked first, followed by the
+    commonName if there are no dNSNames. Unlike the RFC rules, IPs are not
+    extracted, and all commonNames are checked, not just the most specific.
+
+    @param x509: A C{X509} object.
+
+    @return: A list of domains extracted from the certificate.
+    @rtype: A C{list} of C{bytes}.
+    """
+    from pyasn1.codec.der.decoder import decode
+    from pyasn1_modules.rfc2459 import GeneralNames
+    result = []
+    for i in range(x509.get_extension_count()):
+        ext = x509.get_extension(i)
+        if ext.get_short_name() == 'subjectAltName':
+            names, _ = decode(ext.get_data(), asn1Spec=GeneralNames())
+            for name in names:
+                if name.getName() == 'dNSName':
+                    result.append(name.getComponent().asOctets())
+    if result:
+        return result
+    # XXX can there be multiple commonNames?
+    CN = x509.get_subject().commonName
+    if CN:
+        result.append(CN)
+    return result
+
+
+
 class OpenSSLCertificateOptions(object):
     """
     A factory for SSL context objects for both SSL servers and clients.
@@ -663,7 +746,8 @@ class OpenSSLCertificateOptions(object):
                  enableSessionTickets=False,
                  extraCertChain=None,
                  acceptableCiphers=None,
-                 dhParameters=None):
+                 dhParameters=None,
+                 hostname=None):
         """
         Create an OpenSSL context SSL connection context factory.
 
@@ -731,6 +815,10 @@ class OpenSSLCertificateOptions(object):
         @type dhParameters: L{DiffieHellmanParameters
             <twisted.internet.ssl.DiffieHellmanParameters>}
 
+        @param hostname: If given, the peer's certificate will be validated
+            against the hostname.
+        @type hostname: L{bytes}
+
         @raise ValueError: when C{privateKey} or C{certificate} are set
             without setting the respective other.
 
@@ -794,6 +882,11 @@ class OpenSSLCertificateOptions(object):
         if not enableSessionTickets:
             self._options |= self._OP_NO_TICKET
         self.dhParameters = dhParameters
+        if hostname and not verify:
+            raise ValueError(
+                "Specify hostname only if enabling certificate verification."
+            )
+        self.hostname = hostname
 
         if acceptableCiphers is None:
             acceptableCiphers = defaultCiphers
@@ -856,12 +949,21 @@ class OpenSSLCertificateOptions(object):
                 store = ctx.get_cert_store()
                 for cert in self.caCerts:
                     store.add_cert(cert)
-
-        # It'd be nice if pyOpenSSL let us pass None here for this behavior (as
-        # the underlying OpenSSL API call allows NULL to be passed).  It
-        # doesn't, so we'll supply a function which does the same thing.
-        def _verifyCallback(conn, cert, errno, depth, preverify_ok):
-            return preverify_ok
+        if self.hostname:
+            def _verifyCallback(conn, cert, errno, depth, preverify_ok):
+                if not preverify_ok:
+                    return False
+                if depth == 0:
+                    return matchHostname(self.hostname,
+                                         getDomainsForMatching(cert))
+                else:
+                    return True
+        else:
+            # It'd be nice if pyOpenSSL let us pass None here for this behavior
+            # (as the underlying OpenSSL API call allows NULL to be passed).
+            # It doesn't, so we'll supply a function which does the same thing.
+            def _verifyCallback(conn, cert, errno, depth, preverify_ok):
+                return preverify_ok
         ctx.set_verify(verifyFlags, _verifyCallback)
 
         if self.verifyDepth is not None:
