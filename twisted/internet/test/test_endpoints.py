@@ -214,9 +214,9 @@ class WrappingFactoryTests(unittest.TestCase):
             def buildProtocol(self, addr):
                 return None
 
-        wf = endpoints._WrappingFactory(BogusFactory())
-        wf.buildProtocol(None)
-        self.failureResultOf(wf._onConnection, error.NoProtocol)
+        wrappingFactory = endpoints._WrappingFactory(BogusFactory())
+        wrappingFactory.buildProtocol(None)
+        self.failureResultOf(wrappingFactory._onConnection, error.NoProtocol)
 
 
     def test_buildProtocolReturnsNone(self):
@@ -231,11 +231,11 @@ class WrappingFactoryTests(unittest.TestCase):
             def buildProtocol(self, addr):
                 return None
 
-        wf = endpoints._WrappingFactory(BogusFactory())
+        wrappingFactory = endpoints._WrappingFactory(BogusFactory())
         # Discard the failure this Deferred will get
-        wf._onConnection.addErrback(lambda reason: None)
+        wrappingFactory._onConnection.addErrback(lambda reason: None)
 
-        self.assertIs(None, wf.buildProtocol(None))
+        self.assertIs(None, wrappingFactory.buildProtocol(None))
 
 
     def test_logPrefixPassthrough(self):
