@@ -573,6 +573,9 @@ class TCPClientTestsBase(ReactorBuilder, ConnectionTestsMixin,
         connecting.addCallbacks(connectSucceeded, connectFailed)
 
         def connected(ignored):
+            # Now that the connection attempt has failed continue waiting for
+            # the server-side connection to be lost.  This is the behavior this
+            # test is primarily concerned with.
             return connectionLost
         disconnecting = connecting.addCallback(connected)
 
