@@ -549,6 +549,7 @@ class TCPClientTestsBase(ReactorBuilder, ConnectionTestsMixin,
         serverFactory = MyServerFactory()
         serverFactory.protocolConnectionLost = connectionLost
 
+        # Make sure the test ends quickly.
         stopOnError(self, reactor)
 
         class NoneFactory(ServerFactory):

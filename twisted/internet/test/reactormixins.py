@@ -80,6 +80,13 @@ def stopOnError(case, reactor, publisher=None):
     """
     Stop the reactor as soon as any error is logged on the given publisher.
 
+    This is beneficial for tests which will wait for a L{Deferred} to fire
+    before completing (by passing or failing).  Certain implementation bugs may
+    prevent the L{Deferred} from firing with any result at all.  In that case
+    the test would have to complete by timing out which is a much less
+    desirable outcome than completing as soon as the unexpected error is
+    encountered.
+
     @param case: A L{SynchronousTestCase} to use to clean up the necessary log
         observer when the test is over.
     @param reactor: The reactor to stop.
