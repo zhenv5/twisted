@@ -150,6 +150,15 @@ class TestFactory(ClientFactory):
 
 
 
+class NoneFactory(ClientFactory):
+    """
+    A one off factory whose C{buildProtocol} returns C{None}.
+    """
+    def buildProtocol(self, addr):
+        return None
+
+
+
 class WrappingFactoryTests(unittest.TestCase):
     """
     Test the behaviour of our ugly implementation detail C{_WrappingFactory}.
@@ -207,14 +216,7 @@ class WrappingFactoryTests(unittest.TestCase):
         If the wrapped factory's C{buildProtocol} returns C{None} the
         C{onConnection} errback fires with L{error.NoProtocol}.
         """
-        class BogusFactory(ClientFactory):
-            """
-            A one off factory whose C{buildProtocol} returns C{None}.
-            """
-            def buildProtocol(self, addr):
-                return None
-
-        wrappingFactory = endpoints._WrappingFactory(BogusFactory())
+        wrappingFactory = endpoints._WrappingFactory(NoneFactory())
         wrappingFactory.buildProtocol(None)
         self.failureResultOf(wrappingFactory._onConnection, error.NoProtocol)
 
@@ -224,14 +226,7 @@ class WrappingFactoryTests(unittest.TestCase):
         If the wrapped factory's C{buildProtocol} returns C{None} then
         L{endpoints._WrappingFactory.buildProtocol} returns C{None}.
         """
-        class BogusFactory(ClientFactory):
-            """
-            A one off factory whose C{buildProtocol} returns C{None}.
-            """
-            def buildProtocol(self, addr):
-                return None
-
-        wrappingFactory = endpoints._WrappingFactory(BogusFactory())
+        wrappingFactory = endpoints._WrappingFactory(NoneFactory())
         # Discard the failure this Deferred will get
         wrappingFactory._onConnection.addErrback(lambda reason: None)
 
