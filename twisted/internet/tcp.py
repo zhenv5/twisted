@@ -610,8 +610,11 @@ class BaseClient(_BaseBaseClient, _TLSClientMixin, Connection):
         logPrefix = self._getLogPrefix(self.protocol)
         self.logstr = "%s,client" % logPrefix
         if self.protocol is None:
-            # Make up a protocol to satisfy the rest of the implementation;
-            # connectionLost is going to be called, for example.
+            # Factory.buildProtocol is allowed to return None.  In that case,
+            # make up a protocol to satisfy the rest of the implementation;
+            # connectionLost is going to be called on something, for example.
+            # This is easier than adding special case support for a None
+            # protocol throughout the rest of the transport implementation.
             self.protocol = Protocol()
             # But dispose of the connection quickly.
             self.loseConnection()
