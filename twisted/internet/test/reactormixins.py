@@ -82,10 +82,11 @@ def stopOnError(case, reactor, publisher=None):
 
     This is beneficial for tests which will wait for a L{Deferred} to fire
     before completing (by passing or failing).  Certain implementation bugs may
-    prevent the L{Deferred} from firing with any result at all.  In that case
-    the test would have to complete by timing out which is a much less
-    desirable outcome than completing as soon as the unexpected error is
-    encountered.
+    prevent the L{Deferred} from firing with any result at all (consider a
+    protocol's {dataReceived} method that raises an exception: this exception
+    is logged but it won't ever cause a L{Deferred} to fire).  In that case the
+    test would have to complete by timing out which is a much less desirable
+    outcome than completing as soon as the unexpected error is encountered.
 
     @param case: A L{SynchronousTestCase} to use to clean up the necessary log
         observer when the test is over.

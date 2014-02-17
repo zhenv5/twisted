@@ -579,9 +579,14 @@ class TCPClientTestsBase(ReactorBuilder, ConnectionTestsMixin,
             return connectionLost
         disconnecting = connecting.addCallback(connected)
 
+        # Make sure any errors that happen in that process get logged quickly.
         disconnecting.addErrback(log.err)
 
         def disconnected(ignored):
+            # The Deferred has to succeed at this point (because log.err always
+            # returns None).  If an error got logged it will fail the test.
+            # Stop the reactor now so the test can complete one way or the
+            # other now.
             reactor.stop()
         disconnecting.addCallback(disconnected)
 
