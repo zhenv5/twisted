@@ -66,6 +66,7 @@ Developer Guides
    python3
    glossary
    debug-with-emacs
+   tube
 
 
 
