@@ -13,7 +13,6 @@ The :api:`twisted.tubes <twisted.tubes>` package implements a set of interfaces 
 However, unless you've had experience writing distributed systems before, that description might not make sense.
 If that's the case, this next section should explain what :api:`twisted.tubes <twisted.tubes>` is, and why you would want to use it.
 
-
 Long Description
 ----------------
 
@@ -21,7 +20,6 @@ All programs transform input to output.  Here's a simple example:
 
 .. code-block:: python
 
-    
     def process(input):
         output = something(input)
         return output
@@ -65,8 +63,6 @@ That's where the ``twisted.tubes`` package comes in; the rest of this document w
       The fact that different responsibilities live in different objects makes it easier to test and instrument them.
    #. ``twisted.tubes`` *handles flow control automatically* .
       The manual flow-control notifications provided by ``IProducer`` and ``IConsumer`` are still used internally in ``tubes`` to hook up to ``twisted.internet`` , but the interfaces defined in ``tubes`` itself are considerably more flexible, as they allow you to hook together chains of arbitrary length, as opposed to just getting buffer notifications for a single connection to a single object.
-   
-   
 
 Tutorial
 --------
@@ -76,7 +72,6 @@ In a networking context, that means an echo server.
 Here's a complete program which uses interfaces defined by ``twisted.tubes`` to send its input straight on to its output:
 
 .. code-block:: python
-
     
     def echoFlow(fount, drain):
         return fount.flowTo(drain)
@@ -103,14 +98,11 @@ To demonstrate both receiving and processing data, let's write a server that:
 #. receives lines from that connection
 #. interprets those lines as either:
    
-   
    #. an integer, expressed as an ASCII decimal number, OR
    #. a command, which is ``SUM`` or ``PRODUCT`` 
    
-   
 #. executes the SUM and PRODUCT commands by adding or multiplying all of the numbers received since the last command (or the beginning of the connection)
 #. responds to the SUM and PRODUCT commands by writing the result of the calculation out to the connection.
-
 
 In order to implement this program, we will construct a *series* of objects which process the data; or, in the parlance of the ``tubes`` package, "``Pump`` s".
 Each ``Pump`` in the ``series`` will be responsible for processing part of the data.
@@ -136,14 +128,11 @@ So what is ``dataProcessor`` and what does it return?  We need to write it, and 
 
 .. literalinclude:: listings/tubes/dataproc.py
 
-
-
 To complete the example, we need to implement 3 classes, each of which is a Pump:
 
 - ``LinesToIntegersOrCommands`` 
 - ``CommandsAndIntegersToResultIntegers`` 
 - ``IntegersToLines`` 
-
 
 Let's implement them.  First, ``LinesToIntegersOrCommands`` receives lines and converts them into either integers, or functions, then delivers them on.
 
@@ -181,17 +170,17 @@ This forwards all bytes from your ``telnet`` client to our echo server, and all 
 
 .. code-block:: python
 
-    
     def echoFlow(fount, drain):
         return (fount.flowTo(Tube(stringToNetstring()))
                      .flowTo(drain))
 
 :api:`twisted.tubes.itube.IFount.flowTo <flowTo>` can return a :api:`twisted.tube.itube.IFount <IFount>` so we can chain :api:`twisted.tubes.itube.IFount.flowTo <flowTo>` calls (in other words, call ``flowTo`` on the result of ``flowTo`` ) to construct a "flow".
-In this case, ``.flowTo(Tube(stringToNetstring()))`` returns a new :api:`twisted.tubes.itube.IFount <IFount>` whose output will be `netstring <http://cr.yp.to/proto/netstrings.txt>`_ s... note::
-   
-       If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>`  takes an :api:`twisted.tube.itube.IDrain <IDrain>` , and returns the result of that :api:`twisted.tube.itube.IDrain <IDrain>` 's :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>`  method.
-       This allows the ``Tube``  - which is the ``IDrain``  in this scenario, and therefore what knows what the output will be after it's processed it, to affect the return value of the previous ``IFount`` 's ``flowTo``  method.
+In this case, ``.flowTo(Tube(stringToNetstring()))`` returns a new :api:`twisted.tubes.itube.IFount <IFount>` whose output will be `netstrings <http://cr.yp.to/proto/netstrings.txt>`_
+
+.. note::
+
+    If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>`  takes an :api:`twisted.tube.itube.IDrain <IDrain>` , and returns the result of that  :api:`twisted.tube.itube.IDrain <IDrain's>` :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>`  method.
+    This allows the ``Tube``  - which is the ``IDrain``  in this scenario, and therefore what knows what the output will be after it's processed it, to affect the return value of the previous ``IFount`` 's ``flowTo``  method.
 
 We have now extended our simple ``echoFlow`` to add a length prefix to each chunk of its input before echoing it back to your client.
 This demonstrates how you can manipulate data as it passes through a flow.
-
