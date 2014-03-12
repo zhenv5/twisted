@@ -66,7 +66,7 @@ Let's do exactly that, and call ``echoFlow`` with a real, network-facing ``fount
 
 This fully-functioning example (just run it with "``python echotube.py`` ") implements an echo server.
 You can test it out with ``telnet localhost 4321`` .
-(If you are on Windows, and do not have ``telnet`` installed, try running ``pkgmgr /iu:"TelnetClient"`` first; after waiting a few moments, ``telnet`` should be available.)
+(If you are on Windows, and do not have ``telnet`` installed, try running ``dism /online /Enable-Feature /FeatureName:TelnetClient`` first; after waiting a few moments, ``telnet`` should be available.)
 
 However, this example still performs no processing of the data that it is receiving.
 
