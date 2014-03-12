@@ -1,8 +1,4 @@
 
-:LastChangedDate: $LastChangedDate$
-:LastChangedRevision: $LastChangedRevision$
-:LastChangedBy: $LastChangedBy$
-
 An Introduction to Tubes
 ========================
 
@@ -161,7 +157,7 @@ In this case, ``.flowTo(Tube(stringToNetstring()))`` returns a new :api:`twisted
 
 .. note::
 
-    If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>`  takes an :api:`twisted.tube.itube.IDrain <IDrain>`, and returns the result of that  :api:`twisted.tube.itube.IDrain <IDrain's>` :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>` method.
+    If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>`  takes an :api:`twisted.tube.itube.IDrain <IDrain>`, and returns the result of that  :api:`twisted.tube.itube.IDrain <IDrain's>` :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>`method.
     This allows the ``Tube``  - which is the ``IDrain``  in this scenario, and therefore what knows what the output will be after it's processed it, to affect the return value of the previous ``IFount`` 's ``flowTo``  method.
 
 We have now extended our simple ``echoFlow`` to add a length prefix to each chunk of its input before echoing it back to your client.
