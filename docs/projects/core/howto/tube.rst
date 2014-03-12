@@ -6,40 +6,22 @@
 An Introduction to Tubes
 ========================
 
-Quick Description
------------------
+Abstract
+--------
 
 The :api:`twisted.tubes <twisted.tubes>` package implements a set of interfaces and a system for automatic propagation and manual management of data-agnostic flow-control, and composable processing of typed data.
 However, unless you've had experience writing distributed systems before, that description might not make sense.
 If that's the case, this next section should explain what :api:`twisted.tubes <twisted.tubes>` is, and why you would want to use it.
 
-Long Description
-----------------
+What Are Twisted Tubes?
+-----------------------
 
-All programs transform input to output.  Here's a simple example:
-
-.. code-block:: python
-
-    def process(input):
-        output = something(input)
-        return output
-
-Writing programs like this is simple, but often useless, because this structure makes some assumptions which are rarely true.``process`` (and functions like it) assume that…
-
-- …each input corresponds to only one output; in a *useful* program, one input may result in zero, one, or more outputs.
-- …the input can be computed from stuff that's already in memory; in a *useful* program, you will need to load data from elsewhere.
-- …simply returning the value is enough to send it on to the relevant output; in a *useful* program, one almost always needs to call a specific API to send output somewhere.
-- …the system waiting for output is always ready to accept more; in a *useful* program, buffer sizes are limited, networks are slow, and you may have to wait before producing more output.
-
-
-The ``twisted.tubes`` package exists to help you create *useful* programs, by providing both a structure that handles many of these issues when they can be addressed automatically, and tools to help you manage them when you need to deal with them manually.
-
-For example, let's say you are processing a stream of bytes, containing messages that are delimited by marker, ``b"\r\n"`` (as many network protocols are).
+Suppose you are processing a stream of bytes, containing messages that are delimited by marker, ``b"\r\n"`` (as many network protocols are).
 If your program receives ``b"hello, world"`` , as an input, it should deliver zero outputs, since it hasn't seen a message boundary yet.
 If it receives ``b"hello\r\nworld\r\n"`` , then it should deliver two outputs, ``b"hello"`` , and ``b"world"`` .
 If your program receives ``b"hello\r"`` , and then *later* receives ``b"\nworld\r\n"`` , the *second* invocation needs to return two outputs.
 
-Also, when dealing with streams of data from networks, it's common to want to send data somewhere as well as receiving it from somewhere.
+When dealing with streams of data from networks, it's common to want to send data somewhere as well as receiving it from somewhere.
 Even if your all that your program is concerned with is converting a sequence bytes into a sequence of lines, it still needs to be aware of the fact that its output buffer may be full, and unprepared to receive any more lines.
 For example, the line-splitting code above might be used in a proxy that relays output from a server with a very fast, low-latency uplink, to client computers on very slow high-latency networks.
 The (fast) server's output will easily outpace a (slow) client's input, which means that if the line parser is going as fast as it can, lines will pile up in outgoing buffers while waiting to be sent out, and consume all of the proxy's memory.
@@ -179,7 +161,7 @@ In this case, ``.flowTo(Tube(stringToNetstring()))`` returns a new :api:`twisted
 
 .. note::
 
-    If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>`  takes an :api:`twisted.tube.itube.IDrain <IDrain>` , and returns the result of that  :api:`twisted.tube.itube.IDrain <IDrain's>` :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>`  method.
+    If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>`  takes an :api:`twisted.tube.itube.IDrain <IDrain>`, and returns the result of that  :api:`twisted.tube.itube.IDrain <IDrain's>` :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>` method.
     This allows the ``Tube``  - which is the ``IDrain``  in this scenario, and therefore what knows what the output will be after it's processed it, to affect the return value of the previous ``IFount`` 's ``flowTo``  method.
 
 We have now extended our simple ``echoFlow`` to add a length prefix to each chunk of its input before echoing it back to your client.
