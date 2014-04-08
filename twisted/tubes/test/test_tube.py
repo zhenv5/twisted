@@ -866,3 +866,80 @@ class TubeTest(TestCase):
         self.fd.fount.stopFlow()
         self.ff.flowTo(partially)
         self.assertEquals(self.ff.flowIsStopped, True)
+
+
+    def test_startedRaises(self):
+        """
+        If L{IPump.started} raises an exception, the exception will be logged,
+        and...
+        """
+        self.fail()
+
+
+    def test_progressedRaises(self):
+        """
+        If L{IPump.progressed} raises an exception, the exception will be
+        logged, and...
+        """
+        self.fail()
+
+
+    def test_receivedRaises(self):
+        """
+        If L{IPump.received} raises an exception, the exception will be logged,
+        and...
+        """
+        self.fail()
+
+
+    def test_stoppedRaises(self):
+        """
+        If L{IPump.stopped} raises an exception, the exception will be logged,
+        and...
+        """
+        self.fail()
+
+
+    def test_iterOnResultRaises(self):
+        """
+        When the iterator returned from L{IPump}.
+        """
+        self.fail()
+
+
+    def test_nextOnIteratorRaises(self):
+        """
+        If L{next} on the iterator returned from L{IPump.started} (OR OTHER)
+        raises an exception, the exception will be logged, and...
+        """
+        self.fail()
+
+
+    def test_deferredFromNextOnIteratorFails(self):
+        """
+        If L{next} on the iterator returned from L{IPump.started} (OR OTHER)
+        returns a L{Deferred} which then fails, the failure will be logged,
+        and...
+        """
+        self.fail()
+
+
+    def test_reassembleRaises(self):
+        """
+        
+        """
+        self.fail()
+
+
+    def test_setTubeToSelfRaises(self):
+        """
+        
+        """
+        self.fail()
+
+
+    def test_setTubeToNoneRaises(self):
+        """
+        
+        """
+        self.fail()
