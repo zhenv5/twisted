@@ -28,7 +28,7 @@ from twisted.python.systemd import ListenFDs
 from twisted.python.filepath import FilePath
 from twisted.python.runtime import platform
 from twisted.python import log
-from twisted.protocols import basic
+from twisted.protocols import basic, policies
 from twisted.internet.task import Clock
 from twisted.test.proto_helpers import (MemoryReactorClock as MemoryReactor)
 from twisted.test import __file__ as testInitPath
@@ -3213,6 +3213,231 @@ class ConnectProtocolTests(unittest.TestCase):
 
         endpoint = Endpoint()
         self.assertIs(result, endpoints.connectProtocol(endpoint, object()))
+
+
+
+class FakeEndpoint(object):
+    """
+    A fake endpoint which connects to a L{StringTransport}.
+
+    @ivar deferred: A L{Deferred} to be returned instead from C{connect} if
+        non-L{None}.
+    """
+
+    def __init__(self):
+        self.deferred = None
+
+
+    def connect(self, fac):
+        """
+        Connect a factory to a L{StringTransport}.
+
+        @param fac: A factory.
+        @type fac: An L{IProtocolFactory} provider.
+
+        @return: A L{Deferred} which fires with the L{IProtocol} returned from
+            C{fac.buildProtcol}.
+        """
+        if self.deferred is not None:
+            return self.deferred
+        self.factory = fac
+        self.proto = fac.buildProtocol(None)
+        transport = StringTransport()
+        self.proto.makeConnection(transport)
+        self.transport = transport
+        return defer.succeed(self.proto)
+
+
+
+class UppercaseWrapperProtocol(policies.ProtocolWrapper):
+    """
+    A wrapper protocol which uppercases all strings passed through it.
+    """
+
+    def dataReceived(self, data):
+        """
+        Uppercase a string passed in from the transport.
+
+        @param data: The string to uppercase.
+        @type data: L{bytes}
+        """
+        policies.ProtocolWrapper.dataReceived(self, data.upper())
+
+
+    def write(self, data):
+        """
+        Uppercase a string passed out to the transport.
+
+        @param data: The string to uppercase.
+        @type data: L{bytes}
+        """
+        policies.ProtocolWrapper.write(self, data.upper())
+
+
+    def writeSequence(self, seq):
+        """
+        Uppercase a series of strings passed out to the transport.
+
+        @param seq: An iterable of strings.
+        """
+        for data in seq:
+            self.write(data)
+
+
+
+class UppercaseWrapperFactory(policies.WrappingFactory):
+    """
+    A wrapper factory which uppercases all strings passed through it.
+
+    @param context: A context factory, to persist for tests.
+    @param isClient: A boolean indicating this is supposed to be a client
+        getting wrapped, to persist for tests.
+    @param factory: The factory to wrap.
+    @type factory: an L{IProtocolFactory} provider
+    """
+
+    protocol = UppercaseWrapperProtocol
+
+    def __init__(self, context, isClient, factory):
+        self.context = context
+        self.isClient = isClient
+        policies.WrappingFactory.__init__(self, factory)
+
+
+
+class NetstringTracker(basic.NetstringReceiver):
+    """
+    A netstring receiver which keeps track of the strings received.
+
+    @ivar strings: A L{list} of received strings, in order.
+    """
+
+    def __init__(self):
+        self.strings = []
+
+
+    def stringReceived(self, string):
+        """
+        Receive a string and append it to C{self.strings}.
+
+        @param string: The string to be appended to C{self.strings}.
+        """
+        self.strings.append(string)
+
+
+
+class NetstringFactory(protocol.ClientFactory):
+    """
+    A factory for L{NetstringTracker} protocols.
+    """
+
+    protocol = NetstringTracker
+
+
+
+class FakeError(Exception):
+    """
+    An error which isn't really an error.
+
+    This is raised in the L{TLSWrapperClientEndpoint} tests in place of a
+    'real' exception.
+    """
+
+
+
+class TLSWrapperClientEndpointTests(unittest.TestCase):
+    """
+    Tests for L{TLSWrapperClientEndpoint}.
+    """
+
+    def setUp(self):
+        self.endpoint = FakeEndpoint()
+        self.context = object()
+        self.wrapper = endpoints.TLSWrapperClientEndpoint(
+            self.context, self.endpoint, _wrapper=UppercaseWrapperFactory)
+        self.factory = NetstringFactory()
+
+
+    def test_wrappingBehavior(self):
+        """
+        Any modifications performed by the underlying L{ProtocolWrapper}
+        propagate through to the wrapped L{Protocol}.
+        """
+        proto = self.successResultOf(self.wrapper.connect(self.factory))
+        self.endpoint.proto.dataReceived(b'5:hello,')
+        self.assertEqual(proto.strings, [b'HELLO'])
+
+
+    def test_methodsAvailable(self):
+        """
+        Methods defined on the wrapped L{Protocol} are accessible from the
+        L{Protocol} returned from C{connect}'s L{Deferred}.
+        """
+        proto = self.successResultOf(self.wrapper.connect(self.factory))
+        proto.sendString(b'spam')
+        self.assertEqual(self.endpoint.transport.value(), b'4:SPAM,')
+
+
+    def test_connectionFailure(self):
+        """
+        Connection failures propagate upward to C{connect}'s L{Deferred}.
+        """
+        self.endpoint.deferred = defer.Deferred()
+        d = self.wrapper.connect(self.factory)
+        self.assertNoResult(d)
+        self.endpoint.deferred.errback(FakeError())
+        self.failureResultOf(d, FakeError)
+
+
+    def test_connectionCancellation(self):
+        """
+        Cancellation propagates upward to C{connect}'s L{Deferred}.
+        """
+        canceled = []
+        self.endpoint.deferred = defer.Deferred(canceled.append)
+        d = self.wrapper.connect(self.factory)
+        self.assertNoResult(d)
+        d.cancel()
+        self.assert_(canceled)
+        self.failureResultOf(d, defer.CancelledError)
+
+
+    def test_contextPassing(self):
+        """
+        The SSL context object is passed along to the wrapper.
+        """
+        self.successResultOf(self.wrapper.connect(self.factory))
+        self.assertIdentical(self.context, self.endpoint.factory.context)
+
+
+    def test_clientMode(self):
+        """
+        The wrapper is set in client mode.
+        """
+        self.successResultOf(self.wrapper.connect(self.factory))
+        self.assertTrue(self.endpoint.factory.isClient)
+
+
+    def test_transportOfTransportOfWrappedProtocol(self):
+        """
+        The transport of the wrapped L{Protocol}'s transport is the transport
+        passed to C{makeConnection}.
+        """
+        proto = self.successResultOf(self.wrapper.connect(self.factory))
+        self.assertIdentical(
+            proto.transport.transport, self.endpoint.transport)
+
+
+    def test_noSSLSupport(self):
+        """
+        If SSL is not supported, L{TLSMemoryBIOFactory} will be L{None}, which
+        causes C{_wrapper} to also be L{None}. If C{_wrapper} is L{None}, then
+        an exception is raised.
+        """
+        self.assertRaises(
+            NotImplementedError,
+            endpoints.TLSWrapperClientEndpoint,
+            self.context, self.factory, _wrapper=None)
 
 
 
