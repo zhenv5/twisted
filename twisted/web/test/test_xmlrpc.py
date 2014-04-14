@@ -21,7 +21,9 @@ from twisted.python import failure
 from twisted.test.proto_helpers import MemoryReactor
 from twisted.web.test.test_web import DummyRequest
 try:
-    import twisted.internet.ssl
+    from twisted.internet import ssl
+    # Silence the linter.
+    ssl
 except ImportError:
     sslSkip = "OpenSSL not present"
 else:

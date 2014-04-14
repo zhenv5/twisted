@@ -622,7 +622,8 @@ alert("I hate you");
 
     def testDict(self):
         n = microdom.Element("p")
-        d = {n : 1} # will fail if Element is unhashable
+        d = {n: 1}  # will fail if Element is unhashable
+        d  # Silence the linter.
 
     def testEscaping(self):
         # issue 590
