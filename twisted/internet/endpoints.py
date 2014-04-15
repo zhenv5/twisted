@@ -53,6 +53,7 @@ else:
 
 try:
     from twisted.protocols.tls import TLSMemoryBIOFactory
+    from twisted.internet._sslverify import _idnaBytes
 except ImportError:
     TLSMemoryBIOFactory = None
 
@@ -1610,6 +1611,7 @@ def _parseClientSSLOptions(kwargs):
     certKey = kwargs.pop('certKey', None)
     privateKey = kwargs.pop('privateKey', None)
     caCertsDir = kwargs.pop('caCertsDir', None)
+    hostname = kwargs.pop('hostname', None)
     if certKey is not None:
         certx509 = ssl.Certificate.loadPEM(
             FilePath(certKey).getContent()).original
@@ -1631,7 +1633,8 @@ def _parseClientSSLOptions(kwargs):
         certificate=certx509,
         privateKey=privateKey,
         verify=verify,
-        caCerts=caCerts
+        caCerts=caCerts,
+        hostname=hostname,
     )
     return kwargs
 
@@ -1853,6 +1856,76 @@ class TLSWrapperClientEndpoint(object):
 
 
 @implementer(IPlugin, IStreamClientEndpointStringParserWithReactor)
+class _TLSClientEndpointParser(object):
+    """
+    Stream client endpoint string parser for L{TLSWrapperClientEndpoint} with
+    L{HostnameEndpoint}.
+
+    @ivar prefix: See
+        L{IStreamClientEndpointStringParserWithReactor.prefix}.
+    """
+    prefix = 'tls'
+
+    def _parseClient(self, reactor, host, port, timeout=b'30',
+                     bindAddress=None, **kwargs):
+        """
+        Internal method to construct an endpoint from string parameters.
+
+        @param reactor: The reactor passed to L{clientFromString}.
+
+        @param host: The hostname to connect to.
+        @type host: L{bytes}
+
+        @param port: The port to connect to.
+        @type port: L{bytes}
+
+        @param timeout: For each individual connection attempt, the number of
+            seconds to wait before assuming the connection has failed.
+        @type timeout: L{bytes}
+
+        @param bindAddress: The address to which to bind outgoing connections.
+        @type port: L{bytes}
+
+        @param kwargs: Extra arguments for creating the TLS context. This can
+            contain keys C{certKey}, C{privateKey}, and C{caCertsDir}. See
+            L{_parseClientSSL}. Passing arguments not listed will cause a
+            L{ValueError} to be raised.
+        @type kwargs: L{dict}
+
+        @return: An instance of L{TLSWrapperClientEndpoint}.
+        """
+        host = host.decode('utf-8')
+        wrappedEndpoint = HostnameEndpoint(
+            reactor, _idnaBytes(host), int(port), int(timeout), bindAddress)
+        kwargs['hostname'] = host
+        kwargs = _parseClientSSLOptions(kwargs)
+        contextFactory = kwargs.pop('sslContextFactory')
+        if kwargs:
+            raise TypeError(
+                'extra keyword arguments present', list(kwargs.keys()))
+        return TLSWrapperClientEndpoint(contextFactory, wrappedEndpoint)
+
+
+    def parseStreamClient(self, reactor, *args, **kwargs):
+        """
+        Redirects to another function (self._parseClient); tricks
+        zope.interface into believing the interface is correctly implemented.
+
+        @param reactor: The reactor passed to L{clientFromString}.
+
+        @param args: The positional arguments in the endpoint description.
+        @type args: L{tuple}
+
+        @param kwargs: The named arguments in the endpoint description.
+        @type kwargs: L{dict}
+
+        @return: An instance of L{TLSWrapperClientEndpoint}.
+        """
+        return self._parseClient(reactor, *args, **kwargs)
+
+
+
+@implementer(IPlugin, IStreamClientEndpointStringParserWithReactor)
 class _TLSWrapperClientEndpointParser(object):
     """
     Stream client endpoint string parser for L{TLSWrapperClientEndpoint}.
@@ -1860,13 +1933,13 @@ class _TLSWrapperClientEndpointParser(object):
     @ivar prefix: See
         L{IStreamClientEndpointStringParserWithReactor.prefix}.
     """
-    prefix = 'tls'
+    prefix = 'tlswrap'
 
     def _parseClient(self, reactor, wrappedEndpoint, **kwargs):
         """
         Internal method to construct an endpoint from string parameters.
 
-        @param reactor: The reactor to pass to L{clientFromString}.
+        @param reactor: The reactor passed to L{clientFromString}.
 
         @param wrappedEndpoint: A string describing the endpoint to connect to
             before starting TLS, which is passed to L{clientFromString}.

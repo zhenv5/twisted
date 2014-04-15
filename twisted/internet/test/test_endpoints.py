@@ -3441,10 +3441,198 @@ class TLSWrapperClientEndpointTests(unittest.TestCase):
 
 
 
+class TLSClientEndpointParserTests(unittest.TestCase):
+    """
+    Tests for L{_TLSWrapperClientEndpointParser}.
+    """
+
+    if skipSSL:
+        skip = skipSSL
+
+    def test_hostnameEndpointConstruction(self):
+        """
+        A L{HostnameEndpoint} is constructed from parameters passed to
+        L{clientFromString}.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(
+            reactor, b'tls:example.com:443:timeout=10:bindAddress=127.0.0.1')
+        hostnameEndpoint = endpoint._wrappedEndpoint
+        self.assertIs(hostnameEndpoint._reactor, reactor)
+        self.assertEqual(hostnameEndpoint._host, 'example.com')
+        self.assertEqual(hostnameEndpoint._port, 443)
+        self.assertEqual(hostnameEndpoint._timeout, 10)
+        self.assertEqual(hostnameEndpoint._bindAddress, b'127.0.0.1')
+
+
+    def test_utf8Encoding(self):
+        """
+        The hostname is decoded as UTF-8 bytes and appropriately encoded with
+        punycode or passed along as unicode.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(
+            reactor, b'tls:\xe2\x98\x83.example.com:443')
+        self.assertEqual(
+            endpoint._wrappedEndpoint._host, b'xn--n3h.example.com')
+        self.assertEqual(
+            endpoint._contextFactory.hostname, u'\u2603.example.com')
+
+
+    def test_defaultSSLOptions(self):
+        """
+        When passed an endpoint description without extra arguments,
+        L{clientFromString} returns a L{TLSWrapperClientEndpoint} instance
+        whose context factory is initialized with default values.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(reactor, b'tls:example.com:443')
+        certOptions = endpoint._contextFactory
+        self.assertIsInstance(certOptions, CertificateOptions)
+        self.assertEqual(certOptions.verify, False)
+        ctx = certOptions.getContext()
+        self.assertIsInstance(ctx, ContextType)
+
+
+    def test_ssl(self):
+        """
+        When passed an SSL strports description, L{clientFromString} returns a
+        L{TLSWrapperClientEndpoint} instance initialized with the values from
+        the string.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(
+            reactor,
+            b'tls:example.net:4321:privateKey=%s:certKey=%s:caCertsDir=%s' % (
+                escapedPEMPathName, escapedPEMPathName, escapedCAsPathName))
+        certOptions = endpoint._contextFactory
+        self.assertEqual(certOptions.hostname, 'example.net')
+        self.assertIsInstance(certOptions, CertificateOptions)
+        ctx = certOptions.getContext()
+        self.assertIsInstance(ctx, ContextType)
+        self.assertEqual(Certificate(certOptions.certificate), testCertificate)
+        privateCert = PrivateCertificate(certOptions.certificate)
+        privateCert._setPrivateKey(KeyPair(certOptions.privateKey))
+        self.assertEqual(privateCert, testPrivateCertificate)
+        expectedCerts = [
+            Certificate.loadPEM(x.getContent()) for x in
+            [casPath.child('thing1.pem'), casPath.child('thing2.pem')]
+            if x.basename().lower().endswith('.pem')
+        ]
+        self.assertEqual(sorted((Certificate(x) for x in certOptions.caCerts),
+                                key=lambda cert: cert.digest()),
+                         sorted(expectedCerts,
+                                key=lambda cert: cert.digest()))
+
+
+    def test_sslWithDefaults(self):
+        """
+        When passed an SSL strports description without extra arguments,
+        L{clientFromString} returns a L{TLSWrapperClientEndpoint} instance
+        whose context factory is initialized with default values.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(reactor, b'tls:example.com:443')
+        certOptions = endpoint._contextFactory
+        self.assertEqual(certOptions.method, SSLv23_METHOD)
+        self.assertEqual(certOptions.certificate, None)
+        self.assertEqual(certOptions.privateKey, None)
+        self.assertEqual(certOptions.hostname, 'example.com')
+
+
+
+class TLSWrapperClientEndpointParserTests(unittest.TestCase):
+    """
+    Tests for L{_TLSWrapperClientEndpointParser}.
+    """
+
+    if skipSSL:
+        skip = skipSSL
+
+    def test_endpointConstruction(self):
+        """
+        L{clientFromString} is invoked again to make a new endpoint to wrap.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(
+            reactor, b'tlswrap:tcp\:example.com\:443')
+        wrappedEndpoint = endpoint._wrappedEndpoint
+        self.assertIsInstance(wrappedEndpoint, endpoints.TCP4ClientEndpoint)
+        self.assertIs(wrappedEndpoint._reactor, reactor)
+        self.assertEqual(wrappedEndpoint._host, b'example.com')
+        self.assertEqual(wrappedEndpoint._port, 443)
+
+
+    def test_defaultSSLOptions(self):
+        """
+        When passed an endpoint description without extra arguments,
+        L{clientFromString} returns a L{TLSWrapperClientEndpoint} instance
+        whose context factory is initialized with default values.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(
+            reactor, b'tlswrap:tcp\:example.com\:443')
+        certOptions = endpoint._contextFactory
+        self.assertIsInstance(certOptions, CertificateOptions)
+        self.assertEqual(certOptions.verify, False)
+        ctx = certOptions.getContext()
+        self.assertIsInstance(ctx, ContextType)
+
+
+    def test_ssl(self):
+        """
+        When passed an SSL strports description, L{clientFromString} returns a
+        L{TLSWrapperClientEndpoint} instance initialized with the values from
+        the string.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(
+            reactor,
+            b'tlswrap:tcp\:example.net\:4321:privateKey=%s:certKey=%s:'
+            b'caCertsDir=%s:hostname=example.net' % (
+                escapedPEMPathName, escapedPEMPathName, escapedCAsPathName))
+        certOptions = endpoint._contextFactory
+        self.assertEqual(certOptions.hostname, 'example.net')
+        self.assertIsInstance(certOptions, CertificateOptions)
+        ctx = certOptions.getContext()
+        self.assertIsInstance(ctx, ContextType)
+        self.assertEqual(Certificate(certOptions.certificate), testCertificate)
+        privateCert = PrivateCertificate(certOptions.certificate)
+        privateCert._setPrivateKey(KeyPair(certOptions.privateKey))
+        self.assertEqual(privateCert, testPrivateCertificate)
+        expectedCerts = [
+            Certificate.loadPEM(x.getContent()) for x in
+            [casPath.child('thing1.pem'), casPath.child('thing2.pem')]
+            if x.basename().lower().endswith('.pem')
+        ]
+        self.assertEqual(sorted((Certificate(x) for x in certOptions.caCerts),
+                                key=lambda cert: cert.digest()),
+                         sorted(expectedCerts,
+                                key=lambda cert: cert.digest()))
+
+
+    def test_sslWithDefaults(self):
+        """
+        When passed an SSL strports description without extra arguments,
+        L{clientFromString} returns a L{TLSWrapperClientEndpoint} instance
+        whose context factory is initialized with default values.
+        """
+        reactor = object()
+        endpoint = endpoints.clientFromString(
+            reactor, b'tlswrap:tcp\:example.com\:443')
+        certOptions = endpoint._contextFactory
+        self.assertEqual(certOptions.method, SSLv23_METHOD)
+        self.assertEqual(certOptions.certificate, None)
+        self.assertEqual(certOptions.privateKey, None)
+        self.assertEqual(certOptions.hostname, None)
+
+
+
 if _PY3:
     del (StandardIOEndpointsTestCase, UNIXEndpointsTestCase, ParserTestCase,
          ServerStringTests, ClientStringTests, SSLClientStringTests,
          AdoptedStreamServerEndpointTestCase, SystemdEndpointPluginTests,
          TCP6ServerEndpointPluginTests, StandardIOEndpointPluginTests,
          ProcessEndpointsTestCase, WrappedIProtocolTests,
+         TLSClientEndpointParserTests, TLSWrapperClientEndpointParserTests,
          )
