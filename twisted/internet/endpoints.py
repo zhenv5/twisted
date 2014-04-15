@@ -1600,8 +1600,8 @@ def _parseClientSSLOptions(kwargs):
     instance.
 
     @param kwargs: A dict of keyword arguments to be parsed, potentially
-        containing keys C{certKey}, C{privateKey}, and C{caCertsDir}. See
-        L{_parseClientSSL}.
+        containing keys C{certKey}, C{privateKey}, C{caCertsDir}, and
+        C{hostname}. See L{_parseClientSSL}.
 
     @type kwargs: L{dict}
 
@@ -1658,9 +1658,13 @@ def _parseClientSSL(*args, **kwargs):
         will be scanned for files ending in C{.pem}, all of which will be
         considered valid certificate authorities for this connection.
 
-    @type caCertsDir: C{str}
+    @type caCertsDir: L{str}
 
-    @return: The coerced values as a C{dict}.
+    @param hostname: The hostname to use for validating the server's
+        certificate.
+    @type hostname: L{unicode}
+
+    @return: The coerced values as a L{dict}.
     """
     kwargs = _parseClientTCP(*args, **kwargs)
     return _parseClientSSLOptions(kwargs)
