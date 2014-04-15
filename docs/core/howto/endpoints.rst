@@ -149,7 +149,7 @@ TCP
    For example, ``tcp:host=twistedmatrix.com:port=80:timeout=15``.
 
 SSL
-   All TCP arguments are supported, plus: ``certKey``, ``privateKey``, ``caCertsDir``.
+   All TCP arguments are supported, plus: ``certKey``, ``privateKey``, ``caCertsDir``, ``hostname``.
    ``certKey`` (optional) gives a filesystem path to a certificate (PEM format).
    ``privateKey`` (optional) gives a filesystem path to a private key (PEM format).
    ``caCertsDir`` (optional) gives a filesystem path to a directory containing trusted CA certificates to use to verify the server certificate.
@@ -163,8 +163,28 @@ UNIX
    For example, ``unix:path=/var/run/web.sock``.
 
 TLS
-   Supported arguments: ``wrappedEndpoint``, ``certKey``, ``privateKey``, ``caCertsDir``.
+   Supported arguments: ``host``, ``port``, ``timeout``, ``bindAddress``, ``certKey``, ``privateKey``, ``caCertsDir``.
    The latter three arguments have the same semantics as the SSL client.
+   ``host`` is a hostname to connect to.
+   ``timeout`` is optional.
+   ``bindAddress`` is optional.
+   This client connects to the supplied hostname,
+   validates the server's hostname against the supplied hostname,
+   and then upgrades to TLS immediately after validation succeeds.
+
+   For example, ``tls:example.com:443:caCertsDir=/etc/ssl/certs`` .
+
+   Or, from python code::
+
+     wrapped = HostnameEndpoint('example.com', 443)
+     contextEndpoint = CertificateOptions(hostname=u'example.com')
+     endpoint = TLSWrapperClientEndpoint(contextFactory, wrapped)
+     conn = endpoint.connect(Factory.forProtocol(Protocol))
+
+TLS wrapper
+   Supported arguments: ``wrappedEndpoint``, ``hostname``, ``certKey``, ``privateKey``, ``caCertsDir``.
+   The latter three arguments have the same semantics as the SSL client.
+   ``hostname`` (optional) gives a hostname to use for SSL server validation.
    This client connects to the wrapped endpoint and then upgrades to TLS as soon as the connection is established.
 
    For example, ``tls:tcp\:example.com\:443:caCertsDir=/etc/ssl/certs`` .

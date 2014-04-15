@@ -4,9 +4,10 @@
 
 from twisted.internet.endpoints import (
     _SystemdParser, _TCP6ServerParser, _StandardIOParser,
-    _TLSWrapperClientEndpointParser)
+    _TLSClientEndpointParser, _TLSWrapperClientEndpointParser)
 
 systemdEndpointParser = _SystemdParser()
 tcp6ServerEndpointParser = _TCP6ServerParser()
 stdioEndpointParser = _StandardIOParser()
+tlsClientEndpointParser = _TLSClientEndpointParser()
 tlsWrapperClientEndpointParser = _TLSWrapperClientEndpointParser()
