@@ -165,7 +165,7 @@ UNIX
 TLS
    Supported arguments: ``host``, ``port``, ``timeout``, ``bindAddress``, ``certKey``, ``privateKey``, ``caCertsDir``.
    The latter three arguments have the same semantics as the SSL client.
-   ``host`` is a hostname to connect to.
+   ``host`` is a UTF-8 encoded hostname to connect to.
    ``timeout`` is optional.
    ``bindAddress`` is optional.
    This client connects to the supplied hostname,
