@@ -149,7 +149,7 @@ TCP
    For example, ``tcp:host=twistedmatrix.com:port=80:timeout=15``.
 
 SSL
-   All TCP arguments are supported, plus: ``certKey``, ``privateKey``, ``caCertsDir``, ``hostname``.
+   All TCP arguments are supported, plus: ``certKey``, ``privateKey``, ``caCertsDir``.
    ``certKey`` (optional) gives a filesystem path to a certificate (PEM format).
    ``privateKey`` (optional) gives a filesystem path to a private key (PEM format).
    ``caCertsDir`` (optional) gives a filesystem path to a directory containing trusted CA certificates to use to verify the server certificate.
