@@ -172,7 +172,7 @@ TLS
    validates the server's hostname against the supplied hostname,
    and then upgrades to TLS immediately after validation succeeds.
 
-   For example, ``tls:example.com:443:caCertsDir=/etc/ssl/certs`` .
+   For example, ``tls:example.com:443`` .
 
    Or, from python code::
 
