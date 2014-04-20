@@ -27,13 +27,16 @@ from twisted.internet.protocol import Protocol, Factory
 from twisted.internet.defer import Deferred, succeed, CancelledError
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.web.client import FileBodyProducer, Request, HTTPConnectionPool
-from twisted.web.client import _WebToNormalConnectionCreator, ResponseDone
+from twisted.web.client import ResponseDone
 from twisted.web.client import WebClientContextFactory, _HTTP11ClientFactory
+from twisted.web.client import WebClientConnectionCreatorCreator
 from twisted.web.iweb import UNKNOWN_LENGTH, IAgent, IBodyProducer, IResponse
 from twisted.web.http_headers import Headers
 from twisted.web._newclient import HTTP11ClientProtocol, Response
-from twisted.web.client import WebClientConnectionCreator
-from twisted.web.client import WebClientConnectionCreator
+
+from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+from zope.interface.declarations import implementer
+from twisted.internet._sslverify import ClientTLSOptions
 from twisted.web.error import SchemeNotSupported
 
 try:
@@ -1116,17 +1119,12 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
 
     def test_contextFactoryType(self):
         """
-        Ensure L{Agent} wraps correctly its context factory and uses modern
-        TLS APIs.
+        L{Agent} wraps its connection creator creator and uses modern TLS APIs.
         """
         endpoint = self.makeEndpoint()
-        self.assertIsInstance(endpoint._sslContextFactory,
-                              _WebToNormalConnectionCreator)
-        # Default context factory was used:
-        self.assertIsInstance(
-            endpoint._sslContextFactory._webConnectionCreator,
-            WebClientConnectionCreator
-        )
+        contextFactory = endpoint._sslContextFactory
+        self.assertIsInstance(contextFactory, ClientTLSOptions)
+        self.assertEqual(contextFactory._hostname, u"example.com")
 
 
     def test_connectHTTPSCustomConnectionCreator(self):
@@ -1148,16 +1146,25 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
             def set_connect_state(self):
                 self.connectState = True
 
-        expectedConnection = JustEnoughConnection()
-
         contextArgs = []
-        class StubWebClientConnectionCreator(object):
-            def connectionForNetloc(self, tls, hostname, port):
-                contextArgs.append((tls, hostname, port))
+
+        @implementer(IOpenSSLClientConnectionCreator)
+        class JustEnoughCreator(object):
+            def __init__(self, hostname, port):
+                self.hostname = hostname
+                self.port = port
+
+            def clientConnectionForTLS(self, tlsProtocol):
+                contextArgs.append((tlsProtocol, self.hostname, self.port))
                 return expectedConnection
-        expectedCreator = StubWebClientConnectionCreator()
+
+        expectedConnection = JustEnoughConnection()
+        class StubWebClientConnectionCreatorCreator(object):
+            def creatorForNetloc(self, hostname, port):
+                return JustEnoughCreator(hostname, port)
+        expectedCreatorCreator = StubWebClientConnectionCreatorCreator()
         reactor = self.Reactor()
-        agent = client.Agent(reactor, expectedCreator)
+        agent = client.Agent(reactor, expectedCreatorCreator)
         endpoint = agent._getEndpoint('https', expectedHost, expectedPort)
         endpoint.connect(Factory.forProtocol(Protocol))
         passedFactory = reactor.sslClients[-1][2]
