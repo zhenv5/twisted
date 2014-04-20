@@ -25,7 +25,7 @@ except ImportError:
 import zlib
 from functools import wraps
 
-from zope.interface import implementer, directlyProvides
+from zope.interface import implementer
 
 from twisted.python.compat import _PY3, nativeString, intToBytes
 from twisted.python import log
