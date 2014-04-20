@@ -753,10 +753,6 @@ if not _PY3:
         ResponseNeverReceived, PotentialDataLoss, _WrapperException)
 
 
-_deprecateContextFactory = deprecated(
-    Version("Twisted", 14, 0, 0),
-    "twisted.web.client.WebClientConnectionCreator"
-)
 
 try:
     from OpenSSL import SSL
@@ -782,7 +778,10 @@ def _requireSSL(decoratee):
 
 
 
-@_deprecateContextFactory
+@deprecated(
+    Version("Twisted", 14, 0, 0),
+    "twisted.web.client.WebClientConnectionCreator"
+)
 class WebClientContextFactory(object):
     """
     A web context factory which ignores the hostname and port.  It performs
