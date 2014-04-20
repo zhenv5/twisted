@@ -1208,22 +1208,9 @@ class WebClientContextFactoryTests(TestCase):
             certificateOptions.trustRoot, ssl.OpenSSLDefaultPaths)
 
 
-    def test_setsHostnameOnContext(self):
-        """
-        The L{CertificateOptions} has C{hostname} set to the hostname passed to
-        C{getContext}.
-        """
-        ctx = WebClientContextFactory()
-        certificateOptions = ctx._getCertificateOptions(
-            'example.com', 443)
-        self.assertEqual(certificateOptions.hostname, u'example.com')
-
-
     if ssl is None:
         test_returnsContext.skip = "SSL not present, cannot run SSL tests."
         test_setsTrustRootOnContextToDefaultTrustRoot.skip = (
-            "SSL not present, cannot run SSL tests.")
-        test_setsHostnameOnContext.skip = (
             "SSL not present, cannot run SSL tests.")
     else:
         test_missingSSL.skip = "SSL present."
