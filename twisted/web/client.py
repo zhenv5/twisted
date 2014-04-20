@@ -883,13 +883,24 @@ class _WebToNormalContextFactory(object):
 @implementer(IOpenSSLClientConnectionCreator)
 class _WebToNormalConnectionCreator(object):
     """
-    
+    Adapter to convert from L{WebClientConnectionCreator} (the web client
+    layer's factory for OpenSSL connections) to
+    L{IOpenSSLClientConnectionCreator}.
+
+    @ivar _webConnectionCreator: the wrapped factory for the OpenSSL portion of
+        HTTTPS connections based on a hostname and port.
+    @type _webConnectionCreator: L{WebClientConnectionCreator}
+
+    @ivar _hostname: The hostname which will be passed to
+        C{_webConnectionCreator.getContext}.
+    @type _hostname: L{bytes}
+
+    @ivar _port: The port number which will be passed to
+        C{_webConnectionCreator.getContext}.
+    @type _port: L{bytes}
     """
 
     def __init__(self, webConnectionCreator, hostname, port):
-        """
-        
-        """
         self._webConnectionCreator = webConnectionCreator
         self._hostname = hostname
         self._port = port
@@ -897,7 +908,15 @@ class _WebToNormalConnectionCreator(object):
 
     def clientConnectionForTLS(self, tlsProtocol):
         """
-        
+        Delegate to a L{WebClientConnectionCreator} to create a connection for
+        the given client protocol.
+
+        @param tlsProtocol: the client protocol making the request.
+        @type tlsProtocol: L{twisted.protocols.tls.TLSMemoryBIOProtocol}.
+
+        @return: an OpenSSL connection object configured appropriately for the
+            given Twisted protocol.
+        @rtype: L{OpenSSL.SSL.Connection}
         """
         return self._webConnectionCreator.connectionForNetloc(
             tlsProtocol, self._hostname, self._port
