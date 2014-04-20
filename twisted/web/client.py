@@ -827,8 +827,6 @@ class WebClientConnectionCreator(object):
     SSL connection creator for web clients.
     """
     def __init__(self, trustRoot=None):
-        if trustRoot is None and SSL is not None:
-            trustRoot = platformTrust()
         self._trustRoot = trustRoot
 
 
@@ -849,9 +847,8 @@ class WebClientConnectionCreator(object):
         @return: a configured SSL connection
         @rtype: L{OpenSSL.SSL.Connection}
         """
-        return settingsForClientTLS(
-            hostname.decode("ascii")
-        ).clientConnectionForTLS(tls)
+        return (settingsForClientTLS(hostname.decode("ascii"))
+                .clientConnectionForTLS(tls))
 
 
 
@@ -872,8 +869,6 @@ class _WebToNormalContextFactory(object):
         self._webContext = webContext
         self._hostname = hostname
         self._port = port
-        if hasattr(self._webContext, "connectionForNetloc"):
-            directlyProvides(self, IOpenSSLClientConnectionCreator)
 
 
     def getContext(self):
@@ -884,9 +879,29 @@ class _WebToNormalContextFactory(object):
         return self._webContext.getContext(self._hostname, self._port)
 
 
+
+@implementer(IOpenSSLClientConnectionCreator)
+class _WebToNormalConnectionCreator(object):
+    """
+    
+    """
+
+    def __init__(self, webConnectionCreator, hostname, port):
+        """
+        
+        """
+        self._webConnectionCreator = webConnectionCreator
+        self._hostname = hostname
+        self._port = port
+
+
     def clientConnectionForTLS(self, tlsProtocol):
-        return self._webContext.connectionForNetloc(tlsProtocol,
-                                                    self._hostname, self._port)
+        """
+        
+        """
+        return self._webConnectionCreator.connectionForNetloc(
+            tlsProtocol, self._hostname, self._port
+        )
 
 
 
@@ -1330,7 +1345,11 @@ class Agent(_AgentBase):
         @return: A context factory suitable to be passed to
             C{reactor.connectSSL}.
         """
-        return _WebToNormalContextFactory(self._contextFactory, host, port)
+        if getattr(self._contextFactory, "connectionForNetloc", None) is None:
+            return _WebToNormalContextFactory(self._contextFactory, host, port)
+        else:
+            return _WebToNormalConnectionCreator(self._contextFactory,
+                                                 host, port)
 
 
     def _getEndpoint(self, scheme, host, port):
