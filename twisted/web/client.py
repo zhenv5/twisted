@@ -763,7 +763,9 @@ try:
 except ImportError:
     SSL = None
 else:
-    from twisted.internet.ssl import CertificateOptions, platformTrust
+    from twisted.internet.ssl import (CertificateOptions,
+                                      platformTrust,
+                                      settingsForClientTLS)
 
 
 def _requireSSL(decoratee):
@@ -801,8 +803,7 @@ class WebClientContextFactory(object):
         """
         return CertificateOptions(
             method=SSL.SSLv23_METHOD,
-            trustRoot=platformTrust(),
-            hostname=hostname.decode('ascii')
+            trustRoot=platformTrust()
         )
 
 
@@ -848,10 +849,8 @@ class WebClientConnectionCreator(object):
         @return: a configured SSL connection
         @rtype: L{OpenSSL.SSL.Connection}
         """
-        return CertificateOptions(
-            method=SSL.SSLv23_METHOD,
-            trustRoot=self._trustRoot,
-            hostname=hostname.decode('ascii')
+        return settingsForClientTLS(
+            hostname.decode("ascii")
         ).clientConnectionForTLS(tls)
 
 
