@@ -26,10 +26,11 @@ from twisted.internet.error import ConnectionLost
 from twisted.internet.protocol import Protocol, Factory
 from twisted.internet.defer import Deferred, succeed, CancelledError
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
+
 from twisted.web.client import FileBodyProducer, Request, HTTPConnectionPool
 from twisted.web.client import ResponseDone
 from twisted.web.client import WebClientContextFactory, _HTTP11ClientFactory
-from twisted.web.client import WebClientConnectionCreatorCreator
+
 from twisted.web.iweb import UNKNOWN_LENGTH, IAgent, IBodyProducer, IResponse
 from twisted.web.http_headers import Headers
 from twisted.web._newclient import HTTP11ClientProtocol, Response
