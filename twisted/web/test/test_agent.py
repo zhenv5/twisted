@@ -27,7 +27,7 @@ from twisted.internet.protocol import Protocol, Factory
 from twisted.internet.defer import Deferred, succeed, CancelledError
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 from twisted.web.client import FileBodyProducer, Request, HTTPConnectionPool
-from twisted.web.client import _WebToNormalContextFactory, ResponseDone
+from twisted.web.client import _WebToNormalConnectionCreator, ResponseDone
 from twisted.web.client import WebClientContextFactory, _HTTP11ClientFactory
 from twisted.web.iweb import UNKNOWN_LENGTH, IAgent, IBodyProducer, IResponse
 from twisted.web.http_headers import Headers
@@ -1121,10 +1121,12 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
         """
         endpoint = self.makeEndpoint()
         self.assertIsInstance(endpoint._sslContextFactory,
-                              _WebToNormalContextFactory)
+                              _WebToNormalConnectionCreator)
         # Default context factory was used:
-        self.assertIsInstance(endpoint._sslContextFactory._webContext,
-                              WebClientConnectionCreator)
+        self.assertIsInstance(
+            endpoint._sslContextFactory._webConnectionCreator,
+            WebClientConnectionCreator
+        )
 
 
     def test_connectHTTPSCustomConnectionCreator(self):
