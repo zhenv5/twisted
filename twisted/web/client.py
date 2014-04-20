@@ -30,7 +30,7 @@ from zope.interface import implementer
 from twisted.python.compat import _PY3, nativeString, intToBytes
 from twisted.python import log
 from twisted.python.failure import Failure
-from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
+
 from twisted.python.deprecate import deprecated
 from twisted.python.versions import Version
 from twisted.web import http
@@ -761,7 +761,7 @@ except ImportError:
 else:
     from twisted.internet.ssl import (CertificateOptions,
                                       platformTrust,
-                                      settingsForClientTLS)
+                                      optionsForClientTLS)
 
 
 def _requireSSL(decoratee):
@@ -780,7 +780,7 @@ def _requireSSL(decoratee):
 
 @deprecated(
     Version("Twisted", 14, 0, 0),
-    "twisted.web.client.WebClientConnectionCreator"
+    "twisted.web.client.WebClientConnectionCreatorCreator"
 )
 class WebClientContextFactory(object):
     """
@@ -821,7 +821,7 @@ class WebClientContextFactory(object):
 
 
 
-class WebClientConnectionCreator(object):
+class WebClientConnectionCreatorCreator(object):
     """
     SSL connection creator for web clients.
     """
@@ -830,7 +830,7 @@ class WebClientConnectionCreator(object):
 
 
     @_requireSSL
-    def connectionForNetloc(self, tls, hostname, port):
+    def creatorForNetloc(self, hostname, port):
         """
         Get an SSL connection for a given network location.
 
@@ -846,8 +846,7 @@ class WebClientConnectionCreator(object):
         @return: a configured SSL connection
         @rtype: L{OpenSSL.SSL.Connection}
         """
-        return (settingsForClientTLS(hostname.decode("ascii"))
-                .clientConnectionForTLS(tls))
+        return optionsForClientTLS(hostname.decode("ascii"))
 
 
 
@@ -876,50 +875,6 @@ class _WebToNormalContextFactory(object):
         hostname and port number and return the resulting context object.
         """
         return self._webContext.getContext(self._hostname, self._port)
-
-
-
-@implementer(IOpenSSLClientConnectionCreator)
-class _WebToNormalConnectionCreator(object):
-    """
-    Adapter to convert from L{WebClientConnectionCreator} (the web client
-    layer's factory for OpenSSL connections) to
-    L{IOpenSSLClientConnectionCreator}.
-
-    @ivar _webConnectionCreator: the wrapped factory for the OpenSSL portion of
-        HTTTPS connections based on a hostname and port.
-    @type _webConnectionCreator: L{WebClientConnectionCreator}
-
-    @ivar _hostname: The hostname which will be passed to
-        C{_webConnectionCreator.getContext}.
-    @type _hostname: L{bytes}
-
-    @ivar _port: The port number which will be passed to
-        C{_webConnectionCreator.getContext}.
-    @type _port: L{bytes}
-    """
-
-    def __init__(self, webConnectionCreator, hostname, port):
-        self._webConnectionCreator = webConnectionCreator
-        self._hostname = hostname
-        self._port = port
-
-
-    def clientConnectionForTLS(self, tlsProtocol):
-        """
-        Delegate to a L{WebClientConnectionCreator} to create a connection for
-        the given client protocol.
-
-        @param tlsProtocol: the client protocol making the request.
-        @type tlsProtocol: L{twisted.protocols.tls.TLSMemoryBIOProtocol}.
-
-        @return: an OpenSSL connection object configured appropriately for the
-            given Twisted protocol.
-        @rtype: L{OpenSSL.SSL.Connection}
-        """
-        return self._webConnectionCreator.connectionForNetloc(
-            tlsProtocol, self._hostname, self._port
-        )
 
 
 
@@ -1339,7 +1294,8 @@ class Agent(_AgentBase):
     @since: 9.0
     """
 
-    def __init__(self, reactor, contextFactory=WebClientConnectionCreator(),
+    def __init__(self, reactor,
+                 contextFactory=WebClientConnectionCreatorCreator(),
                  connectTimeout=None, bindAddress=None,
                  pool=None):
         _AgentBase.__init__(self, reactor, pool)
@@ -1363,11 +1319,10 @@ class Agent(_AgentBase):
         @return: A context factory suitable to be passed to
             C{reactor.connectSSL}.
         """
-        if getattr(self._contextFactory, "connectionForNetloc", None) is None:
+        if getattr(self._contextFactory, "creatorForNetloc", None) is None:
             return _WebToNormalContextFactory(self._contextFactory, host, port)
         else:
-            return _WebToNormalConnectionCreator(self._contextFactory,
-                                                 host, port)
+            return self._contextFactory.creatorForNetloc(host, port)
 
 
     def _getEndpoint(self, scheme, host, port):
