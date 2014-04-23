@@ -1374,9 +1374,9 @@ class Agent(_AgentBase):
         if scheme == 'http':
             return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
         elif scheme == 'https':
-            contextFactory = self._contextFactory.creatorForNetloc(host, port)
+            tlsPolicy = self._contextFactory.creatorForNetloc(host, port)
             return SSL4ClientEndpoint(self._reactor, host, port,
-                                      contextFactory, **kwargs)
+                                      tlsPolicy, **kwargs)
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 
