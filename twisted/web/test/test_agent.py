@@ -38,6 +38,7 @@ from twisted.web._newclient import HTTP11ClientProtocol, Response
 from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
 from zope.interface.declarations import implementer
 from twisted.internet._sslverify import ClientTLSOptions
+from twisted.web.client import WebClientConnectionCreatorCreator
 from twisted.web.error import SchemeNotSupported
 
 try:
@@ -1143,8 +1144,14 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
             handshakeStarted = False
             connectState = False
             def do_handshake(self):
+                """
+                The handshake started.  Record that fact.
+                """
                 self.handshakeStarted = True
             def set_connect_state(self):
+                """
+                The connection started.  Record that fact.
+                """
                 self.connectState = True
 
         contextArgs = []
@@ -1156,13 +1163,34 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
                 self.port = port
 
             def clientConnectionForTLS(self, tlsProtocol):
+                """
+                Implement L{IOpenSSLClientConnectionCreator}.
+
+                @param tlsProtocol: The TLS protocol.
+                @type tlsProtocol: L{TLSMemoryBIOProtocol}
+
+                @return: C{expectedConnection}
+                """
                 contextArgs.append((tlsProtocol, self.hostname, self.port))
                 return expectedConnection
 
         expectedConnection = JustEnoughConnection()
         class StubWebClientConnectionCreatorCreator(object):
             def creatorForNetloc(self, hostname, port):
+                """
+                Emulate L{WebClientConnectionCreatorCreator}.
+
+                @param hostname: The hostname to verify.
+                @type hostname: L{unicode}
+
+                @param port: The port number.
+                @type port: L{int}
+
+                @return: a stub L{IOpenSSLClientConnectionCreator}
+                @rtype: L{JustEnoughCreator}
+                """
                 return JustEnoughCreator(hostname, port)
+
         expectedCreatorCreator = StubWebClientConnectionCreatorCreator()
         reactor = self.Reactor()
         agent = client.Agent(reactor, expectedCreatorCreator)
