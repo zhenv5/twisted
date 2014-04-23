@@ -1235,7 +1235,7 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
 class WebClientContextFactoryTests(TestCase):
     """
     Tests for the context factory wrapper for web clients
-    L{WebClientContextFactory}.
+    L{twisted.web.client.WebClientContextFactory}.
     """
 
     def setUp(self):
@@ -1244,7 +1244,7 @@ class WebClientContextFactoryTests(TestCase):
         """
         from twisted.web.client import WebClientContextFactory
         self.warned = self.flushWarnings([WebClientContextFactoryTests.setUp])
-        self.WebClientContextFactory = WebClientContextFactory
+        self.webClientContextFactory = WebClientContextFactory
 
 
     def test_deprecated(self):
@@ -1258,7 +1258,7 @@ class WebClientContextFactoryTests(TestCase):
         self.assertEqual(
             warning['message'],
             getDeprecationWarningString(
-                self.WebClientContextFactory, Version("Twisted", 14, 0, 0),
+                self.webClientContextFactory, Version("Twisted", 14, 0, 0),
                 replacement=BrowserLikePolicyForHTTPS,
             )
 
@@ -1274,7 +1274,7 @@ class WebClientContextFactoryTests(TestCase):
         """
         self.assertRaises(
             NotImplementedError,
-            self.WebClientContextFactory().getContext,
+            self.webClientContextFactory().getContext,
             'example.com', 443,
         )
 
@@ -1283,7 +1283,7 @@ class WebClientContextFactoryTests(TestCase):
         """
         If SSL is present, C{getContext} returns a L{SSL.Context}.
         """
-        ctx = self.WebClientContextFactory().getContext('example.com', 443)
+        ctx = self.webClientContextFactory().getContext('example.com', 443)
         self.assertIsInstance(ctx, ssl.SSL.Context)
 
 
@@ -1292,7 +1292,7 @@ class WebClientContextFactoryTests(TestCase):
         The L{CertificateOptions} has C{trustRoot} set to the default trust
         roots.
         """
-        ctx = self.WebClientContextFactory()
+        ctx = self.webClientContextFactory()
         certificateOptions = ctx._getCertificateOptions('example.com', 443)
         self.assertIsInstance(
             certificateOptions.trustRoot, ssl.OpenSSLDefaultPaths)

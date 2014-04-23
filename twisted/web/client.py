@@ -811,8 +811,9 @@ class WebClientContextFactory(object):
         """
         Return a L{CertificateOptions}.
 
-        @param bytes hostname: ignored
-        @param int port: ignored
+        @param hostname: ignored
+
+        @param port: ignored
 
         @return: A new CertificateOptions instance.
         @rtype: L{CertificateOptions}
@@ -896,10 +897,25 @@ class _DeprecatedToCurrentPolicyForHTTPS(object):
         """
         Called the wrapped web context factory's C{getContext} method with a
         hostname and port number and return the resulting context object.
+
+        @param hostname: The hostname part of the URI.
+        @type hostname: L{bytes}
+
+        @param port: The port part of the URI.
+        @type port: L{int}
+
+        @return: An old-style context factory.
+        @rtype: object with C{getContext} method, like
+            L{twisted.internet.ssl.ContextFactory}.
         """
         context = self._webContextFactory.getContext(hostname, port)
         class _ContextFactoryWithContext(object):
             def getContext(self):
+                """
+                @return: An old-style context factory.
+                @rtype: object with C{getContext} method, like
+                    L{twisted.internet.ssl.ContextFactory}.
+                """
                 return context
         return _ContextFactoryWithContext()
 
