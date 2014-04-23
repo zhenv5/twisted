@@ -1,2 +1,2 @@
-Twisted now verifies 'https' URLs against (its best guess of) the platform
-trust roots.
+twisted.web.client.Agent now verifies 'https' URLs against (its best guess of)
+the platform trust roots.
