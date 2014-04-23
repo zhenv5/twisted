@@ -27,9 +27,8 @@ from twisted.internet.protocol import Protocol, Factory
 from twisted.internet.defer import Deferred, succeed, CancelledError
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 
-from twisted.web.client import FileBodyProducer, Request, HTTPConnectionPool
-from twisted.web.client import ResponseDone
-from twisted.web.client import WebClientContextFactory, _HTTP11ClientFactory
+from twisted.web.client import (FileBodyProducer, Request, HTTPConnectionPool,
+                                ResponseDone, _HTTP11ClientFactory)
 
 from twisted.web.iweb import UNKNOWN_LENGTH, IAgent, IBodyProducer, IResponse
 from twisted.web.http_headers import Headers
@@ -38,6 +37,9 @@ from twisted.web._newclient import HTTP11ClientProtocol, Response
 from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
 from zope.interface.declarations import implementer
 from twisted.web.iweb import IPolicyForHTTPS
+from twisted.python.deprecate import getDeprecationWarningString
+from twisted.python.versions import Version
+from twisted.web.client import BrowserLikePolicyForHTTPS
 from twisted.web.error import SchemeNotSupported
 
 try:
@@ -1218,6 +1220,30 @@ class WebClientContextFactoryTests(TestCase):
     Tests for the context factory wrapper for web clients
     L{WebClientContextFactory}.
     """
+
+    def setUp(self):
+        """
+        Get WebClientContextFactory while quashing its deprecation warning.
+        """
+        from twisted.web.client import WebClientContextFactory
+        self.warned = self.flushWarnings([WebClientContextFactoryTests.setUp])
+        self.WebClientContextFactory = WebClientContextFactory
+
+
+    def test_deprecated(self):
+        """
+        L{twisted.web.client.WebClientContextFactory} is deprecated.  Importing
+        it displays a warning.
+        """
+        self.assertEqual(len(self.warned), 1)
+        [warning] = self.warned
+        self.assertEqual(warning['category'], DeprecationWarning)
+        self.assertEqual(warning['message'], getDeprecationWarningString(
+            self.WebClientContextFactory, Version("Twisted", 14, 0, 0),
+            replacement=BrowserLikePolicyForHTTPS,
+        ))
+
+
     def test_missingSSL(self):
         """
         If C{getContext} is called and SSL is not available, raise
@@ -1225,7 +1251,7 @@ class WebClientContextFactoryTests(TestCase):
         """
         self.assertRaises(
             NotImplementedError,
-            WebClientContextFactory().getContext,
+            self.WebClientContextFactory().getContext,
             'example.com', 443,
         )
 
@@ -1234,7 +1260,7 @@ class WebClientContextFactoryTests(TestCase):
         """
         If SSL is present, C{getContext} returns a L{SSL.Context}.
         """
-        ctx = WebClientContextFactory().getContext('example.com', 443)
+        ctx = self.WebClientContextFactory().getContext('example.com', 443)
         self.assertIsInstance(ctx, ssl.SSL.Context)
 
 
@@ -1243,7 +1269,7 @@ class WebClientContextFactoryTests(TestCase):
         The L{CertificateOptions} has C{trustRoot} set to the default trust
         roots.
         """
-        ctx = WebClientContextFactory()
+        ctx = self.WebClientContextFactory()
         certificateOptions = ctx._getCertificateOptions('example.com', 443)
         self.assertIsInstance(
             certificateOptions.trustRoot, ssl.OpenSSLDefaultPaths)
