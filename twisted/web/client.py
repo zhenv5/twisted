@@ -1308,7 +1308,7 @@ class Agent(_AgentBase):
 
     @ivar _pool: A L{HTTPConnectionPool} instance.
 
-    @ivar _contextFactory: A web context factory which will be used to create
+    @ivar _policyForHTTPS: A web context factory which will be used to create
         SSL context objects for any SSL connections the agent needs to make.
 
     @ivar _connectTimeout: If not C{None}, the timeout passed to
@@ -1357,7 +1357,7 @@ class Agent(_AgentBase):
         _AgentBase.__init__(self, reactor, pool)
         if not IPolicyForHTTPS.providedBy(contextFactory):
             contextFactory = _DeprecatedToCurrentPolicyForHTTPS(contextFactory)
-        self._contextFactory = contextFactory
+        self._policyForHTTPS = contextFactory
         self._connectTimeout = connectTimeout
         self._bindAddress = bindAddress
 
@@ -1386,7 +1386,7 @@ class Agent(_AgentBase):
         if scheme == 'http':
             return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
         elif scheme == 'https':
-            tlsPolicy = self._contextFactory.creatorForNetloc(host, port)
+            tlsPolicy = self._policyForHTTPS.creatorForNetloc(host, port)
             return SSL4ClientEndpoint(self._reactor, host, port,
                                       tlsPolicy, **kwargs)
         else:

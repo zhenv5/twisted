@@ -296,6 +296,22 @@ class FakeReactorAndConnectMixin:
     """
     Reactor = MemoryReactorClock
 
+    @implementer(IPolicyForHTTPS)
+    class StubPolicy(object):
+        """
+        A stub policy for HTTPS URIs which allows HTTPS tests to run even if
+        pyOpenSSL isn't installed.
+        """
+        def creatorForNetloc(self, hostname, port):
+            """
+            Don't actually do anything.
+
+            @param hostname: ignored
+
+            @param port: ignored
+            """
+
+
     class StubEndpoint(object):
         """
         Endpoint that wraps existing endpoint, substitutes StubHTTPProtocol, and
@@ -320,7 +336,7 @@ class FakeReactorAndConnectMixin:
         Return an Agent suitable for use in tests that wrap the Agent and want
         both a fake reactor and StubHTTPProtocol.
         """
-        agent = client.Agent(reactor)
+        agent = client.Agent(reactor, self.StubPolicy())
         _oldGetEndpoint = agent._getEndpoint
         agent._getEndpoint = lambda *args: (
             self.StubEndpoint(_oldGetEndpoint(*args), self))
@@ -989,7 +1005,7 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         L{Agent} takes a C{connectTimeout} argument which is forwarded to the
         following C{connectSSL} call.
         """
-        agent = client.Agent(self.reactor, connectTimeout=5)
+        agent = client.Agent(self.reactor, self.StubPolicy(), connectTimeout=5)
         agent.request('GET', 'https://foo/')
         timeout = self.reactor.sslClients.pop()[4]
         self.assertEqual(5, timeout)
@@ -1011,7 +1027,8 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         L{Agent} takes a C{bindAddress} argument which is forwarded to the
         following C{connectSSL} call.
         """
-        agent = client.Agent(self.reactor, bindAddress='192.168.0.1')
+        agent = client.Agent(self.reactor, self.StubPolicy(),
+                             bindAddress='192.168.0.1')
         agent.request('GET', 'https://foo/')
         address = self.reactor.sslClients.pop()[5]
         self.assertEqual('192.168.0.1', address)
