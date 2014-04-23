@@ -33,6 +33,7 @@ from twisted.python.failure import Failure
 
 from twisted.python.deprecate import deprecated
 from twisted.python.versions import Version
+from twisted.web.iweb import IPolicyForHTTPS
 from twisted.web import http
 from twisted.internet import defer, protocol, task, reactor
 from twisted.internet.interfaces import IProtocol
@@ -797,7 +798,7 @@ def _requireSSL(decoratee):
 class WebClientContextFactory(object):
     """
     This class is deprecated.  Please simply use L{Agent} as-is, or if you want
-    to customize something, use L{WebClientConnectionCreatorCreator}.
+    to customize something, use L{BrowserLikePolicyForHTTPS}.
 
     A L{WebClientContextFactory} is an HTTPS policy which totally ignores the
     hostname and port.  It performs basic certificate verification, however the
@@ -836,7 +837,8 @@ class WebClientContextFactory(object):
 
 
 
-class WebClientConnectionCreatorCreator(object):
+@implementer(IPolicyForHTTPS)
+class BrowserLikePolicyForHTTPS(object):
     """
     SSL connection creator for web clients.
     """
@@ -847,7 +849,9 @@ class WebClientConnectionCreatorCreator(object):
     @_requireSSL
     def creatorForNetloc(self, hostname, port):
         """
-        Get an SSL connection for a given network location.
+        Create a L{client connection creator
+        <twisted.internet.interfaces.IOpenSSLClientConnectionCreator>} for a
+        given network location.
 
         @param tls: The TLS protocol to create a connection for.
         @type tls: L{twisted.protocols.tls.TLSMemoryBIOProtocol}
@@ -858,38 +862,34 @@ class WebClientConnectionCreatorCreator(object):
         @param port: The port part of the URI.
         @type port: L{int}
 
-        @return: a configured SSL connection
-        @rtype: L{OpenSSL.SSL.Connection}
+        @return: a connection creator with appropriate verification
+            restrictions set
+        @rtype: L{client connection creator
+            <twisted.internet.interfaces.IOpenSSLClientConnectionCreator>}
         """
         return optionsForClientTLS(hostname.decode("ascii"))
 
 
 
-class _WebToNormalContextFactory(object):
+@implementer(IPolicyForHTTPS)
+class _DeprecatedToCurrentPolicyForHTTPS(object):
     """
     Adapt a web context factory to a normal context factory.
-
-    @ivar _webContext: A web context factory which accepts a hostname and port
-        number to its C{getContext} method.
-
-    @ivar _hostname: The hostname which will be passed to
-        C{_webContext.getContext}.
-
-    @ivar _port: The port number which will be passed to
-        C{_webContext.getContext}.
     """
-    def __init__(self, webContext, hostname, port):
-        self._webContext = webContext
-        self._hostname = hostname
-        self._port = port
+    def __init__(self, webContextFactory):
+        self._webContextFactory = webContextFactory
 
 
-    def getContext(self):
+    def creatorForNetloc(self, hostname, port):
         """
         Called the wrapped web context factory's C{getContext} method with a
         hostname and port number and return the resulting context object.
         """
-        return self._webContext.getContext(self._hostname, self._port)
+        context = self._webContextFactory.getContext(hostname, port)
+        class _ContextFactoryWithContext(object):
+            def getContext(self):
+                return context
+        return _ContextFactoryWithContext()
 
 
 
@@ -1294,50 +1294,60 @@ class Agent(_AgentBase):
     L{Agent} is a very basic HTTP client.  It supports I{HTTP} and I{HTTPS}
     scheme URIs (but performs no certificate checking by default).
 
-    @param pool: A L{HTTPConnectionPool} instance, or C{None}, in which case a
-        non-persistent L{HTTPConnectionPool} instance will be created.
+    @ivar _pool: A L{HTTPConnectionPool} instance.
 
     @ivar _contextFactory: A web context factory which will be used to create
         SSL context objects for any SSL connections the agent needs to make.
 
-    @ivar _connectTimeout: If not C{None}, the timeout passed to C{connectTCP}
-        or C{connectSSL} for specifying the connection timeout.
+    @ivar _connectTimeout: If not C{None}, the timeout passed to
+        L{TCP4ClientEndpoint} or C{SSL4ClientEndpoint} for specifying the
+        connection timeout.
 
-    @ivar _bindAddress: If not C{None}, the address passed to C{connectTCP} or
-        C{connectSSL} for specifying the local address to bind to.
+    @ivar _bindAddress: If not C{None}, the address passed to
+        L{TCP4ClientEndpoint} or C{SSL4ClientEndpoint} for specifying the local
+        address to bind to.
 
     @since: 9.0
     """
 
     def __init__(self, reactor,
-                 contextFactory=WebClientConnectionCreatorCreator(),
+                 contextFactory=BrowserLikePolicyForHTTPS(),
                  connectTimeout=None, bindAddress=None,
                  pool=None):
+        """
+        Create an L{Agent}.
+
+        @param reactor: A provider of
+            L{twisted.internet.interfaces.IReactorTCP} and
+            L{twisted.internet.interfaces.IReactorSSL} for this L{Agent} to
+            place outgoing connections.
+        @type reactor: L{twisted.internet.interfaces.IReactorTCP} and
+            L{twisted.internet.interfaces.IReactorSSL}
+
+        @param contextFactory: A factory for TLS contexts, to control the
+            verification parameters of OpenSSL.  The default is to use a
+            L{BrowserLikePolicyForHTTPS}, so unless you have special
+            requirements you can leave this as-is.
+        @type contextFactory: L{IPolicyForHTTPS}.
+
+        @param connectTimeout: The amount of time that this L{Agent} will wait
+            for the peer to accept a connection.
+        @type connectTimeout: L{float}
+
+        @param bindAddress: The local address for client sockets to bind to.
+        @type bindAddress: L{bytes}
+
+        @param pool: A L{HTTPConnectionPool} instance, or C{None}, in which
+            case a non-persistent L{HTTPConnectionPool} instance will be
+            created.
+        @type pool: L{HTTPConnectionPool}
+        """
         _AgentBase.__init__(self, reactor, pool)
+        if not IPolicyForHTTPS.providedBy(contextFactory):
+            contextFactory = _DeprecatedToCurrentPolicyForHTTPS(contextFactory)
         self._contextFactory = contextFactory
         self._connectTimeout = connectTimeout
         self._bindAddress = bindAddress
-
-
-    def _wrapContextFactory(self, host, port):
-        """
-        Create and return a normal context factory wrapped around
-        C{self._contextFactory} in such a way that C{self._contextFactory} will
-        have the host and port information passed to it.
-
-        @param host: A C{str} giving the hostname which will be connected to in
-            order to issue a request.
-
-        @param port: An C{int} giving the port number the connection will be
-            on.
-
-        @return: A context factory suitable to be passed to
-            C{reactor.connectSSL}.
-        """
-        if getattr(self._contextFactory, "creatorForNetloc", None) is None:
-            return _WebToNormalContextFactory(self._contextFactory, host, port)
-        else:
-            return self._contextFactory.creatorForNetloc(host, port)
 
 
     def _getEndpoint(self, scheme, host, port):
@@ -1364,9 +1374,9 @@ class Agent(_AgentBase):
         if scheme == 'http':
             return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
         elif scheme == 'https':
+            contextFactory = self._contextFactory.creatorForNetloc(host, port)
             return SSL4ClientEndpoint(self._reactor, host, port,
-                                      self._wrapContextFactory(host, port),
-                                      **kwargs)
+                                      contextFactory, **kwargs)
         else:
             raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
 

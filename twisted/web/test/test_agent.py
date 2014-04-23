@@ -37,6 +37,7 @@ from twisted.web._newclient import HTTP11ClientProtocol, Response
 
 from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
 from zope.interface.declarations import implementer
+from twisted.web.iweb import IPolicyForHTTPS
 from twisted.web.error import SchemeNotSupported
 
 try:
@@ -1135,8 +1136,8 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
         L{Agent.__init__} it will be used to determine the SSL parameters for
         HTTPS requests.  When an HTTPS request is made, the hostname and port
         number of the request URL will be passed to the connection creator's
-        C{connectionForNetloc} method.  The resulting context object will be
-        used to establish the SSL connection.
+        C{creatorForNetloc} method.  The resulting context object will be used
+        to establish the SSL connection.
         """
         expectedHost = 'example.org'
         expectedPort = 20443
@@ -1175,10 +1176,11 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
                 return expectedConnection
 
         expectedConnection = JustEnoughConnection()
-        class StubWebClientConnectionCreatorCreator(object):
+        @implementer(IPolicyForHTTPS)
+        class StubBrowserLikePolicyForHTTPS(object):
             def creatorForNetloc(self, hostname, port):
                 """
-                Emulate L{WebClientConnectionCreatorCreator}.
+                Emulate L{BrowserLikePolicyForHTTPS}.
 
                 @param hostname: The hostname to verify.
                 @type hostname: L{unicode}
@@ -1191,7 +1193,7 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
                 """
                 return JustEnoughCreator(hostname, port)
 
-        expectedCreatorCreator = StubWebClientConnectionCreatorCreator()
+        expectedCreatorCreator = StubBrowserLikePolicyForHTTPS()
         reactor = self.Reactor()
         agent = client.Agent(reactor, expectedCreatorCreator)
         endpoint = agent._getEndpoint('https', expectedHost, expectedPort)
