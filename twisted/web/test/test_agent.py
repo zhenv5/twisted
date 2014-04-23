@@ -311,7 +311,6 @@ class FakeReactorAndConnectMixin:
             @param port: ignored
             """
 
-
     class StubEndpoint(object):
         """
         Endpoint that wraps existing endpoint, substitutes StubHTTPProtocol, and
