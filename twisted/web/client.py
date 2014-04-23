@@ -30,10 +30,11 @@ from zope.interface import implementer
 from twisted.python.compat import _PY3, nativeString, intToBytes
 from twisted.python import log
 from twisted.python.failure import Failure
-
-from twisted.python.deprecate import deprecated
+from twisted.python.deprecate import deprecatedModuleAttribute
 from twisted.python.versions import Version
+
 from twisted.web.iweb import IPolicyForHTTPS
+from twisted.python.deprecate import getDeprecationWarningString
 from twisted.web import http
 from twisted.internet import defer, protocol, task, reactor
 from twisted.internet.interfaces import IProtocol
@@ -868,6 +869,17 @@ class BrowserLikePolicyForHTTPS(object):
             <twisted.internet.interfaces.IOpenSSLClientConnectionCreator>}
         """
         return optionsForClientTLS(hostname.decode("ascii"))
+
+
+
+deprecatedModuleAttribute(Version("Twisted", 14, 0, 0),
+                          getDeprecationWarningString(
+                              WebClientContextFactory,
+                              Version("Twisted", 14, 0, 0),
+                              replacement=BrowserLikePolicyForHTTPS)
+                          .split("; ")[1],
+                          WebClientContextFactory.__module__,
+                          WebClientContextFactory.__name__)
 
 
 

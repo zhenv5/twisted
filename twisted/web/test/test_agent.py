@@ -1238,10 +1238,16 @@ class WebClientContextFactoryTests(TestCase):
         self.assertEqual(len(self.warned), 1)
         [warning] = self.warned
         self.assertEqual(warning['category'], DeprecationWarning)
-        self.assertEqual(warning['message'], getDeprecationWarningString(
-            self.WebClientContextFactory, Version("Twisted", 14, 0, 0),
-            replacement=BrowserLikePolicyForHTTPS,
-        ))
+        self.assertEqual(
+            warning['message'],
+            getDeprecationWarningString(
+                self.WebClientContextFactory, Version("Twisted", 14, 0, 0),
+                replacement=BrowserLikePolicyForHTTPS,
+            )
+
+            # See https://twistedmatrix.com/trac/ticket/7242
+            .replace(";", ":")
+        )
 
 
     def test_missingSSL(self):
