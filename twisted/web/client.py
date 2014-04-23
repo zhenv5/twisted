@@ -890,6 +890,14 @@ class _DeprecatedToCurrentPolicyForHTTPS(object):
     Adapt a web context factory to a normal context factory.
     """
     def __init__(self, webContextFactory):
+        """
+        Wrap a web context factory in an L{IPolicyForHTTPS}.
+
+        @param webContextFactory: An object providing getContext with some
+            extra arguments.
+        @type webContextFactory: L{WebClientContextFactory} (or object with a
+            similar C{getContext} method).
+        """
         self._webContextFactory = webContextFactory
 
 
@@ -912,6 +920,9 @@ class _DeprecatedToCurrentPolicyForHTTPS(object):
         class _ContextFactoryWithContext(object):
             def getContext(self):
                 """
+                Return the context created by
+                L{_DeprecatedToCurrentPolicyForHTTPS._webContextFactory}.
+
                 @return: An old-style context factory.
                 @rtype: object with C{getContext} method, like
                     L{twisted.internet.ssl.ContextFactory}.
