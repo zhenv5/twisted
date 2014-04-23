@@ -794,16 +794,15 @@ def _requireSSL(decoratee):
 
 
 
-@deprecated(
-    Version("Twisted", 14, 0, 0),
-    "twisted.web.client.WebClientConnectionCreatorCreator"
-)
 class WebClientContextFactory(object):
     """
-    A web context factory which ignores the hostname and port.  It performs
-    basic certificate verification, however the lack of validation of service
-    identity (e.g.  hostname validation) means it is still vulnerable to MITM
-    attacks (#4888).
+    This class is deprecated.  Please simply use L{Agent} as-is, or if you want
+    to customize something, use L{WebClientConnectionCreatorCreator}.
+
+    A L{WebClientContextFactory} is an HTTPS policy which totally ignores the
+    hostname and port.  It performs basic certificate verification, however the
+    lack of validation of service identity (e.g.  hostname validation) means it
+    is still vulnerable to man-in-the-middle attacks.  Don't use it any more.
     """
 
     def _getCertificateOptions(self, hostname, port):
