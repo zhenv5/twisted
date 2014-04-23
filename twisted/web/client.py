@@ -766,8 +766,15 @@ else:
 
 def _requireSSL(decoratee):
     """
-    The decorated method requires SSL support, or it raises
+    The decorated method requires pyOpenSSL to be present, or it raises
     L{NotImplementedError}.
+
+    @param decoratee: A function which requires pyOpenSSL.
+    @type decoratee: L{callable}
+
+    @return: A function which raises L{NotImplementedError} if pyOpenSSL is not
+        installed; otherwise, if it is installed, simply return C{decoratee}.
+    @rtype: L{callable}
     """
     if SSL is None:
         @wraps(decoratee)
