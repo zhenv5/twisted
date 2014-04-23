@@ -779,6 +779,15 @@ def _requireSSL(decoratee):
     if SSL is None:
         @wraps(decoratee)
         def raiseNotImplemented(*a, **kw):
+            """
+            pyOpenSSL is not available.
+
+            @param a: The positional arguments for C{decoratee}.
+
+            @param kw: The keyword arguments for C{decoratee}.
+
+            @raise NotImplementedError: Always.
+            """
             raise NotImplementedError("SSL support unavailable")
         return raiseNotImplemented
     return decoratee
