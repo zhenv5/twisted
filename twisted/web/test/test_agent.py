@@ -37,8 +37,6 @@ from twisted.web._newclient import HTTP11ClientProtocol, Response
 
 from twisted.internet.interfaces import IOpenSSLClientConnectionCreator
 from zope.interface.declarations import implementer
-from twisted.internet._sslverify import ClientTLSOptions
-from twisted.web.client import WebClientConnectionCreatorCreator
 from twisted.web.error import SchemeNotSupported
 
 try:
@@ -46,6 +44,8 @@ try:
     from twisted.protocols.tls import TLSMemoryBIOFactory, TLSMemoryBIOProtocol
 except ImportError:
     ssl = None
+else:
+    from twisted.internet._sslverify import ClientTLSOptions
 
 
 
