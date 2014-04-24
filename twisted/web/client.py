@@ -884,6 +884,38 @@ deprecatedModuleAttribute(Version("Twisted", 14, 0, 0),
 
 
 
+class _ContextFactoryWithContext(object):
+    """
+    A L{_ContextFactoryWithContext} is like a
+    L{twisted.internet.ssl.ContextFactory} with a pre-created context.
+
+    @ivar _context: A Context.
+    @type _context: L{OpenSSL.SSL.Context}
+    """
+
+    def __init__(self, context):
+        """
+        Initialize a L{_ContextFactoryWithContext} with a context.
+
+        @param context: An SSL context.
+        @type context: L{OpenSSL.SSL.Context}
+        """
+        self._context = context
+
+
+    def getContext(self):
+        """
+        Return the context created by
+        L{_DeprecatedToCurrentPolicyForHTTPS._webContextFactory}.
+
+        @return: An old-style context factory.
+        @rtype: object with C{getContext} method, like
+            L{twisted.internet.ssl.ContextFactory}.
+        """
+        return self._context
+
+
+
 @implementer(IPolicyForHTTPS)
 class _DeprecatedToCurrentPolicyForHTTPS(object):
     """
@@ -917,18 +949,7 @@ class _DeprecatedToCurrentPolicyForHTTPS(object):
             L{twisted.internet.ssl.ContextFactory}.
         """
         context = self._webContextFactory.getContext(hostname, port)
-        class _ContextFactoryWithContext(object):
-            def getContext(self):
-                """
-                Return the context created by
-                L{_DeprecatedToCurrentPolicyForHTTPS._webContextFactory}.
-
-                @return: An old-style context factory.
-                @rtype: object with C{getContext} method, like
-                    L{twisted.internet.ssl.ContextFactory}.
-                """
-                return context
-        return _ContextFactoryWithContext()
+        return _ContextFactoryWithContext(context)
 
 
 
