@@ -1354,7 +1354,7 @@ class Agent(_AgentBase):
     L{Agent} is a very basic HTTP client.  It supports I{HTTP} and I{HTTPS}
     scheme URIs (but performs no certificate checking by default).
 
-    @ivar _pool: A L{HTTPConnectionPool} instance.
+    @ivar _pool: An L{HTTPConnectionPool} instance.
 
     @ivar _policyForHTTPS: A web context factory which will be used to create
         SSL context objects for any SSL connections the agent needs to make.
@@ -1397,7 +1397,7 @@ class Agent(_AgentBase):
         @param bindAddress: The local address for client sockets to bind to.
         @type bindAddress: L{bytes}
 
-        @param pool: A L{HTTPConnectionPool} instance, or C{None}, in which
+        @param pool: An L{HTTPConnectionPool} instance, or C{None}, in which
             case a non-persistent L{HTTPConnectionPool} instance will be
             created.
         @type pool: L{HTTPConnectionPool}
