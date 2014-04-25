@@ -921,13 +921,18 @@ class _ContextFactoryWithContext(object):
 class _DeprecatedToCurrentPolicyForHTTPS(object):
     """
     Adapt a web context factory to a normal context factory.
+
+    @ivar _webContextFactory: An object providing a getContext method with
+        C{hostname} and C{port} arguments.
+    @type _webContextFactory: L{WebClientContextFactory} (or object with a
+        similar C{getContext} method).
     """
     def __init__(self, webContextFactory):
         """
         Wrap a web context factory in an L{IPolicyForHTTPS}.
 
-        @param webContextFactory: An object providing getContext with some
-            extra arguments.
+        @param webContextFactory: An object providing a getContext method with
+            C{hostname} and C{port} arguments.
         @type webContextFactory: L{WebClientContextFactory} (or object with a
             similar C{getContext} method).
         """
