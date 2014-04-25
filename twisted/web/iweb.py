@@ -725,6 +725,8 @@ class IPolicyForHTTPS(Interface):
     HTTPS connections, in the form of a L{client connection creator
     <twisted.internet.interfaces.IOpenSSLClientConnectionCreator>} per network
     location.
+
+    @since: 14.0
     """
 
     def creatorForNetloc(hostname, port):
