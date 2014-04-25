@@ -1230,6 +1230,30 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
         self.assertTrue(expectedConnection.connectState)
 
 
+    def test_deprecatedDuckPolicy(self):
+        """
+        Passing something that duck-types I{like} a L{web client context
+        factory <twisted.web.client.WebClientContextFactory>} - something that
+        does not provide L{IPolicyForHTTPS} - to L{Agent} emits a
+        L{DeprecationWarning} even if you don't actually C{import
+        WebClientContextFactory} to do it.
+        """
+        def warnMe():
+            client.Agent(MemoryReactorClock(),
+                         "does-not-provide-IPolicyForHTTPS")
+        warnMe()
+        warnings = self.flushWarnings([warnMe])
+        self.assertEqual(len(warnings), 1)
+        [warning] = warnings
+        self.assertEqual(warning['category'], DeprecationWarning)
+        self.assertEqual(
+            warning['message'],
+            "'does-not-provide-IPolicyForHTTPS' was passed as the HTTPS "
+            "policy for an Agent, but it does not provide IPolicyForHTTPS.  "
+            "Since Twisted 14.0, you must pass a provider of IPolicyForHTTPS."
+        )
+
+
 
 class WebClientContextFactoryTests(TestCase):
     """

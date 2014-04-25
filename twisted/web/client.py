@@ -10,6 +10,7 @@ from __future__ import division, absolute_import
 
 import os
 import types
+import warnings
 
 try:
     from urlparse import urlunparse, urljoin, urldefrag
@@ -1404,6 +1405,13 @@ class Agent(_AgentBase):
         """
         _AgentBase.__init__(self, reactor, pool)
         if not IPolicyForHTTPS.providedBy(contextFactory):
+            warnings.warn(
+                repr(contextFactory) +
+                " was passed as the HTTPS policy for an Agent, but it does "
+                "not provide IPolicyForHTTPS.  Since Twisted 14.0, you must "
+                "pass a provider of IPolicyForHTTPS.",
+                stacklevel=2, category=DeprecationWarning
+            )
             contextFactory = _DeprecatedToCurrentPolicyForHTTPS(contextFactory)
         self._policyForHTTPS = contextFactory
         self._connectTimeout = connectTimeout
