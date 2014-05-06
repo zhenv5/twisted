@@ -754,7 +754,7 @@ class IAgentEndpointConstructor(Interface):
     """
     An L{IAgentEndpointConstructor} provides a way of constructing an endpoint
     used for outgoing Agent requests. This is useful in the case of needing to
-    proxy outgoing connections.
+    proxy outgoing connections, or to otherwise vary the transport used.
 
     @since: 14.1
     """
