@@ -1,0 +1,1 @@
+twisted.web.client.Agent now has an endpointConstructor argument for allowing Agent to connect through arbitrary user-specified endpoints, by using a provider of the new IAgentEndpointConstructor interface.
