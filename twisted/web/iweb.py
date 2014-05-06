@@ -776,9 +776,10 @@ class IAgentEndpointConstructor(Interface):
 
         @param httpsConnectionCreator: The client connection creator which
             would be used for outgoing HTTPS requests. Usually determined from
-            an L{IPolicyForHTTPS} provider.
+            an L{IPolicyForHTTPS} provider. If TLS support is not available,
+            L{None} will be passed instead.
         @type httpsConnectionCreator: an L{IOpenSSLClientConnectionCreator}
-            provider
+            provider or C{NoneType}
 
         @return: An endpoint which will have its C{connect} method called to
             issue the request.

@@ -1453,8 +1453,11 @@ class Agent(_AgentBase):
         @return: An endpoint which can be used to connect to given address.
         """
         if self._endpointConstructor is not None:
-            httpsConnectionCreator = self._policyForHTTPS.creatorForNetloc(
-                host, port)
+            if SSL is None:
+                httpsConnectionCreator = None
+            else:
+                httpsConnectionCreator = self._policyForHTTPS.creatorForNetloc(
+                    host, port)
             return self._endpointConstructor.constructEndpoint(
                 scheme, host, port, httpsConnectionCreator)
 
