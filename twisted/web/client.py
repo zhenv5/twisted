@@ -1373,13 +1373,17 @@ class Agent(_AgentBase):
         L{TCP4ClientEndpoint} or C{SSL4ClientEndpoint} for specifying the local
         address to bind to.
 
+    @ivar _endpointConstructor: If not C{None}, the
+        L{IAgentEndpointConstructor} which will be used to create endpoints for
+        outgoing connections.
+
     @since: 9.0
     """
 
     def __init__(self, reactor,
                  contextFactory=BrowserLikePolicyForHTTPS(),
                  connectTimeout=None, bindAddress=None,
-                 pool=None):
+                 pool=None, endpointConstructor=None):
         """
         Create an L{Agent}.
 
@@ -1407,6 +1411,12 @@ class Agent(_AgentBase):
             case a non-persistent L{HTTPConnectionPool} instance will be
             created.
         @type pool: L{HTTPConnectionPool}
+
+        @param endpointConstructor: An L{IAgentEndpointConstructor} provider or
+            L{None}. If not L{None}, this will be used to construct endpoints
+            instead of the default method, and as such, the C{connectTimeout}
+            and C{bindAddress} parameters will be ignored.
+        @type endpointConstructor: an L{IAgentEndpointConstructor} provider
         """
         _AgentBase.__init__(self, reactor, pool)
         if not IPolicyForHTTPS.providedBy(contextFactory):
@@ -1421,12 +1431,14 @@ class Agent(_AgentBase):
         self._policyForHTTPS = contextFactory
         self._connectTimeout = connectTimeout
         self._bindAddress = bindAddress
+        self._endpointConstructor = endpointConstructor
 
 
     def _getEndpoint(self, scheme, host, port):
         """
         Get an endpoint for the given host and port, using a transport
-        selected based on scheme.
+        selected based on scheme. If C{self._endpointConstructor} is not
+        L{None}, that will be used instead of the default logic.
 
         @param scheme: A string like C{'http'} or C{'https'} (the only two
             supported values) to use to determine how to establish the
@@ -1440,6 +1452,12 @@ class Agent(_AgentBase):
 
         @return: An endpoint which can be used to connect to given address.
         """
+        if self._endpointConstructor is not None:
+            httpsConnectionCreator = self._policyForHTTPS.creatorForNetloc(
+                host, port)
+            return self._endpointConstructor.constructEndpoint(
+                scheme, host, port, httpsConnectionCreator)
+
         kwargs = {}
         if self._connectTimeout is not None:
             kwargs['timeout'] = self._connectTimeout

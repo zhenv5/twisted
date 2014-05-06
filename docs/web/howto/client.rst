@@ -769,8 +769,18 @@ the new encoding.  As there are not many content encodings in widespread
 use, gzip is the only encoding supported by Twisted itself.
 
 
+Arbitrary endpoint construction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
+Sometimes it's useful to be able to specify the endpoint used by the ``Agent`` when making a request.
+For example,
+when making an HTTP request over a SOCKS proxy connection.
+For this reason,
+there is an ``endpointConstructor`` argument to ``Agent.__init__``.
 
+:download:`endpointconstructor.py <listings/client/endpointconstructor.py>`
+
+.. literalinclude:: listings/client/endpointconstructorgzipdecoder.py
 
 
 Conclusion
@@ -799,6 +809,3 @@ particular, you should understand:
 - 
   How to enable the HTTP persistent connection, and control the
   number of connections.
-
-  
-

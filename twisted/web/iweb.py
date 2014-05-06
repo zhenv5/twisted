@@ -750,6 +750,43 @@ class IPolicyForHTTPS(Interface):
 
 
 
+class IAgentEndpointConstructor(Interface):
+    """
+    An L{IAgentEndpointConstructor} provides a way of constructing an endpoint
+    used for outgoing Agent requests. This is useful in the case of needing to
+    proxy outgoing connections.
+
+    @since: 14.1
+    """
+
+    def constructEndpoint(scheme, hostname, port, httpsConnectionCreator):
+        """
+        Construct and return an L{IStreamClientEndpoint} for the outgoing
+        request's connection.
+
+        @param scheme: The scheme of the request. Usually will be one of
+            C{b"http"} or C{b"https"}.
+        @type scheme: L{bytes}
+
+        @param hostname: The hostname of the request.
+        @type hostname: L{bytes}
+
+        @param port: The port of the request.
+        @type port: L{int}
+
+        @param httpsConnectionCreator: The client connection creator which
+            would be used for outgoing HTTPS requests. Usually determined from
+            an L{IPolicyForHTTPS} provider.
+        @type httpsConnectionCreator: an L{IOpenSSLClientConnectionCreator}
+            provider
+
+        @return: An endpoint which will have its C{connect} method called to
+            issue the request.
+        @rtype: an L{IStreamClientEndpoint} provider
+        """
+
+
+
 UNKNOWN_LENGTH = u"twisted.web.iweb.UNKNOWN_LENGTH"
 
 __all__ = [
