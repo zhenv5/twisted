@@ -719,7 +719,7 @@ class FakeEndpointConstructor(object):
         self.endpoint = object()
 
 
-    def constructEndpoint(self, scheme, hostname, port, httpConnectionCreator):
+    def constructEndpoint(self, scheme, hostname, port, httpsConnectionCreator):
         """
         Save the parameters passed.
 
@@ -744,7 +744,7 @@ class FakeEndpointConstructor(object):
         self.scheme = scheme
         self.hostname = hostname
         self.port = port
-        self.httpConnectionCreator = httpConnectionCreator
+        self.httpsConnectionCreator = httpsConnectionCreator
         return self.endpoint
 
 
@@ -1150,7 +1150,7 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         agent = client.Agent(None, endpointConstructor=constructor)
         agent._getEndpoint('http', 'example.com', 80)
         self.assertIsInstance(
-            constructor.httpConnectionCreator,
+            constructor.httpsConnectionCreator,
             ClientTLSOptions)
 
 
@@ -1162,7 +1162,7 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         constructor = FakeEndpointConstructor()
         agent = client.Agent(None, endpointConstructor=constructor)
         agent._getEndpoint('http', 'example.com', 80)
-        self.assertIs(None, constructor.httpConnectionCreator)
+        self.assertIs(None, constructor.httpsConnectionCreator)
 
 
     if ssl is None:
