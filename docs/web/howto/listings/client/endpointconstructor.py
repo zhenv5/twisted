@@ -9,11 +9,6 @@ from twisted.web.http_headers import Headers
 
 
 
-def cbRequest(response):
-    print('Response received')
-
-
-
 class EndpointConstructor(object):
     def __init__(self, reactor):
         self.reactor = reactor
@@ -26,6 +21,8 @@ class EndpointConstructor(object):
         if scheme == b'http':
             return TCP4ClientEndpoint(self.reactor, host, port)
         elif scheme == b'https':
+            if httpsConnectionCreator is None:
+                raise NotImplementedError('TLS support unavailable')
             return SSL4ClientEndpoint(
                 self.reactor, host, port, httpsConnectionCreator)
         else:
@@ -37,9 +34,8 @@ def main(reactor, url=b"http://example.com/"):
     agent = Agent(reactor, endpointConstructor=EndpointConstructor(reactor))
     d = agent.request(
         'GET', url,
-        Headers({'User-Agent': ['Twisted Web Client Example']}),
-        None)
-    d.addCallback(cbRequest)
+        Headers({'User-Agent': ['Twisted Web Client Example']}))
+    d.addCallback(print, 'Response received')
     return d
 
 
