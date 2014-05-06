@@ -707,6 +707,48 @@ class AgentTestsMixin(object):
 
 
 
+class FakeEndpointConstructor(object):
+    """
+    A fake L{IAgentEndpointConstructor} for use in testing.
+
+    @ivar endpoint: A unique L{object} which will be returned by
+        L{constructEndpoint}.
+    """
+
+    def __init__(self):
+        self.endpoint = object()
+
+
+    def constructEndpoint(self, scheme, hostname, port, httpConnectionCreator):
+        """
+        Save the parameters passed.
+
+        @param scheme: The scheme of the request.
+        @type scheme: L{bytes}
+
+        @param hostname: The hostname of the request.
+        @type hostname: L{bytes}
+
+        @param port: The port of the request.
+        @type port: L{int}
+
+        @param httpsConnectionCreator: The client connection creator which
+            would be used for outgoing HTTPS requests, or L{None}.
+        @type httpsConnectionCreator: an L{IOpenSSLClientConnectionCreator}
+            provider or C{NoneType}
+
+        @return: Not an actual endpoint, but a unique L{object} standing in
+            place of one.
+        @rtype: L{object}
+        """
+        self.scheme = scheme
+        self.hostname = hostname
+        self.port = port
+        self.httpConnectionCreator = httpConnectionCreator
+        return self.endpoint
+
+
+
 class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
     """
     Tests for the new HTTP client API provided by L{Agent}.
@@ -1084,6 +1126,50 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         """
         request = client.Request(b'FOO', b'/', client.Headers(), None)
         self.assertIdentical(request.absoluteURI, None)
+
+
+    def test_endpointConstructor(self):
+        """
+        L{Agent} can be passed an endpoint constructor.
+        """
+        constructor = FakeEndpointConstructor()
+        agent = client.Agent(None, endpointConstructor=constructor)
+        returnedEndpoint = agent._getEndpoint('http', 'example.com', 80)
+        self.assertEqual(
+            (returnedEndpoint, constructor.scheme, constructor.hostname,
+             constructor.port),
+            (constructor.endpoint, b'http', b'example.com', 80))
+
+
+    def test_endpointConstructorGetsTLSOptions(self):
+        """
+        The L{IAgentEndpointConstructor} is passed a L{ClientTLSOptions}
+        instance by default if TLS support is available.
+        """
+        constructor = FakeEndpointConstructor()
+        agent = client.Agent(None, endpointConstructor=constructor)
+        agent._getEndpoint('http', 'example.com', 80)
+        self.assertIsInstance(
+            constructor.httpConnectionCreator,
+            ClientTLSOptions)
+
+
+    def test_endpointConstructorGetsNone(self):
+        """
+        The L{IAgentEndpointConstructor} is passed None if TLS support is
+        unavailable.
+        """
+        constructor = FakeEndpointConstructor()
+        agent = client.Agent(None, endpointConstructor=constructor)
+        agent._getEndpoint('http', 'example.com', 80)
+        self.assertIs(None, constructor.httpConnectionCreator)
+
+
+    if ssl is None:
+        test_endpointConstructorGetsTLSOptions.skip = (
+            'SSL not present, cannot run SSL tests.')
+    else:
+        test_endpointConstructorGetsNone.skip = 'SSL present.'
 
 
 
