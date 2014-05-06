@@ -777,6 +777,7 @@ For example,
 when making an HTTP request over a SOCKS proxy connection.
 For this reason,
 there is an ``endpointConstructor`` argument to ``Agent.__init__``.
+The ``endpointConstructor`` passed in must provide the :api:`twisted.web.iweb.IAgentEndpointConstructor` interface.
 
 :download:`endpointconstructor.py <listings/client/endpointconstructor.py>`
 
