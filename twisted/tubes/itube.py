@@ -350,13 +350,6 @@ class ITube(Interface):
     )
 
 
-    def deliver(item): # pragma:nocover
-        """
-        Deliver the given item to this L{ITube}'s L{IDrain}, if something is
-        flowing from the L{IDrain}.
-        """
-
-
 
 class ISwitchableTube(ITube):
     """
