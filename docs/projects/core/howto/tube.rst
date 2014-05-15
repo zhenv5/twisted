@@ -8,15 +8,19 @@ Abstract
 The :api:`twisted.tubes <twisted.tubes>` package provides flow-control and composable data processing.
 
 Flow-control is control over the source, destination, and rate of data being processed.
-``tubes`` implements this in a type-agnostic way, meaning that a set of rules for controlling the flow of data can control that flow regardless of the type of that data, from raw streams of bytes to application-specific messages and back again.
+Tubes implements this in a type-agnostic way, meaning that a set of rules for controlling the flow of data can control that flow regardless of the type of that data, from raw streams of bytes to application-specific messages and back again.
 
 Composable data processing refers to processing that can occur in independent units.
 For example, the conversion of a continuous stream of bytes into a discrete sequence of messages can be implemented independently from the presentation of or reactions to those messages.
 This allows for semantically similar messages to be relayed in different formats and by different protocols, but be processed by the same code.
 
+In this document, you will learn how to compose founts (places where data comes from), drains (places where data goes to) and tubes (things that modify data by converting inputs to outputs) to create flows.
+You'll also learn how to create your own tubes to perform your own conversions of input to output.
+By the end, you should be able to put a series of tubes onto the Internet as a server or a client.
 
-What Are Twisted Tubes?
------------------------
+
+What Are Tubes?
+---------------
 
 Suppose you are processing a stream of bytes, containing messages that are delimited by marker, ``b"\r\n"`` (as many network protocols are).
 If your program receives ``b"hello, world"`` , as an input, it should deliver zero outputs, since it hasn't seen a message boundary yet.
