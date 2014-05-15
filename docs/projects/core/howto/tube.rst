@@ -5,7 +5,7 @@ An Introduction to Tubes
 Abstract
 --------
 
-The :api:`twisted.tubes <twisted.tubes>` package implements a set of interfaces and a system for automatic propagation and manual management of data-agnostic flow-control, and composable processing of typed data.
+The :api:`twisted.tubes <twisted.tubes>` package provides data-agnostic flow-control, and composable processing of typed data.
 However, unless you've had experience writing distributed systems before, that description might not make sense.
 If that's the case, this next section should explain what :api:`twisted.tubes <twisted.tubes>` is, and why you would want to use it.
 
