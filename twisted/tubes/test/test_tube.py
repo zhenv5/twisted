@@ -796,6 +796,24 @@ class Reminders(TestCase):
         self.assertEquals(fd.stopped[0].type, ZeroDivisionError)
 
 
+    def test_startedRaisesNoDrain(self):
+        """
+        If L{ITube.started} raises an exception, the exception will be logged,
+        the tube's fount will have L{IFount.stopFlow} called, and
+        L{IDrain.flowStopped} will be called on the tube's downstream drain.
+        """
+        class UnstartableTube(Tube):
+            def started(self):
+                raise ZeroDivisionError
+
+        ff = FakeFount()
+        siphonDrain = series(UnstartableTube())
+        ff.flowTo(siphonDrain)
+        errors = self.flushLoggedErrors(ZeroDivisionError)
+        self.assertEquals(len(errors), 1)
+        self.assertEquals(ff.flowIsStopped, True)
+
+
     def test_progressedRaises(self):
         """
         If L{ITube.progressed} raises an exception, the exception will be
