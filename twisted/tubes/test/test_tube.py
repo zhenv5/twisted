@@ -776,13 +776,24 @@ class SiphonTest(TestCase):
 
 
 class Reminders(TestCase):
-    todo = "Just a minute..."
     def test_startedRaises(self):
         """
         If L{ITube.started} raises an exception, the exception will be logged,
-        and...
+        the tube's fount will have L{IFount.stopFlow} called, and
+        L{IDrain.flowStopped} will be called on the tube's downstream drain.
         """
-        self.fail()
+        class UnstartableTube(Tube):
+            def started(self):
+                raise ZeroDivisionError
+
+        ff = FakeFount()
+        fd = FakeDrain()
+        siphonDrain = series(UnstartableTube(), fd)
+        ff.flowTo(siphonDrain)
+        errors = self.flushLoggedErrors(ZeroDivisionError)
+        self.assertEquals(len(errors), 1)
+        self.assertEquals(ff.flowIsStopped, True)
+        self.assertEquals(fd.stopped[0].type, ZeroDivisionError)
 
 
     def test_progressedRaises(self):
