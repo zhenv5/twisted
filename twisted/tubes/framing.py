@@ -5,8 +5,8 @@ Protocols to support framing.
 
 from zope.interface import implementer
 
-from twisted.tubes.itube import ISwitchablePump
-from twisted.tubes.tube import Pump
+from twisted.tubes.itube import IDivertable
+from twisted.tubes.tube import Tube
 from twisted.protocols.basic import (
     LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
     Int16StringReceiver, Int32StringReceiver
@@ -27,7 +27,7 @@ class _Transporter(object):
 
 
 
-class _StringsToData(Pump):
+class _StringsToData(Tube):
     def __init__(self, stringReceiverClass, sendMethodName="sendString"):
         self._stringReceiver = stringReceiverClass()
         self._received = getattr(self._stringReceiver, sendMethodName)
@@ -62,8 +62,8 @@ class _NotDisconnecting(object):
 
 
 
-@implementer(ISwitchablePump)
-class _DataToStrings(Pump):
+@implementer(IDivertable)
+class _DataToStrings(Tube):
     def __init__(self, stringReceiverClass,
                  receivedMethodName="stringReceived"):
         self._stringReceiver = stringReceiverClass()

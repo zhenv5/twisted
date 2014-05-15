@@ -22,7 +22,7 @@ class StringsToBoxes(Pump):
     state = 'new'
 
     def received(self, item):
-        self.state = getattr(self, 'received_' + self.state)(item)
+        return getattr(self, 'received_' + self.state)(item)
 
 
     def received_new(self, item):
@@ -33,15 +33,15 @@ class StringsToBoxes(Pump):
     def received_key(self, item):
         if item:
             self._currentKey = item
-            return 'value'
+            self.state = 'value'
         else:
-            self.tube.deliver(self._currentBox)
-            return 'new'
+            self.state = 'new'
+            yield self._currentBox
 
 
     def received_value(self, item):
         self._currentBox[self._currentKey] = item
-        return 'key'
+        self.state = 'key'
 
 
 
@@ -53,11 +53,23 @@ class BoxesToData(Pump):
     outputType = ISegment
 
     def received(self, item):
-        self.tube.deliver(item.serialize())
-
+        yield item.serialize()
 
 
 @implementer(IBoxSender)
+class BufferingBoxSender(object):
+    def __init__(self):
+        self.boxesToSend = []
+        
+    def sendBox(self, box):
+        self.boxesToSend.append(box)
+
+
+    def unhandledError(failure):
+        from twisted.python import log
+        log.err(failure)
+
+
 class BoxConsumer(Pump):
 
     inputType = None # AmpBox
@@ -65,14 +77,11 @@ class BoxConsumer(Pump):
 
     def __init__(self, boxReceiver):
         self.boxReceiver = boxReceiver
+        self.bbs = BufferingBoxSender(self)
 
 
     def started(self):
-        self.boxReceiver.startReceivingBoxes(self)
-
-
-    def sendBox(self, box):
-        self.tube.deliver(box)
+        self.boxReceiver.startReceivingBoxes(self.bbs)
 
 
     def unhandledError(self, failure):
@@ -81,12 +90,15 @@ class BoxConsumer(Pump):
 
     def received(self, box):
         self.boxReceiver.ampBoxReceived(box)
+        boxes = self.bbs.boxesToSend
+        self.bbs.boxesToSend = []
+        return boxes
 
 
 
 def mathFlow(fount, drain):
     fount.flowTo(series(packedPrefixToStrings(16), StringsToBoxes(),
-                         BoxConsumer(Math()), BoxesToData(), drain))
+                        BoxConsumer(Math()), BoxesToData(), drain))
 
 
 

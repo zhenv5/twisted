@@ -3,37 +3,29 @@
 # See LICENSE for details.
 
 """
-See L{_Tube}.
+See L{_Siphon}.
 """
 import itertools
 
-from zope.interface import implementer
-from zope.interface import directlyProvides
-from zope.interface import noLongerProvides
+from zope.interface import implementer, implementedBy
 
 from twisted.internet.defer import Deferred
 
-from twisted.tubes.itube import IDrain
-from twisted.tubes.itube import IPump
-from twisted.tubes.itube import IFount
-from twisted.tubes.itube import ITube
-from twisted.tubes.itube import ISwitchablePump
-from twisted.tubes.itube import ISwitchableTube
-from twisted.tubes.itube import IPause
-from twisted.tubes.itube import AlreadyUnpaused
+from twisted.tubes.itube import (IDrain, ITube, IFount, IPause, IDivertable,
+                                 AlreadyUnpaused)
 
 
-class _TubePiece(object):
+class _SiphonPiece(object):
     """
-    Shared functionality between L{_TubeFount} and L{_TubeDrain}
+    Shared functionality between L{_SiphonFount} and L{_SiphonDrain}
     """
-    def __init__(self, tube):
-        self._tube = tube
+    def __init__(self, siphon):
+        self._siphon = siphon
 
 
     @property
-    def _pump(self):
-        return self._tube.pump
+    def _tube(self):
+        return self._siphon._tube
 
 
 
@@ -75,20 +67,20 @@ class _Pauser(object):
 
 
 @implementer(IFount)
-class _TubeFount(_TubePiece):
+class _SiphonFount(_SiphonPiece):
     """
-    Implementation of L{IFount} for L{_Tube}.
+    Implementation of L{IFount} for L{_Siphon}.
 
     @ivar fount: the implementation of the L{IDrain.fount} attribute.  The
-        L{IFount} which is flowing to this L{_Tube}'s L{IDrain} implementation.
+        L{IFount} which is flowing to this L{_Siphon}'s L{IDrain} implementation.
 
     @ivar drain: the implementation of the L{IFount.drain} attribute.  The
-        L{IDrain} to which this L{_Tube}'s L{IFount} implementation is flowing.
+        L{IDrain} to which this L{_Siphon}'s L{IFount} implementation is flowing.
     """
     drain = None
 
-    def __init__(self, tube):
-        super(_TubeFount, self).__init__(tube)
+    def __init__(self, siphon):
+        super(_SiphonFount, self).__init__(siphon)
         self._pauser = _Pauser(self._actuallyPause, self._actuallyResume)
 
 
@@ -96,25 +88,25 @@ class _TubeFount(_TubePiece):
         """
         Nice string representation.
         """
-        return "<Fount for {0}>".format(repr(self._tube.pump))
+        return "<Fount for {0}>".format(repr(self._siphon._tube))
 
 
     @property
     def outputType(self):
-        return self._pump.outputType
+        return self._tube.outputType
 
 
     def flowTo(self, drain):
         """
-        Flow data from this tube to the given drain.
+        Flow data from this siphon to the given drain.
         """
         self.drain = drain
         if drain is None:
             return
         result = self.drain.flowingFrom(self)
-        if self._tube._pauseBecauseNoDrain:
-            pbnd = self._tube._pauseBecauseNoDrain
-            self._tube._pauseBecauseNoDrain = None
+        if self._siphon._pauseBecauseNoDrain:
+            pbnd = self._siphon._pauseBecauseNoDrain
+            self._siphon._pauseBecauseNoDrain = None
             pbnd.unpause()
         return result
 
@@ -128,34 +120,34 @@ class _TubeFount(_TubePiece):
 
 
     def _actuallyPause(self):
-        fount = self._tube._tdrain.fount
-        self._tube._currentlyPaused = True
-        if fount is not None and self._tube._pauseBecausePauseCalled is None:
-            self._tube._pauseBecausePauseCalled = fount.pauseFlow()
+        fount = self._siphon._tdrain.fount
+        self._siphon._currentlyPaused = True
+        if fount is not None and self._siphon._pauseBecausePauseCalled is None:
+            self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
 
 
     def _actuallyResume(self):
         """
-        Resume the flow from the fount to this L{_Tube}.
+        Resume the flow from the fount to this L{_Siphon}.
         """
-        fount = self._tube._tdrain.fount
-        self._tube._currentlyPaused = False
+        fount = self._siphon._tdrain.fount
+        self._siphon._currentlyPaused = False
 
-        if self._tube._pendingIterator is not None:
-            self._tube._unbufferIterator()
+        if self._siphon._pendingIterator is not None:
+            self._siphon._unbufferIterator()
 
-        if fount is not None and self._tube._pauseBecausePauseCalled:
-            fp = self._tube._pauseBecausePauseCalled
-            self._tube._pauseBecausePauseCalled = None
+        if fount is not None and self._siphon._pauseBecausePauseCalled:
+            fp = self._siphon._pauseBecausePauseCalled
+            self._siphon._pauseBecausePauseCalled = None
             fp.unpause()
 
 
     def stopFlow(self):
         """
-        Stop the flow from the fount to this L{_Tube}.
+        Stop the flow from the fount to this L{_Siphon}.
         """
-        self._tube._flowWasStopped = True
-        fount = self._tube._tdrain.fount
+        self._siphon._flowWasStopped = True
+        fount = self._siphon._tdrain.fount
         if fount is None:
             return
         fount.stopFlow()
@@ -163,9 +155,9 @@ class _TubeFount(_TubePiece):
 
 
 @implementer(IDrain)
-class _TubeDrain(_TubePiece):
+class _SiphonDrain(_SiphonPiece):
     """
-    Implementation of L{IDrain} for L{_Tube}.
+    Implementation of L{IDrain} for L{_Siphon}.
     """
     fount = None
 
@@ -173,32 +165,32 @@ class _TubeDrain(_TubePiece):
         """
         Nice string representation.
         """
-        return '<Drain for {0}>'.format(self._tube.pump)
+        return '<Drain for {0}>'.format(self._siphon._tube)
 
 
     @property
     def inputType(self):
-        return self._pump.inputType
+        return self._tube.inputType
 
 
     def flowingFrom(self, fount):
         """
-        This tube will now have 'receive' called.
+        This siphon will now have 'receive' called.
         """
         out = fount.outputType
         in_ = self.inputType
         if out is not None and in_ is not None and not in_.isOrExtends(out):
             raise TypeError()
         self.fount = fount
-        if self._tube._flowWasStopped:
+        if self._siphon._flowWasStopped:
             fount.stopFlow()
-        if self._tube._pauseBecausePauseCalled:
-            pbpc = self._tube._pauseBecausePauseCalled
-            self._tube._pauseBecausePauseCalled = None
+        if self._siphon._pauseBecausePauseCalled:
+            pbpc = self._siphon._pauseBecausePauseCalled
+            self._siphon._pauseBecausePauseCalled = None
             pbpc.unpause()
-            self._tube._pauseBecausePauseCalled = fount.pauseFlow()
-        self._tube._deliverFrom(self._pump.started)
-        nextFount = self._tube._tfount
+            self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
+        self._siphon._deliverFrom(self._tube.started)
+        nextFount = self._siphon._tfount
         nextDrain = nextFount.drain
         if nextDrain is None:
             return nextFount
@@ -209,36 +201,36 @@ class _TubeDrain(_TubePiece):
         """
         Progress was made.
         """
-        self._pump.progressed(amount)
+        self._tube.progressed(amount)
 
 
     def receive(self, item):
         """
-        An item was received.  Pass it on to the pump for processing.
+        An item was received.  Pass it on to the tube for processing.
         """
         def thingToDeliverFrom():
-            return self._pump.received(item)
-        delivered = self._tube._deliverFrom(thingToDeliverFrom)
-        drain = self._tube._tfount.drain
+            return self._tube.received(item)
+        delivered = self._siphon._deliverFrom(thingToDeliverFrom)
+        drain = self._siphon._tfount.drain
         if drain is not None and delivered == 0:
             drain.progress()
 
 
     def flowStopped(self, reason):
         """
-        This tube has now stopped.
+        This siphon has now stopped.
         """
-        self._tube._flowStoppingReason = reason
-        self._tube._deliverFrom(lambda: self._pump.stopped(reason))
+        self._siphon._flowStoppingReason = reason
+        self._siphon._deliverFrom(lambda: self._tube.stopped(reason))
 
 
 
 def series(start, *plumbing):
     """
     Connect up a series of objects capable of transforming inputs to outputs;
-    convert a sequence of L{IPump} objects into a sequence of connected
+    convert a sequence of L{ITube} objects into a sequence of connected
     L{IFount} and L{IDrain} objects.  This is necessary to be able to C{flowTo}
-    an object implementing L{IPump}.
+    an object implementing L{ITube}.
 
     This function can best be understood by understanding that::
 
@@ -254,11 +246,11 @@ def series(start, *plumbing):
 
     @param start: The initial element in the chain; the object that will
         consume inputs passed to the result of this call to C{series}.
-    @type start: an L{IPump}, or anything adaptable to L{IFount}, as well as
+    @type start: an L{ITube}, or anything adaptable to L{IFount}, as well as
         L{IDrain}.
 
     @param plumbing: Each element of C{plumbing}.
-    @type plumbing: a L{tuple} of L{IPump}s or objects adaptable to L{IDrain}.
+    @type plumbing: a L{tuple} of L{ITube}s or objects adaptable to L{IDrain}.
 
     @return: An L{IDrain} that can consume inputs of C{start}'s C{inputType},
         and whose C{flowingFrom} will return an L{IFount} that will produce
@@ -268,28 +260,13 @@ def series(start, *plumbing):
     @raise TypeError: if C{start}, or any element of C{plumbing} is not
         adaptable to L{IDrain}.
     """
-    with _registryActive(_pumpRegistry):
+    with _registryActive(_tubeRegistry):
         result = IDrain(start)
-        currentFount = IFount(start)
+        currentFount = IFount(result)
         drains = map(IDrain, plumbing)
     for drain in drains:
         currentFount = currentFount.flowTo(drain)
     return result
-
-
-
-def _pumpToTube(pump):
-    """
-    Convert a L{Pump} into a L{_Tube}.  If the L{Pump} already has a C{tube}
-    attribute, return that; otherwise, associate one with it and return that.
-
-    @param pump: a pump
-
-    @return: a L{_Tube}.
-    """
-    if pump.tube is not None:
-        return pump.tube
-    return _Tube(pump)
 
 
 
@@ -323,19 +300,18 @@ def _registryActive(registry):
 
 
 
-@implementer(ITube)
-class _Tube(object):
+class _Siphon(object):
     """
-    A L{_Tube} is an L{IDrain} and possibly also an L{IFount}, and provides
+    A L{_Siphon} is an L{IDrain} and possibly also an L{IFount}, and provides
     lots of conveniences to make it easy to implement something that does fancy
     flow control with just a few methods.
 
-    @ivar pump: the L{Pump} which will receive values from this tube and call
-        C{deliver} to deliver output to it.  (When set, this will automatically
-        set the C{tube} attribute of said L{Pump} as well, as well as
-        un-setting the C{tube} attribute of the old pump.)
+    @ivar _tube: the L{Tube} which will receive values from this siphon and
+        call C{deliver} to deliver output to it.  (When set, this will
+        automatically set the C{siphon} attribute of said L{Tube} as well, as
+        well as un-setting the C{siphon} attribute of the old tube.)
 
-    @ivar _currentlyPaused: is this L{_Tube} currently paused?  Boolean:
+    @ivar _currentlyPaused: is this L{_Siphon} currently paused?  Boolean:
         C{True} if paused, C{False} if not.
 
     @ivar _pauseBecausePauseCalled: an L{IPause} from the upstream fount,
@@ -343,57 +319,36 @@ class _Tube(object):
 
     @ivar _flowStoppingReason: If this is not C{None}, then call C{flowStopped}
         on the downstream L{IDrain} at the next opportunity, where "the next
-        opportunity" is when the last L{Deferred} yielded from L{IPump.stopped}
+        opportunity" is when the last L{Deferred} yielded from L{ITube.stopped}
         has fired.
     """
 
     _currentlyPaused = False
     _pauseBecausePauseCalled = None
-    _pump = None
+    _tube = None
     _pendingIterator = None
     _flowWasStopped = False
 
-    def __init__(self, pump):
+    def __init__(self, tube):
         """
-        Initialize this L{_Tube} with the given L{Pump} to control its
+        Initialize this L{_Siphon} with the given L{Tube} to control its
         behavior.
         """
-        self._tfount = _TubeFount(self)
-        self._tdrain = _TubeDrain(self)
-        self.pump = pump
+        self._tfount = _SiphonFount(self)
+        self._tdrain = _SiphonDrain(self)
+        assert not getattr(tube, "__marked__", False)
+        tube.__marked__ = True
+        self._tube = tube
+        if IDivertable.providedBy(tube):
+            tube.divert = self._divert
 
 
     def __repr__(self):
         """
         Nice string representation.
         """
-        return '<Tube for {0}>'.format(repr(self.pump))
+        return '<_Siphon for {0}>'.format(repr(self._tube))
 
-
-    def _get_pump(self):
-        """
-        Getter for the C{pump} property.
-        """
-        return self._pump
-
-
-    def _set_pump(self, newPump):
-        """
-        Setter for the C{pump} property.
-
-        @param newPump: the new L{IPump}
-        @type newPump: L{IPump}
-        """
-        if self._pump is not None:
-            self._pump.tube = None
-        self._pump = newPump
-        self._pump.tube = self
-        if ISwitchablePump.providedBy(self._pump):
-            directlyProvides(self, ISwitchableTube)
-        else:
-            noLongerProvides(self, ISwitchableTube)
-
-    pump = property(_get_pump, _set_pump)
 
     _pauseBecauseNoDrain = None
 
@@ -442,19 +397,17 @@ class _Tube(object):
         return i
 
 
-    def switch(self, drain):
-        if not ISwitchableTube.providedBy(self):
-            raise NotImplementedError(
-                'this tube cannot be switched; its pump does not implement '
-                'ISwitchablePump')
+    def _divert(self, drain):
+        """
+        Divert the flow to the 
+        """
         upstream = self._tdrain.fount
         anPause = upstream.pauseFlow()
         upstream.flowTo(drain)
         anPause.unpause()
         if self._pendingIterator is not None:
-            for element in self.pump.reassemble(self._pendingIterator):
+            for element in self._tube.reassemble(self._pendingIterator):
                 drain.receive(element)
-
 
 
 def _registryAdapting(*fromToAdapterTuples):
@@ -481,80 +434,57 @@ def _registryAdapting(*fromToAdapterTuples):
 
 
 
-from zope.interface.declarations import implementedBy
-
-_tubeType = implementedBy(_Tube)
-
-
-
-def _pump2drain(pump):
-    return _pumpToTube(pump)._tdrain
-
-
-
-def _pump2fount(pump):
-    return _pumpToTube(pump)._tfount
-
-
-
-def _tube2fount(tube):
-    return tube._tfount
-
-
-
 def _tube2drain(tube):
-    return tube._tdrain
+    return _Siphon(tube)._tdrain
 
 
 
-_pumpRegistry = _registryAdapting(
-    (IPump, IDrain, _pump2drain),
-    (IPump, IFount, _pump2fount),
-    (_tubeType, IFount, _tube2fount),
-    (_tubeType, IDrain, _tube2drain),
+def _siphonDrain2Fount(siphonDrain):
+    return siphonDrain._siphon._tfount
+
+
+
+_tubeRegistry = _registryAdapting(
+    (ITube, IDrain, _tube2drain),
+    (implementedBy(_SiphonDrain), IFount, _siphonDrain2Fount),
 )
 
 
 
-@implementer(IPump)
-class Pump(object):
+@implementer(ITube)
+class Tube(object):
     """
-    Null implementation for L{IPump}.  You can inherit from this to get no-op
-    implementation of all of L{IPump}'s required implementation so you can just
+    Null implementation for L{ITube}.  You can inherit from this to get no-op
+    implementation of all of L{ITube}'s required implementation so you can just
     just implement the parts you're interested in.
-
-    @ivar tube: The L{ITube} whose flow this pump is controlling.  This
-        attribute will be set before 'started' is called.
 
     @ivar inputType: The type of data expected to be received by C{receive}.
 
-    @ivar outputType: The type of data expected to be emitted to
-        C{self.tube.deliver}.
+    @ivar outputType: The type of data expected to be emitted by C{receive}.
     """
 
     inputType = None
     outputType = None
-    tube = None
 
     def started(self):
         """
-        @see: L{IPump.started}
+        @see: L{ITube.started}
         """
 
 
     def received(self, item):
         """
-        @see: L{IPump.received}
+        @see: L{ITube.received}
         """
 
 
     def progressed(self, amount=None):
         """
-        @see: L{IPump.progressed}
+        @see: L{ITube.progressed}
         """
 
 
     def stopped(self, reason):
         """
-        @see: L{IPump.stopped}
+        @see: L{ITube.stopped}
         """

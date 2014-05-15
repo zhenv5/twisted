@@ -8,15 +8,15 @@ Tests for L{twisted.tubes.protocol}.
 from twisted.tubes.test.util import StringEndpoint
 from twisted.trial.unittest import TestCase
 from twisted.tubes.protocol import factoryFromFlow
-from twisted.tubes.tube import Pump
+from twisted.tubes.tube import Tube
 from twisted.tubes.tube import series
 from twisted.python.failure import Failure
 from twisted.tubes.test.util import FakeDrain
 from twisted.tubes.test.util import FakeFount
 
-class RememberingPump(Pump):
+class RememberingTube(Tube):
     """
-    A pump that remembers what it receives.
+    A tube that remembers what it receives.
 
     @ivar items: a list of objects that have been received.
     """
@@ -55,15 +55,15 @@ class FlowingAdapterTests(TestCase):
             self.endpoint.connect(factoryFromFlow(flowFunction))
         )
 
-        self.pump = RememberingPump()
-        self.tube = series(self.pump)
+        self.tube = RememberingTube()
+        self.drain = series(self.tube)
 
 
     def test_progressNoOp(self):
         """
         L{_ProtocolDrain.progress} does nothing, but has the correct signature.
 
-        @see: L{twisted.tubes.test.test_tube.PumpTest.test_noOps}
+        @see: L{twisted.tubes.test.test_tube.TubeTest.test_noOps}
         """
         self.adaptedDrain.progress()
         self.adaptedDrain.progress(0.5)
@@ -74,8 +74,8 @@ class FlowingAdapterTests(TestCase):
         L{_ProtocolFount.flowTo} will set the C{drain} attribute of the
         L{_ProtocolFount}.
         """
-        self.adaptedFount.flowTo(self.tube)
-        self.assertIdentical(self.adaptedFount.drain, self.tube)
+        self.adaptedFount.flowTo(self.drain)
+        self.assertIdentical(self.adaptedFount.drain, self.drain)
 
 
     def test_flowToDeliversData(self):
@@ -83,9 +83,9 @@ class FlowingAdapterTests(TestCase):
         L{_ProtocolFount.flowTo} will cause subsequent calls to
         L{_ProtocolFount.dataReceived} to invoke L{receive} on its drain.
         """
-        self.adaptedFount.flowTo(self.tube)
+        self.adaptedFount.flowTo(self.drain)
         self.adaptedProtocol.dataReceived("some data")
-        self.assertEqual(self.pump.items, ["some data"])
+        self.assertEqual(self.tube.items, ["some data"])
 
 
     def test_drainReceivingWritesToTransport(self):
@@ -103,12 +103,12 @@ class FlowingAdapterTests(TestCase):
         L{_ProtocolFount.stopFlow} will close the underlying connection by
         calling C{loseConnection} on it.
         """
-        self.adaptedFount.flowTo(self.tube)
+        self.adaptedFount.flowTo(self.drain)
         self.adaptedFount.stopFlow()
         self.assertEqual(self.adaptedProtocol.transport.disconnecting, True)
         # The connection has not been closed yet; we *asked* the flow to stop,
         # but it may not have done.
-        self.assertEqual(self.pump.wasStopped, False)
+        self.assertEqual(self.tube.wasStopped, False)
 
 
     def test_flowStoppedStopsConnection(self):
@@ -116,10 +116,10 @@ class FlowingAdapterTests(TestCase):
         L{_ProtocolDrain.flowStopped} will close the underlying connection by
         calling C{loseConnection} on it.
         """
-        self.adaptedFount.flowTo(self.tube)
+        self.adaptedFount.flowTo(self.drain)
         self.adaptedDrain.flowStopped(Failure(ZeroDivisionError()))
         self.assertEqual(self.adaptedProtocol.transport.disconnecting, True)
-        self.assertEqual(self.pump.wasStopped, False)
+        self.assertEqual(self.tube.wasStopped, False)
 
 
     def test_connectionLostSendsFlowStopped(self):
@@ -130,13 +130,13 @@ class FlowingAdapterTests(TestCase):
         should have C{stopFlow} invoked on it so that it will no longer deliver
         to the now-dead transport.
         """
-        self.adaptedFount.flowTo(self.tube)
+        self.adaptedFount.flowTo(self.drain)
         class MyFunException(Exception):
             "An exception."
         f = Failure(MyFunException())
         self.adaptedProtocol.connectionLost(f)
-        self.assertEqual(self.pump.wasStopped, True)
-        self.assertIdentical(f, self.pump.reason)
+        self.assertEqual(self.tube.wasStopped, True)
+        self.assertIdentical(f, self.tube.reason)
 
 
     def test_connectionLostSendsStopFlow(self):

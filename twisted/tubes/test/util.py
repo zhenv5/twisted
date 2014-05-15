@@ -13,8 +13,8 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.internet.defer import succeed
 from twisted.tubes.itube import IDrain
 from twisted.tubes.itube import IFount
-from twisted.tubes.itube import ISwitchablePump
-from twisted.tubes.tube import Pump, _Pauser
+from twisted.tubes.itube import IDivertable
+from twisted.tubes.tube import Tube, _Pauser
 
 
 class StringEndpoint(object):
@@ -126,9 +126,9 @@ verifyClass(IFount, FakeFount)
 
 
 
-class TesterPump(Pump):
+class TesterTube(Tube):
     """
-    Pump for testing that records its inputs.
+    Tube for testing that records its inputs.
     """
 
     def __init__(self):
@@ -146,9 +146,9 @@ class TesterPump(Pump):
 
 
 
-@implementer(ISwitchablePump)
-class JustProvidesSwitchable(TesterPump):
+@implementer(IDivertable)
+class JustProvidesSwitchable(TesterTube):
     """
-    A L{TesterPump} that just provides L{ISwitchablePump} for tests that want
+    A L{TesterTube} that just provides L{IDivertable} for tests that want
     to assert about interfaces (no implementation actually provided).
     """

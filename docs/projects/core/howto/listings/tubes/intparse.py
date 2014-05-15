@@ -14,7 +14,7 @@ class LinesToIntegersOrCommands(Pump):
             result = reducer(operator.mul, 1)
         else:
             result = int(item)
-        self.tube.deliver(result)
+        yield result
 
 def product(numbers):
     return reduce(operator.mul, numbers, 1)

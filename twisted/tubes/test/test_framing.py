@@ -2,17 +2,13 @@
 """
 Tests for framing protocols.
 """
-from zope.interface import implementer
-
-from twisted.tubes.itube import ISwitchablePump
-
 from twisted.tubes.framing import stringsToNetstrings
 
 from twisted.tubes.test.util import FakeFount
 from twisted.tubes.test.util import FakeDrain
 from twisted.tubes.tube import series
 
-from twisted.tubes.tube import Pump
+from twisted.tubes.tube import Tube
 
 from twisted.tubes.framing import netstringsToStrings
 from twisted.tubes.framing import bytesToLines
@@ -108,14 +104,14 @@ class LineTests(TestCase):
         ff = FakeFount()
         fd = FakeDrain()
 
-        class Switcher(Pump):
+        class Switcher(Tube):
             def received(self, line):
                 splitted = line.split(" ", 1)
                 if splitted[0] == 'switch':
                     length = int(splitted[1])
-                    lines.tube.switch(series(Switchee(length), fd))
+                    lines.divert(series(Switchee(length), fd))
 
-        class Switchee(Pump):
+        class Switchee(Tube):
             datums = []
             def __init__(self, length):
                 self.length = length
@@ -139,10 +135,10 @@ class LineTests(TestCase):
         fd1 = FakeDrain()
         fd2 = FakeDrain()
 
-        class Switcher(Pump):
+        class Switcher(Tube):
             def received(self, line):
                 if 'switch' in line:
-                    lines.tube.switch(series(netstringsToStrings(), fd2))
+                    lines.divert(series(netstringsToStrings(), fd2))
                 else:
                     yield line
 

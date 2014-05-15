@@ -199,14 +199,9 @@ class IDrain(Interface):
 
 
 
-class IPump(Interface):
+class ITube(Interface):
     """
-    An L{IPump} provider is a control object for an L{ITube}.  A pump provides
-    all the behavior associated with the L{ITube}'s translation of input to
-    output, so that users of the L{ITube}'s buffering and pipeline
-    establishment behavior don't need to inherit from anything in order to use
-    it.  L{Pump} provides a default implementation which does nothing in
-    response to every method.
+    A tube translates input to output.
 
     Look at this awesome ASCII art::
 
@@ -214,7 +209,7 @@ class IPump(Interface):
                       +----+--------+               +-----  a
                      / +---+------+ | | data flow  / +----  fount
          a tube --->/ /           | | v           / /
-                   /o+---O a pump | |            /o+---O a pump
+                   / /            | |            / /
                   / /             | |  a drain  / /
         a     ---+ /              | +----+-----+ /<--- a tube
         drain ----+               +------+------+
@@ -223,15 +218,15 @@ class IPump(Interface):
 
     (Image credit Nam Nguyen)
 
-    @note: L{IPump} providers participate in I{data processing} not in I{flow
-        control}.  That is to say, an L{IPump} provider can translate its input
+    @note: L{ITube} providers participate in I{data processing} not in I{flow
+        control}.  That is to say, an L{ITube} provider can translate its input
         to output, but cannot impact the rate at which that output is
         delivered.  If you want to implement flow-control modifications,
         implement L{IDrain} directly.  L{IDrain} providers may be easily
-        connected up to L{IPump} providers with L{series
+        connected up to L{ITube} providers with L{series
         <twisted.tubes.tube.series>}, so you may implement flow-control in an
         L{IDrain} that passes on its input unmodified and data-processing in an
-        L{IPump} and hook them together.
+        L{ITube} and hook them together.
     """
 
     inputType = Attribute(
@@ -246,12 +241,6 @@ class IPump(Interface):
         """
     )
 
-    tube = Attribute(
-        """
-        A reference to an L{ITube}.  This will be set externally.
-        """)
-
-
     def started(): # pragma:nocover
         """
         The flow of items has started.  C{received} may be called at any point
@@ -262,11 +251,11 @@ class IPump(Interface):
     def received(item): # pragma:nocover
         """
         An item was received from 'upstream', i.e. the framework, or the
-        lower-level data source that this L{Pump} is interacting with.
+        lower-level data source that this L{Tube} is interacting with.
 
         @return: An iterable of values to propagate to the downstream drain
-            attached to this L{IPump}.  Something something L{Deferred}.
-        @rtype: iterable of L{IPump.outputType}
+            attached to this L{ITube}.  Something something L{Deferred}.
+        @rtype: iterable of L{ITube.outputType}
         """
 
 
@@ -278,103 +267,63 @@ class IPump(Interface):
 
     def stopped(reason): # pragma:nocover
         """
-        The flow of data from this L{IPump}'s input has ceased; this
+        The flow of data from this L{ITube}'s input has ceased; this
         corresponds to L{IDrain.flowStopped}.
 
-        @note: L{IPump} I{has} no notification corresponding to
+        @note: L{ITube} I{has} no notification corresponding to
             L{IFount.stopFlow}, since it has no control over whether additional
             data will be synthesized / processed by I{its} fount, there's no
             useful work it can do.
 
-        @return: The same as L{IPump.received}; values returned (or yielded) by
+        @return: The same as L{ITube.received}; values returned (or yielded) by
             this method will be propagated before the L{IDrain.flowStopped}
             notification to the downstream drain.
-        @rtype: same as L{IPump.received}
+        @rtype: same as L{ITube.received}
         """
 
 
 
-class ISwitchablePump(IPump):
+class IDivertable(ITube):
     """
-    An L{ISwitchablePump} is an extension on top of L{IPump} which provides
-    support for L{ISwitchableTube.switch} through L{reassemble}.
+    An L{IDivertable} is an L{ITube} which may have its input diverted away
+    from it.
     """
 
-    tube = Attribute(
+    divert = Attribute(
         """
-        A reference to an L{ISwitchableTube}.  This will be set externally.
-        """)
+        This attribute will be set when this L{ITube} is hooked up to an
+        L{IFount} with L{twisted.tubes.tube.series}.
+
+        C{divert} is a reference to a 1-argument callable which takes an
+        L{IDrain} and returns nothing, and diverts the flow I{away from this}
+        L{ITube}.
+
+        This is slightly non-intuitive so it's worth repeating.  When you call
+        C{someDivertable.divert(someDrain)}, C{someDivertable}'s C{received}
+        method will stop being called.  It itself will no longer participate in
+        the data flow.
+        """
+    )
 
 
     def reassemble(data): # pragma:nocover
         """
-        Reverse the transformation done between the L{ISwitchableTube} calling
-        L{received} and the L{ISwitchablePump} calling C{tube.deliver}.
+        Reverse the transformation done by calling L{received}, so as to
+        provide any buffered output as input to the drain where this
+        L{IDivertable} is being diverted.
 
-        L{reassemble} will be called from L{ISwitchableTube.switch}, and the
-        new L{IDrain} passed to C{switch} will have its C{receive} method
-        called with each object of the reassembled data.
-
-        @param data: The objects which had been passed to C{tube.deliver} which
-            had been buffered by the L{ISwitchableTube}.
-
+        @param data: The objects which had been returned from L{ITube.received}
+            which had been buffered.
         @type data: L{list}
 
-        @returns: A list of objects such that, if L{received} was called
+        @return: A list of objects such that, if L{received} was called
             successively with each object in the returned list, C{tube.deliver}
-            would be called successively with each object in C{data}. This does
-            not need to be exactly equal to what was originally passed in as
-            long as it achieves the same effect. Any objects which were
-            buffered by the L{ISwitchablePump} which did not yet correspond to
-            a C{tube.deliver} call should be included as well.
-
+            would be called successively with each object in C{data}.  This
+            does not need to be exactly equal to what was originally passed in
+            as long as it achieves the same effect.  Any objects which were
+            buffered by the L{IDivertable} which did not yet correspond to a
+            C{tube.deliver} call should be included as well.
         @rtype: L{list}
-        """
-
-
-
-class ITube(Interface):
-    """
-    An L{ITube} is an L{IDrain} and possibly also an L{IFount}, and provides
-    lots of conveniences to make it easy to implement something that does fancy
-    flow control with just a few methods.
-    """
-
-    pump = Attribute(
-        """
-        The L{Pump} which will receive values from this tube and call
-        C{deliver} to deliver output to it. (When set, this will automatically
-        set the C{tube} attribute of said L{Pump} as well, as well as
-        un-setting the C{tube} attribute of the old pump.)
-        """
-    )
-
-
-
-class ISwitchableTube(ITube):
-    """
-    L{ISwitchableTube} is an extension on top of L{ITube} which also allows the
-    tube to be swapped for a different L{IDrain} with the L{switch} method.
-    """
-
-    pump = Attribute(
-        """
-        Similar to L{ITube.pump}, except an object implementing the
-        L{ISwitchablePump} interface.
-        """
-    )
-
-
-    def switch(drain): # pragma:nocover
-        """
-        Replace this L{ISwitchableTube} with a different drain.
-
-        Calling L{switch} will tell the fount flowing to this
-        L{ISwitchableTube}'s drain to instead flow to the C{drain} argument.
-
-        Any data buffered by this L{ISwitchableTube} will be reassembled using
-        C{pump.reassemble} (i.e. L{SwitchablePump.reassemble}) and then passed
-        to the new C{drain}'s C{receive} method.
         """
 
 

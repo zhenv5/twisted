@@ -9,26 +9,26 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
-from twisted.tubes.test.util import (TesterPump, FakeFount,
+from twisted.tubes.test.util import (TesterTube, FakeFount,
                                      FakeDrain, IFakeInput)
-from twisted.tubes.test.util import JustProvidesSwitchable
-from twisted.tubes.itube import ISwitchableTube, ISwitchablePump
+
+from twisted.tubes.itube import IDivertable
 from twisted.python.failure import Failure
-from twisted.tubes.tube import Pump, series, _Pauser
+from twisted.tubes.tube import Tube, series, _Pauser, _Siphon
 from twisted.tubes.itube import IPause
 from twisted.tubes.itube import AlreadyUnpaused
-from twisted.tubes.itube import IPump
+from twisted.tubes.itube import ITube
 from zope.interface.declarations import directlyProvides
 from twisted.internet.defer import Deferred, succeed
 
 
-class ReprPump(Pump):
+class ReprTube(Tube):
     def __repr__(self):
-        return '<Pump For Testing>'
+        return '<Tube For Testing>'
 
 
 
-class PassthruPump(Pump):
+class PassthruTube(Tube):
     def received(self, data):
         yield data
 
@@ -145,21 +145,21 @@ class StopperTest(TestCase):
 
 
 
-class PumpTest(TestCase):
+class TubeTest(TestCase):
     """
-    Tests for L{Pump}'s various no-ops.
+    Tests for L{Tube}'s various no-ops.
     """
 
     def test_provider(self):
         """
-        L{Pump} provides L{IPump}.
+        L{Tube} provides L{ITube}.
         """
-        self.failUnless(verifyObject(IPump, Pump()))
+        self.failUnless(verifyObject(ITube, Tube()))
 
 
     def test_noOps(self):
         """
-        All of L{Pump}'s implementations of L{IPump} are no-ops.
+        All of L{Tube}'s implementations of L{ITube} are no-ops.
         """
         # There are no assertions here because there's no reasonable way this
         # test will fail rather than error; however, coverage --branch picks up
@@ -170,50 +170,35 @@ class PumpTest(TestCase):
         # TODO: maybe make a policy of this or explain it somewhere other than
         # a comment.  Institutional learning ftw.
 
-        pump = Pump()
-        pump.started()
-        pump.received(None)
-        pump.progressed(None)
-        pump.progressed()
-        pump.stopped(None)
+        tube = Tube()
+        tube.started()
+        tube.received(None)
+        tube.progressed(None)
+        tube.progressed()
+        tube.stopped(None)
 
 
 
-class TubeTest(TestCase):
+class SiphonTest(TestCase):
     """
     Tests for L{series}.
     """
 
     def setUp(self):
         """
-        Create a tube, and a fake drain and fount connected to it.
+        Create a siphon, and a fake drain and fount connected to it.
         """
-        self.pump = TesterPump()
-        self.tubeDrain = series(self.pump)
-        self.tube = self.pump.tube
+        self.tube = TesterTube()
+        self.siphonDrain = series(self.tube)
         self.ff = FakeFount()
         self.fd = FakeDrain()
 
 
-    def test_pumpAttribute(self):
+    def test_tubeStarted(self):
         """
-        The L{_Tube.pump} conveniently keeps L{Pump.tube} up to date when you
-        set it.
+        The L{_Siphon} starts its L{Tube} upon C{flowingFrom}.
         """
-        firstPump = self.pump
-        secondPump = Pump()
-        self.assertIdentical(firstPump.tube, self.tube)
-        self.assertIdentical(secondPump.tube, None)
-        self.tube.pump = secondPump
-        self.assertIdentical(firstPump.tube, None)
-        self.assertIdentical(secondPump.tube, self.tube)
-
-
-    def test_pumpStarted(self):
-        """
-        The L{_Tube} starts its L{Pump} upon C{flowingFrom}.
-        """
-        class Starter(Pump):
+        class Starter(Tube):
             def started(self):
                 yield "greeting"
 
@@ -221,13 +206,13 @@ class TubeTest(TestCase):
         self.assertEquals(self.fd.received, ["greeting"])
 
 
-    def test_pumpStopped(self):
+    def test_tubeStopped(self):
         """
-        The L{_Tube} stops its L{Pump} and propagates C{flowStopped} downstream
-        upon C{flowStopped}.
+        The L{_Siphon} stops its L{Tube} and propagates C{flowStopped}
+        downstream upon C{flowStopped}.
         """
         reasons = []
-        class Ender(Pump):
+        class Ender(Tube):
             def stopped(self, reason):
                 reasons.append(reason)
                 yield "conclusion"
@@ -246,15 +231,15 @@ class TubeTest(TestCase):
         self.assertEqual(self.fd.stopped, [stopReason])
 
 
-    def test_pumpStoppedDeferredly(self):
+    def test_tubeStoppedDeferredly(self):
         """
-        The L{_Tube} stops its L{Pump} and propagates C{flowStopped} downstream
-        upon the completion of all L{Deferred}s returned from its L{Pump}'s
+        The L{_Siphon} stops its L{Tube} and propagates C{flowStopped} downstream
+        upon the completion of all L{Deferred}s returned from its L{Tube}'s
         C{stopped} implementation.
         """
         reasons = []
         conclusion = Deferred()
-        class SlowEnder(Pump):
+        class SlowEnder(Tube):
             def stopped(self, reason):
                 reasons.append(reason)
                 yield conclusion
@@ -277,32 +262,32 @@ class TubeTest(TestCase):
         self.assertEqual(self.fd.stopped, [stopReason])
 
 
-    def test_pumpFlowSwitching(self):
+    def test_tubeFlowSwitching(self):
         """
-        The L{_Tube} of a L{Pump} sends on data to a newly specified L{IDrain}
-        when its L{ITube.switch} method is called.
+        The L{_Siphon} of a L{Tube} sends on data to a newly specified L{IDrain}
+        when its L{IDivertable.divert} method is called.
         """
-        @implementer(ISwitchablePump)
-        class SwitchablePassthruPump(PassthruPump):
+        @implementer(IDivertable)
+        class SwitchablePassthruTube(PassthruTube):
             def reassemble(self, data):
                 return data
 
-        sourcePump = SwitchablePassthruPump()
+        sourceTube = SwitchablePassthruTube()
         fakeDrain = self.fd
         testCase = self
 
-        class Switcher(Pump):
+        class Switcher(Tube):
             def received(self, data):
                 # Sanity check: this should be the only input ever received.
                 testCase.assertEqual(data, "switch")
-                sourcePump.tube.switch(series(Switchee(), fakeDrain))
+                sourceTube.divert(series(Switchee(), fakeDrain))
                 return ()
 
-        class Switchee(Pump):
+        class Switchee(Tube):
             def received(self, data):
                 yield "switched " + data
 
-        firstDrain = series(sourcePump)
+        firstDrain = series(sourceTube)
 
         self.ff.flowTo(firstDrain).flowTo(series(Switcher(), fakeDrain))
         self.ff.drain.receive("switch")
@@ -310,16 +295,16 @@ class TubeTest(TestCase):
         self.assertEquals(fakeDrain.received, ["switched to switchee"])
 
 
-    def test_pumpFlowSwitchingReassembly(self):
+    def test_tubeFlowSwitchingReassembly(self):
         """
-        The L{_Tube} of a L{Pump} sends on reassembled data - the return value
-        of L{Pump.reassemble} to a newly specified L{Drain}; it is only called
+        The L{_Siphon} of a L{Tube} sends on reassembled data - the return value
+        of L{Tube.reassemble} to a newly specified L{Drain}; it is only called
         with un-consumed elements of data (those which have never been passed
         to C{receive}).
         """
         preSwitch = []
-        @implementer(ISwitchablePump)
-        class ReassemblingPump(Pump):
+        @implementer(IDivertable)
+        class ReassemblingTube(Tube):
             def received(self, datum):
                 nonBorks = datum.split("BORK")
                 return nonBorks
@@ -329,20 +314,20 @@ class TubeTest(TestCase):
                     yield '(bork was here)'
                     yield element
 
-        class Switcher(Pump):
+        class Switcher(Tube):
             def received(self, data):
                 # Sanity check: this should be the only input ever received.
                 preSwitch.append(data)
-                sourcePump.tube.switch(series(Switchee(), fakeDrain))
+                sourceTube.divert(series(Switchee(), fakeDrain))
                 return ()
 
-        class Switchee(Pump):
+        class Switchee(Tube):
             def received(self, data):
                 yield "switched " + data
 
-        sourcePump = ReassemblingPump()
+        sourceTube = ReassemblingTube()
         fakeDrain = self.fd
-        firstDrain = series(sourcePump)
+        firstDrain = series(sourceTube)
         self.ff.flowTo(firstDrain).flowTo(series(Switcher(), fakeDrain))
 
         self.ff.drain.receive("beforeBORKto switchee")
@@ -352,31 +337,31 @@ class TubeTest(TestCase):
                                             "switched to switchee"])
 
 
-    def test_pumpFlowSwitchingControlsWhereOutputGoes(self):
+    def test_tubeFlowSwitchingControlsWhereOutputGoes(self):
         """
-        If a tube A with a pump Ap is flowing to a tube B with a switchable
-        pump Bp, Ap.received may switch B to a drain C, and C will receive any
+        If a siphon A with a tube Ap is flowing to a siphon B with a switchable
+        tube Bp, Ap.received may switch B to a drain C, and C will receive any
         outputs produced by that received call; B (and Bp) will not.
         """
-        class Switcher(Pump):
+        class Switcher(Tube):
             def received(self, data):
                 if data == "switch":
                     yield "switching"
-                    destinationPump.tube.switch(series(Switchee(), fakeDrain))
+                    destinationTube.divert(series(Switchee(), fakeDrain))
                     yield "switched"
                 else:
                     yield data
 
-        class Switchee(Pump):
+        class Switchee(Tube):
             def received(self, data):
                 yield "switched({})".format(data)
 
         fakeDrain = self.fd
-        destinationPump = PassthruPump()
+        destinationTube = PassthruTube()
         # reassemble should not be called, so don't implement it
-        directlyProvides(destinationPump, ISwitchablePump)
+        directlyProvides(destinationTube, IDivertable)
 
-        firstDrain = series(Switcher(), destinationPump)
+        firstDrain = series(Switcher(), destinationTube)
         self.ff.flowTo(firstDrain).flowTo(fakeDrain)
         self.ff.drain.receive("before")
         self.ff.drain.receive("switch")
@@ -390,15 +375,15 @@ class TubeTest(TestCase):
     def test_initiallyEnthusiasticFountBecomesDisillusioned(self):
         """
         If an L{IFount} provider synchronously calls C{receive} on a
-        L{_TubeDrain}, whose corresponding L{_TubeFount} is not flowing to an
+        L{_SiphonDrain}, whose corresponding L{_SiphonFount} is not flowing to an
         L{IDrain} yet, it will be synchronously paused with
-        L{IFount.pauseFlow}; when that L{_TubeFount} then flows to something
+        L{IFount.pauseFlow}; when that L{_SiphonFount} then flows to something
         else, the buffer will be unspooled.
         """
         ff = FakeFountWithBuffer()
         ff.bufferUp("something")
         ff.bufferUp("else")
-        newDrain = series(PassthruPump())
+        newDrain = series(PassthruTube())
         # Just making sure.
         self.assertEqual(ff.flowIsPaused, False)
         newFount = ff.flowTo(newDrain)
@@ -413,37 +398,37 @@ class TubeTest(TestCase):
 
     def test_flowingFromNoneInitialNoOp(self):
         """
-        L{_TubeFount.flowTo}C{(None)} is a no-op when called before
-        any other invocations of L{_TubeFount.flowTo}.
+        L{_SiphonFount.flowTo}C{(None)} is a no-op when called before
+        any other invocations of L{_SiphonFount.flowTo}.
         """
-        tubeFount = self.ff.flowTo(self.tubeDrain)
-        self.assertEquals(tubeFount.drain, None)
-        tubeFount.flowTo(None)
+        siphonFount = self.ff.flowTo(self.siphonDrain)
+        self.assertEquals(siphonFount.drain, None)
+        siphonFount.flowTo(None)
 
 
-    def test_pumpFlowSwitching_ReEntrantResumeReceive(self):
+    def test_tubeFlowSwitching_ReEntrantResumeReceive(self):
         """
-        Switching a pump that is receiving data from a fount which
+        Switching a tube that is receiving data from a fount which
         synchronously produces some data to C{receive} will ... uh .. work.
         """
-        class Switcher(Pump):
+        class Switcher(Tube):
             def received(self, data):
                 if data == "switch":
-                    destinationPump.tube.switch(series(Switchee(), fakeDrain))
+                    destinationTube.divert(series(Switchee(), fakeDrain))
                     return None
                 else:
                     return [data]
 
-        class Switchee(Pump):
+        class Switchee(Tube):
             def received(self, data):
                 yield "switched " + data
 
         fakeDrain = self.fd
-        destinationPump = PassthruPump()
+        destinationTube = PassthruTube()
         # reassemble should not be called, so don't implement it
-        directlyProvides(destinationPump, ISwitchablePump)
+        directlyProvides(destinationTube, IDivertable)
 
-        firstDrain = series(Switcher(), destinationPump)
+        firstDrain = series(Switcher(), destinationTube)
 
         ff = FakeFountWithBuffer()
         ff.bufferUp("before")
@@ -453,73 +438,73 @@ class TubeTest(TestCase):
         self.assertEquals(self.fd.received, ["before", "switched after"])
 
 
-    def test_pumpFlowSwitching_LotsOfStuffAtOnce(self):
+    def test_tubeFlowSwitching_LotsOfStuffAtOnce(self):
         """
-        If a pump returns a sequence of multiple things, great.
+        If a tube returns a sequence of multiple things, great.
         """
         # TODO: docstring.
-        @implementer(ISwitchablePump)
-        class SwitchablePassthruPump(PassthruPump):
+        @implementer(IDivertable)
+        class SwitchablePassthruTube(PassthruTube):
             """
             Reassemble should not be called; don't implement it.
             """
 
-        class Multiplier(Pump):
+        class Multiplier(Tube):
             def received(self, datums):
                 return datums
 
-        class Switcher(Pump):
+        class Switcher(Tube):
             def received(self, data):
                 if data == "switch":
-                    destinationPump.tube.switch(series(Switchee(), fakeDrain))
+                    destinationTube.divert(series(Switchee(), fakeDrain))
                     return None
                 else:
                     return [data]
 
-        class Switchee(Pump):
+        class Switchee(Tube):
             def received(self, data):
                 yield "switched " + data
 
         fakeDrain = self.fd
-        destinationPump = SwitchablePassthruPump()
+        destinationTube = SwitchablePassthruTube()
 
-        firstDrain = series(Multiplier(), Switcher(), destinationPump)
+        firstDrain = series(Multiplier(), Switcher(), destinationTube)
 
         self.ff.flowTo(firstDrain).flowTo(fakeDrain)
         self.ff.drain.receive(["before", "switch", "after"])
         self.assertEquals(self.fd.received, ["before", "switched after"])
 
 
-    def test_pumpYieldsFiredDeferred(self):
+    def test_tubeYieldsFiredDeferred(self):
         """
-        When a pump yields a fired L{Deferred} its result is synchronously
+        When a tube yields a fired L{Deferred} its result is synchronously
         delivered.
         """
 
-        class SucceedingPump(Pump):
+        class SucceedingTube(Tube):
             def received(self, data):
                 yield succeed(''.join(reversed(data)))
 
         fakeDrain = self.fd
-        self.ff.flowTo(series(SucceedingPump())).flowTo(fakeDrain)
+        self.ff.flowTo(series(SucceedingTube())).flowTo(fakeDrain)
         self.ff.drain.receive("hello")
         self.assertEquals(self.fd.received, ["olleh"])
 
 
-    def test_pumpYieldsUnfiredDeferred(self):
+    def test_tubeYieldsUnfiredDeferred(self):
         """
-        When a pump yields an unfired L{Deferred} its result is asynchronously
+        When a tube yields an unfired L{Deferred} its result is asynchronously
         delivered.
         """
 
         d = Deferred()
 
-        class WaitingPump(Pump):
+        class WaitingTube(Tube):
             def received(self, data):
                 yield d
 
         fakeDrain = self.fd
-        self.ff.flowTo(series(WaitingPump())).flowTo(fakeDrain)
+        self.ff.flowTo(series(WaitingTube())).flowTo(fakeDrain)
         self.ff.drain.receive("ignored")
         self.assertEquals(self.fd.received, [])
 
@@ -528,23 +513,23 @@ class TubeTest(TestCase):
         self.assertEquals(self.fd.received, ["hello"])
 
 
-    def test_pumpYieldsMultipleDeferreds(self):
+    def test_tubeYieldsMultipleDeferreds(self):
         """
-        When a pump yields multiple deferreds their results should be delivered
+        When a tube yields multiple deferreds their results should be delivered
         in order.
         """
 
         d = Deferred()
 
-        class MultiDeferredPump(Pump):
+        class MultiDeferredTube(Tube):
             didYield = False
             def received(self, data):
                 yield d
-                MultiDeferredPump.didYield = True
+                MultiDeferredTube.didYield = True
                 yield succeed("goodbye")
 
         fakeDrain = self.fd
-        self.ff.flowTo(series(MultiDeferredPump())).flowTo(fakeDrain)
+        self.ff.flowTo(series(MultiDeferredTube())).flowTo(fakeDrain)
         self.ff.drain.receive("ignored")
         self.assertEquals(self.fd.received, [])
 
@@ -553,20 +538,20 @@ class TubeTest(TestCase):
         self.assertEquals(self.fd.received, ["hello", "goodbye"])
 
 
-    def test_pumpYieldedDeferredFiresWhileFlowIsPaused(self):
+    def test_tubeYieldedDeferredFiresWhileFlowIsPaused(self):
         """
-        When a L{Pump} yields an L{Deferred} and that L{Deferred} fires when
-        the L{_TubeFount} is paused it should buffer it's result and deliver it
-        when L{_TubeFount.resumeFlow} is called.
+        When a L{Tube} yields an L{Deferred} and that L{Deferred} fires when
+        the L{_SiphonFount} is paused it should buffer it's result and deliver it
+        when L{_SiphonFount.resumeFlow} is called.
         """
         d = Deferred()
 
-        class DeferredPump(Pump):
+        class DeferredTube(Tube):
             def received(self, data):
                 yield d
 
         fakeDrain = self.fd
-        self.ff.flowTo(series(DeferredPump())).flowTo(fakeDrain)
+        self.ff.flowTo(series(DeferredTube())).flowTo(fakeDrain)
         self.ff.drain.receive("ignored")
 
         anPause = self.fd.fount.pauseFlow()
@@ -580,120 +565,120 @@ class TubeTest(TestCase):
 
     def test_flowingFromFirst(self):
         """
-        If L{_Tube.flowingFrom} is called before L{_Tube.flowTo}, the argument
-        to L{_Tube.flowTo} will immediately have its L{IDrain.flowingFrom}
+        If L{_Siphon.flowingFrom} is called before L{_Siphon.flowTo}, the argument
+        to L{_Siphon.flowTo} will immediately have its L{IDrain.flowingFrom}
         called.
         """
-        self.ff.flowTo(self.tubeDrain).flowTo(self.fd)
+        self.ff.flowTo(self.siphonDrain).flowTo(self.fd)
         self.assertNotIdentical(self.fd.fount, None)
 
 
-    def test_tubeReceiveCallsPumpReceived(self):
+    def test_siphonReceiveCallsTubeReceived(self):
         """
-        L{_TubeDrain.receive} will call C{pump.received} and synthesize a fake
+        L{_SiphonDrain.receive} will call C{tube.received} and synthesize a fake
         "0.5" progress result if L{None} is returned.
         """
         got = []
-        class ReceivingPump(Pump):
+        class ReceivingTube(Tube):
             def received(self, item):
                 got.append(item)
-        self.tube.pump = ReceivingPump()
-        self.tubeDrain.receive("sample item")
+        drain = series(ReceivingTube())
+        drain.receive("sample item")
         self.assertEqual(got, ["sample item"])
 
 
-    def test_tubeProgressRelaysPumpProgress(self):
+    def test_siphonProgressRelaysTubeProgress(self):
         """
-        L{_Tube.progress} will call L{Pump.progress}, and also call
+        L{_Siphon.progress} will call L{Tube.progress}, and also call
         L{IDrain.progress}.
         """
         got = []
-        class ProgressingPump(Pump):
+        class ProgressingTube(Tube):
             def progressed(self, amount=None):
                 got.append(amount)
-        self.tube.pump = ProgressingPump()
+        siphonDrain = series(ProgressingTube())
         self.assertEqual(got, [])
-        self.tubeDrain.progress()
-        self.tubeDrain.progress(0.6)
+        siphonDrain.progress()
+        siphonDrain.progress(0.6)
         self.assertEqual(got, [None, 0.6])
 
 
-    def test_tubeReceiveRelaysProgressDownStream(self):
+    def test_siphonReceiveRelaysProgressDownStream(self):
         """
-        L{_TubeDrain.receive} will call its downstream L{IDrain}'s C{progress}
-        method if its L{Pump} does not produce any output.
+        L{_SiphonDrain.receive} will call its downstream L{IDrain}'s C{progress}
+        method if its L{Tube} does not produce any output.
         """
         got = []
-        class ProgressingPump(Pump):
+        class ProgressingTube(Tube):
             def progressed(self, amount=None):
                 got.append(amount)
-        self.ff.flowTo(self.tubeDrain).flowTo(series(ProgressingPump()))
-        self.tubeDrain.receive(2)
+        self.ff.flowTo(self.siphonDrain).flowTo(series(ProgressingTube()))
+        self.siphonDrain.receive(2)
         self.assertEquals(got, [None])
 
 
-    def test_tubeReceiveDoesntRelayUnnecessaryProgress(self):
+    def test_siphonReceiveDoesntRelayUnnecessaryProgress(self):
         """
-        L{_TubeDrain.receive} will not call its downstream L{IDrain}'s
-        C{progress} method if its L{Pump} I{does} produce some output, because
+        L{_SiphonDrain.receive} will not call its downstream L{IDrain}'s
+        C{progress} method if its L{Tube} I{does} produce some output, because
         the progress notification is redundant in that case; input was
         received, output was sent on.  A call to C{progress} would imply that
         I{more} data had come in, and that isn't necessarily true.
         """
         progged = []
         got = []
-        class ReceivingPump(Pump):
+        class ReceivingTube(Tube):
             def received(self, item):
                 if not got:
                     yield item + 1
-        class ProgressingPump(Pump):
+        class ProgressingTube(Tube):
             def progressed(self, amount=None):
                 progged.append(amount)
             def received(self, item):
                 got.append(item)
-        self.tube.pump = ReceivingPump()
-        self.ff.flowTo(self.tubeDrain).flowTo(series(ProgressingPump()))
-        self.tubeDrain.receive(2)
+        siphonDrain = series(ReceivingTube())
+        self.ff.flowTo(siphonDrain).flowTo(series(ProgressingTube()))
+        siphonDrain.receive(2)
         # sanity check
         self.assertEquals(got, [3])
         self.assertEquals(progged, [])
-        self.tubeDrain.receive(2)
+        siphonDrain.receive(2)
         self.assertEquals(progged, [None])
 
 
     def test_flowFromTypeCheck(self):
         """
-        L{_Tube.flowingFrom} checks the type of its input.  If it doesn't match
+        L{_Siphon.flowingFrom} checks the type of its input.  If it doesn't match
         (both are specified explicitly, and they don't match).
         """
-        class ToPump(Pump):
+        class ToTube(Tube):
             inputType = IFakeInput
-        self.tube.pump = ToPump()
-        self.failUnlessRaises(TypeError, self.ff.flowTo, self.tubeDrain)
+        siphonDrain = series(ToTube())
+        self.failUnlessRaises(TypeError, self.ff.flowTo, siphonDrain)
 
 
     def test_receiveIterableDeliversDownstream(self):
         """
-        When L{Pump.received} yields a value, L{_Tube} will call L{receive} on
+        When L{Tube.received} yields a value, L{_Siphon} will call L{receive} on
         its downstream drain.
         """
-        self.ff.flowTo(series(PassthruPump())).flowTo(self.fd)
+        self.ff.flowTo(series(PassthruTube())).flowTo(self.fd)
         self.ff.drain.receive(7)
         self.assertEquals(self.fd.received, [7])
 
 
-    def test_receiveCallsPumpReceived(self):
+    def test_receiveCallsTubeReceived(self):
         """
-        L{_TubeDrain.receive} will send its input to L{IPump.received} on its
-        pump.
+        L{_SiphonDrain.receive} will send its input to L{ITube.received} on its
+        tube.
         """
-        self.tubeDrain.receive("one-item")
-        self.assertEquals(self.tube.pump.allReceivedItems, ["one-item"])
+        self.siphonDrain.receive("one-item")
+        self.assertEquals(self.tube.allReceivedItems, ["one-item"])
 
 
     def test_flowToWillNotResumeFlowPausedInFlowingFrom(self):
         """
-        L{_TubeFount.flowTo} will not call L{_TubeFount.resumeFlow} when
+        L{_SiphonFount.flowTo} will not call L{_SiphonFount.resumeFlow} when
         it's L{IDrain} calls L{IFount.pauseFlow} in L{IDrain.flowingFrom}.
         """
         class PausingDrain(FakeDrain):
@@ -701,14 +686,14 @@ class TubeTest(TestCase):
                 self.fount = fount
                 self.fount.pauseFlow()
 
-        self.ff.flowTo(self.tubeDrain).flowTo(PausingDrain())
+        self.ff.flowTo(self.siphonDrain).flowTo(PausingDrain())
 
         self.assertTrue(self.ff.flowIsPaused, "Upstream is not paused.")
 
 
     def test_reentrantFlowTo(self):
         """
-        An L{IDrain} may call its argument's L{_TubeFount.flowTo} method in
+        An L{IDrain} may call its argument's L{_SiphonFount.flowTo} method in
         L{IDrain.flowingFrom} and said fount will be flowing to the new drain.
         """
         test_fd = self.fd
@@ -718,7 +703,7 @@ class TubeTest(TestCase):
                 self.fount = fount
                 self.fount.flowTo(test_fd)
 
-        self.ff.flowTo(series(PassthruPump())).flowTo(ReflowingDrain())
+        self.ff.flowTo(series(PassthruTube())).flowTo(ReflowingDrain())
 
         self.ff.drain.receive("hello")
         self.assertEqual(self.fd.received, ["hello"])
@@ -726,132 +711,53 @@ class TubeTest(TestCase):
 
     def test_drainPausesFlowWhenPreviouslyPaused(self):
         """
-        L{_TubeDrain.flowingFrom} will pause its fount if its L{_TubeFount} was
+        L{_SiphonDrain.flowingFrom} will pause its fount if its L{_SiphonFount} was
         previously paused.
         """
         newFF = FakeFount()
 
-        myPause = self.ff.flowTo(self.tubeDrain).pauseFlow()
-        newFF.flowTo(self.tubeDrain)
+        myPause = self.ff.flowTo(self.siphonDrain).pauseFlow()
+        newFF.flowTo(self.siphonDrain)
 
         self.assertTrue(newFF.flowIsPaused, "New upstream is not paused.")
 
 
-    def test_switchingNonSwitchableError(self):
+    def test_siphonDrainRepr(self):
         """
-        L{_Tube.switch} on a L{_Tube} without an L{ISwitchablePump} raises
-        L{NotImplementedError} with a helpful message.
-        """
-        nie = self.assertRaises(NotImplementedError, self.tube.switch, None)
-        self.assertIn("this tube cannot be switched", str(nie))
-
-
-    def test_switchableTubeGetsImplemented(self):
-        """
-        Passing an L{ISwitchablePump} to L{_Tube} will cause it to provide
-        L{ISwitchableTube}.
+        repr for L{_SiphonDrain} includes a reference to its tube.
         """
 
-        pump = JustProvidesSwitchable()
-        series(pump)
-        self.assertTrue(ISwitchableTube.providedBy(pump.tube))
+        self.assertEqual(repr(series(ReprTube())),
+                         '<Drain for <Tube For Testing>>')
 
 
-    def test_switchableTubeCanGetUnimplemented(self):
+    def test_siphonFountRepr(self):
         """
-        Passing an L{ISwitchablePump} and then a L{IPump} to L{_Tube} will
-        cause it to no longer provide L{ISwitchableTube}.
-        """
-
-        pump = JustProvidesSwitchable()
-        series(pump)
-        otherPump = TesterPump()
-        tube = pump.tube
-        tube.pump = otherPump
-        self.assertFalse(ISwitchableTube.providedBy(tube))
-
-
-    def test_switchableTubeCanStayImplemented(self):
-        """
-        Passing an L{ISwitchablePump} and then an L{ISwitchablePump} to
-        L{_Tube} will cause it to still provide L{ISwitchableTube}.
-        """
-
-        pump = JustProvidesSwitchable()
-        series(pump)
-        otherPump = JustProvidesSwitchable()
-        tube = pump.tube
-        tube.pump = otherPump
-        self.assertTrue(ISwitchableTube.providedBy(tube))
-
-
-    def test_switchableTubeCanStayUnimplemented(self):
-        """
-        Passing an L{IPump} and then an L{IPump} to L{_Tube} will cause it to
-        still not provide L{ISwitchableTube}.
-        """
-
-        pump = TesterPump()
-        series(pump)
-        otherPump = TesterPump()
-        tube = pump.tube
-        tube.pump = otherPump
-        self.assertFalse(ISwitchableTube.providedBy(tube))
-
-
-    def test_switchableTubeCanGetReimplemented(self):
-        """
-        Passing an L{ISwitchablePump} and then a L{IPump} and then an
-        L{ISwitchablePump} again to L{_Tube} will cause it to provide
-        L{ISwitchableTube}.
-        """
-
-        pump = JustProvidesSwitchable()
-        series(pump)
-        otherPump = TesterPump()
-        tube = pump.tube
-        tube.pump = otherPump
-        thirdPump = JustProvidesSwitchable()
-        tube.pump = thirdPump
-        self.assertTrue(ISwitchableTube.providedBy(tube))
-
-
-    def test_tubeDrainRepr(self):
-        """
-        repr for L{_TubeDrain} includes a reference to its pump.
-        """
-
-        self.assertEqual(repr(series(ReprPump())),
-                         '<Drain for <Pump For Testing>>')
-
-
-    def test_tubeFountRepr(self):
-        """
-        repr for L{_TubeFount} includes a reference to its pump.
+        repr for L{_SiphonFount} includes a reference to its tube.
         """
 
         fount = FakeFount()
 
-        self.assertEqual(repr(fount.flowTo(series(ReprPump()))),
-                         '<Fount for <Pump For Testing>>')
+        self.assertEqual(repr(fount.flowTo(series(ReprTube()))),
+                         '<Fount for <Tube For Testing>>')
 
 
-    def test_tubeRepr(self):
+    def test_siphonRepr(self):
         """
-        repr for L{_Tube} includes a reference to its pump.
+        repr for L{_Siphon} includes a reference to its tube.
         """
 
-        pump = ReprPump()
-        series(pump)
+        tube = ReprTube()
 
-        self.assertEqual(repr(pump.tube), '<Tube for <Pump For Testing>>')
+        self.assertEqual(repr(_Siphon(tube)),
+                         '<_Siphon for <Tube For Testing>>')
 
 
     def test_stopFlow(self):
         """
-        L{_TubeFount.stopFlow} stops the flow of its L{_Tube}'s upstream fount.
+        L{_SiphonFount.stopFlow} stops the flow of its L{_Siphon}'s upstream fount.
         """
-        self.ff.flowTo(series(self.tube, self.fd))
+        self.ff.flowTo(series(self.siphonDrain, self.fd))
         self.assertEquals(self.ff.flowIsStopped, False)
         self.fd.fount.stopFlow()
         self.assertEquals(self.ff.flowIsStopped, True)
@@ -859,18 +765,21 @@ class TubeTest(TestCase):
 
     def test_stopFlowBeforeFlowBegins(self):
         """
-        L{_TubeFount.stopFlow} will stop the flow of its L{_Tube}'s upstream
+        L{_SiphonFount.stopFlow} will stop the flow of its L{_Siphon}'s upstream
         fount later, when it acquires one, if it's previously been stopped.
         """
-        partially = series(self.tube, self.fd)
+        partially = series(self.siphonDrain, self.fd)
         self.fd.fount.stopFlow()
         self.ff.flowTo(partially)
         self.assertEquals(self.ff.flowIsStopped, True)
 
 
+
+class Reminders(TestCase):
+    todo = "Just a minute..."
     def test_startedRaises(self):
         """
-        If L{IPump.started} raises an exception, the exception will be logged,
+        If L{ITube.started} raises an exception, the exception will be logged,
         and...
         """
         self.fail()
@@ -878,7 +787,7 @@ class TubeTest(TestCase):
 
     def test_progressedRaises(self):
         """
-        If L{IPump.progressed} raises an exception, the exception will be
+        If L{ITube.progressed} raises an exception, the exception will be
         logged, and...
         """
         self.fail()
@@ -886,7 +795,7 @@ class TubeTest(TestCase):
 
     def test_receivedRaises(self):
         """
-        If L{IPump.received} raises an exception, the exception will be logged,
+        If L{ITube.received} raises an exception, the exception will be logged,
         and...
         """
         self.fail()
@@ -894,7 +803,7 @@ class TubeTest(TestCase):
 
     def test_stoppedRaises(self):
         """
-        If L{IPump.stopped} raises an exception, the exception will be logged,
+        If L{ITube.stopped} raises an exception, the exception will be logged,
         and...
         """
         self.fail()
@@ -902,14 +811,14 @@ class TubeTest(TestCase):
 
     def test_iterOnResultRaises(self):
         """
-        When the iterator returned from L{IPump}.
+        When the iterator returned from L{ITube}.
         """
         self.fail()
 
 
     def test_nextOnIteratorRaises(self):
         """
-        If L{next} on the iterator returned from L{IPump.started} (OR OTHER)
+        If L{next} on the iterator returned from L{ITube.started} (OR OTHER)
         raises an exception, the exception will be logged, and...
         """
         self.fail()
@@ -917,7 +826,7 @@ class TubeTest(TestCase):
 
     def test_deferredFromNextOnIteratorFails(self):
         """
-        If L{next} on the iterator returned from L{IPump.started} (OR OTHER)
+        If L{next} on the iterator returned from L{ITube.started} (OR OTHER)
         returns a L{Deferred} which then fails, the failure will be logged,
         and...
         """
@@ -931,15 +840,16 @@ class TubeTest(TestCase):
         self.fail()
 
 
-    def test_setTubeToSelfRaises(self):
+    def test_setDivertRaises(self):
         """
-        
+        What if setting the C{divert} attribute of an L{IDivertable} raises?
         """
         self.fail()
 
 
-    def test_setTubeToNoneRaises(self):
+    def test_setDivertToNoneRaises(self):
         """
-        
+        What if setting the C{divert} attribute of an L{IDivertable} to C{None}
+        raises?
         """
         self.fail()

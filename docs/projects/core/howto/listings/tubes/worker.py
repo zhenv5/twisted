@@ -9,4 +9,4 @@ class CommandsAndIntegersToResultIntegers(Pump):
             items = self.buffer
             self.buffer = []
             result = item(items)
-            self.tube.deliver(result)
+            yield result
