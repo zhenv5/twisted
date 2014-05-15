@@ -5,9 +5,15 @@ An Introduction to Tubes
 Abstract
 --------
 
-The :api:`twisted.tubes <twisted.tubes>` package provides data-agnostic flow-control and composable processing of typed data.
-However, unless you've had experience writing distributed systems before, that description might not make sense.
-If that's the case, this next section should explain what :api:`twisted.tubes <twisted.tubes>` is, and why you would want to use it.
+The :api:`twisted.tubes <twisted.tubes>` package provides flow-control and composable data processing.
+
+Flow-control is control over the source, destination, and rate of data being processed.
+``tubes`` implements this in a type-agnostic way, meaning that a set of rules for controlling the flow of data can control that flow regardless of the type of that data, from raw streams of bytes to application-specific messages and back again.
+
+Composable data processing refers to processing that can occur in independent units.
+For example, the conversion of a continuous stream of bytes into a discrete sequence of messages can be implemented independently from the presentation of or reactions to those messages.
+This allows for semantically similar messages to be relayed in different formats and by different protocols, but be processed by the same code.
+
 
 What Are Twisted Tubes?
 -----------------------
