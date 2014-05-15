@@ -146,43 +146,6 @@ class IDrain(Interface):
         """
 
 
-    def progress(amount=None): # pragma:nocover
-        """
-        An item was received at some lower level interface; progress is being
-        made towards the next item that will be passed to 'receive'.
-
-        This method can be implemented in order to facilitate timeout logic.
-        For example, if you have a file downloader that might be used to
-        download a multi-gigabyte file and then deliver that file's name to an
-        L{IDrain}, that L{IDrain} will be waiting a long time to receive that
-        one item to C{receive()}.  However, timeout logic usually belongs with
-        the ultimate consumer of an API, which in this case would be the
-        very-infrequently-called L{IDrain}.  So, that L{IDrain} could implement
-        C{progress} to re-set a short timeout, so that it can shut down an idle
-        connection that is receiving nothing, but it won't shut down a
-        connection that is functioning perfectly well but slightly slower than
-        expected.
-
-        @param amount: An optional floating-point number between 0.0 and 1.0
-            indicating the estimated amount of progress made towards the next
-            call to L{receive} on this L{IDrain}.  For example, if an item is
-            received in 4 chunks, this would ideally be called with 0.25, 0.5,
-            0.75 and 1.0. Note however that this value represents an
-            I{estimate} and its exact semantics may vary considerably depending
-            on the nature of the underlying transport.  In fact, although
-            callers really should remain within the 0.0/1.0 range,
-            implementations of this method should be resilient to invalid
-            values, and treat any value outside that range as equivalent to
-            C{None}.  In many cases, the amount of progress made is entirely
-            unknown: for example, when some bytes are received by the
-            underlying transport when no length prefix is avialable in the
-            transport protocol.  In those cases, C{None} should be passed here.
-        @type amount: C{float} or C{NoneType}
-
-        @return: C{None}
-        """
-
-
     def flowStopped(reason): # pragma:nocover
         """
         The flow has stopped.  The given L{Failure
@@ -256,12 +219,6 @@ class ITube(Interface):
         @return: An iterable of values to propagate to the downstream drain
             attached to this L{ITube}.  Something something L{Deferred}.
         @rtype: iterable of L{ITube.outputType}
-        """
-
-
-    def progressed(amount=None): # pragma:nocover
-        """
-        Some progress was made.
         """
 
 

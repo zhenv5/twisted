@@ -81,9 +81,6 @@ class FakeDrain(object):
         self.stopped.append(reason)
 
 
-    def progress(self, amount=None):
-        self.progressed.append(amount)
-
 verifyClass(IDrain, FakeDrain)
 
 

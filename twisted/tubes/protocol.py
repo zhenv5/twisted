@@ -56,13 +56,6 @@ class _ProtocolDrain(object):
         self._transport.write(item)
 
 
-    def progress(self, amount=0.0):
-        """
-        This is a no-op since there's nothing to do to the underlying
-        connection when progress occurs.
-        """
-
-
     def flowStopped(self, reason):
         """
         The flow of data that should be written to the underlying transport has

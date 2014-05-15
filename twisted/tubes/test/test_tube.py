@@ -173,8 +173,6 @@ class TubeTest(TestCase):
         tube = Tube()
         tube.started()
         tube.received(None)
-        tube.progressed(None)
-        tube.progressed()
         tube.stopped(None)
 
 
@@ -587,65 +585,6 @@ class SiphonTest(TestCase):
         self.assertEqual(got, ["sample item"])
 
 
-    def test_siphonProgressRelaysTubeProgress(self):
-        """
-        L{_Siphon.progress} will call L{Tube.progress}, and also call
-        L{IDrain.progress}.
-        """
-        got = []
-        class ProgressingTube(Tube):
-            def progressed(self, amount=None):
-                got.append(amount)
-        siphonDrain = series(ProgressingTube())
-        self.assertEqual(got, [])
-        siphonDrain.progress()
-        siphonDrain.progress(0.6)
-        self.assertEqual(got, [None, 0.6])
-
-
-    def test_siphonReceiveRelaysProgressDownStream(self):
-        """
-        L{_SiphonDrain.receive} will call its downstream L{IDrain}'s C{progress}
-        method if its L{Tube} does not produce any output.
-        """
-        got = []
-        class ProgressingTube(Tube):
-            def progressed(self, amount=None):
-                got.append(amount)
-        self.ff.flowTo(self.siphonDrain).flowTo(series(ProgressingTube()))
-        self.siphonDrain.receive(2)
-        self.assertEquals(got, [None])
-
-
-    def test_siphonReceiveDoesntRelayUnnecessaryProgress(self):
-        """
-        L{_SiphonDrain.receive} will not call its downstream L{IDrain}'s
-        C{progress} method if its L{Tube} I{does} produce some output, because
-        the progress notification is redundant in that case; input was
-        received, output was sent on.  A call to C{progress} would imply that
-        I{more} data had come in, and that isn't necessarily true.
-        """
-        progged = []
-        got = []
-        class ReceivingTube(Tube):
-            def received(self, item):
-                if not got:
-                    yield item + 1
-        class ProgressingTube(Tube):
-            def progressed(self, amount=None):
-                progged.append(amount)
-            def received(self, item):
-                got.append(item)
-        siphonDrain = series(ReceivingTube())
-        self.ff.flowTo(siphonDrain).flowTo(series(ProgressingTube()))
-        siphonDrain.receive(2)
-        # sanity check
-        self.assertEquals(got, [3])
-        self.assertEquals(progged, [])
-        siphonDrain.receive(2)
-        self.assertEquals(progged, [None])
-
-
     def test_flowFromTypeCheck(self):
         """
         L{_Siphon.flowingFrom} checks the type of its input.  If it doesn't match
@@ -812,14 +751,6 @@ class Reminders(TestCase):
         errors = self.flushLoggedErrors(ZeroDivisionError)
         self.assertEquals(len(errors), 1)
         self.assertEquals(ff.flowIsStopped, True)
-
-
-    def test_progressedRaises(self):
-        """
-        If L{ITube.progressed} raises an exception, the exception will be
-        logged, and...
-        """
-        self.fail()
 
 
     def test_receivedRaises(self):

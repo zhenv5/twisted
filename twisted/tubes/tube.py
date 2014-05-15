@@ -200,23 +200,13 @@ class _SiphonDrain(_SiphonPiece):
         return nextFount.flowTo(nextDrain)
 
 
-    def progress(self, amount=None):
-        """
-        Progress was made.
-        """
-        self._tube.progressed(amount)
-
-
     def receive(self, item):
         """
         An item was received.  Pass it on to the tube for processing.
         """
         def thingToDeliverFrom():
             return self._tube.received(item)
-        delivered = self._siphon._deliverFrom(thingToDeliverFrom)
-        drain = self._siphon._tfount.drain
-        if drain is not None and delivered == 0:
-            drain.progress()
+        self._siphon._deliverFrom(thingToDeliverFrom)
 
 
     def flowStopped(self, reason):
@@ -374,7 +364,7 @@ class _Siphon(object):
         if self._tfount.drain is None:
             self._pauseBecauseNoDrain = self._tfount.pauseFlow()
 
-        return self._unbufferIterator()
+        self._unbufferIterator()
 
     _unbuffering = False
     _flowStoppingReason = None
@@ -383,7 +373,6 @@ class _Siphon(object):
         if self._unbuffering:
             return
         whatever = object()
-        i = 0
         self._unbuffering = True
         while not self._currentlyPaused:
             value = next(self._pendingIterator, whatever)
@@ -405,9 +394,7 @@ class _Siphon(object):
                 value.addCallback(whenUnclogged).addErrback(log.err, "WHAT")
             else:
                 self._tfount.drain.receive(value)
-            i += 1
         self._unbuffering = False
-        return i
 
 
     def _divert(self, drain):
@@ -488,12 +475,6 @@ class Tube(object):
     def received(self, item):
         """
         @see: L{ITube.received}
-        """
-
-
-    def progressed(self, amount=None):
-        """
-        @see: L{ITube.progressed}
         """
 
 
