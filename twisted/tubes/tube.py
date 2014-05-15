@@ -225,7 +225,7 @@ class _SiphonDrain(_SiphonPiece):
 
 
 
-def series(start, *plumbing):
+def series(start, *tubes):
     """
     Connect up a series of objects capable of transforming inputs to outputs;
     convert a sequence of L{ITube} objects into a sequence of connected
@@ -249,8 +249,8 @@ def series(start, *plumbing):
     @type start: an L{ITube}, or anything adaptable to L{IFount}, as well as
         L{IDrain}.
 
-    @param plumbing: Each element of C{plumbing}.
-    @type plumbing: a L{tuple} of L{ITube}s or objects adaptable to L{IDrain}.
+    @param tubes: Each element of C{plumbing}.
+    @type tubes: a L{tuple} of L{ITube}s or objects adaptable to L{IDrain}.
 
     @return: An L{IDrain} that can consume inputs of C{start}'s C{inputType},
         and whose C{flowingFrom} will return an L{IFount} that will produce
@@ -263,7 +263,7 @@ def series(start, *plumbing):
     with _registryActive(_tubeRegistry):
         result = IDrain(start)
         currentFount = IFount(result)
-        drains = map(IDrain, plumbing)
+        drains = map(IDrain, tubes)
     for drain in drains:
         currentFount = currentFount.flowTo(drain)
     return result
