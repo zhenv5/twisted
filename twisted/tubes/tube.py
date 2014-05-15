@@ -11,6 +11,9 @@ from zope.interface import implementer, implementedBy
 
 from twisted.internet.defer import Deferred
 
+from twisted.python import log
+from twisted.python.failure import Failure
+
 from twisted.tubes.itube import (IDrain, ITube, IFount, IPause, IDivertable,
                                  AlreadyUnpaused)
 
@@ -354,7 +357,15 @@ class _Siphon(object):
 
     def _deliverFrom(self, deliverySource):
         assert self._pendingIterator is None
-        iterableOrNot = deliverySource()
+        try:
+            iterableOrNot = deliverySource()
+        except:
+            f = Failure()
+            log.err(f, "Exception raised when delivering from {0!r}".format(deliverySource))
+            self._tdrain.fount.stopFlow()
+            self._tfount.drain.flowStopped(f)
+            return
+            
         if iterableOrNot is None:
             return 0
         self._pendingIterator = iter(iterableOrNot)
