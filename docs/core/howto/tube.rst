@@ -58,16 +58,19 @@ Tutorial
 Let's start with an example.
 The simplest way to process any data is to avoid processing it entirely, to pass input straight on to output.
 On a network, that means an echo server.
-Here's a complete program which uses interfaces defined by ``twisted.tubes`` to send its input straight on to its output:
+Here's a function which uses interfaces defined by ``twisted.tubes`` to send its input straight on to its output:
 
 .. code-block:: python
-    
+
     def echoFlow(fount, drain):
         return fount.flowTo(drain)
 
-In the above example, ``echoFlow`` takes two things: a *fount* , or a source of data, and a *drain* , or a place where data eventually goes.
-In the context of using tubes, we call such a function a "flow", because it establishes a flow of data from one place to another.
-Most often, the arguments to such a function are the two parts of the same network connection. The fount represents data coming in over the connection, and the drain represents data going back out over that same connection.
+In the above example, ``echoFlow`` takes two things: a :api:`twisted.tubes.itube.IFount <fount>` , or a source of data, and a *drain* , or a place where data eventually goes.
+We call such a function a "flow", because it establishes a flow of data from one place to another.
+Most often, the arguments to such a function are the input from and the output to the same network connection.
+The fount represents data coming in over the connection, and the drain represents data going back out over that same connection.
+
+To *use* ``echoFlow`` as a server, we have to attach it to a listening :doc:`endpoint <endpoints>`.
 
 Let's do exactly that, and call ``echoFlow`` with a real, network-facing ``fount`` and ``drain`` .
 
@@ -76,32 +79,77 @@ Let's do exactly that, and call ``echoFlow`` with a real, network-facing ``fount
 .. literalinclude:: listings/tubes/echotube.py
 
 This fully-functioning example (just run it with "``python echotube.py`` ") implements an echo server.
+By default, you can test it out by typing into it.
+
+.. code-block:: console
+
+    $ python echotube.py
+    are you an echo server?
+    are you an echo server?
+    ^C
+
+If you want to see this run on a network, you can give it an endpoint description.
+For example, to run on TCP port 4321:
+
+.. code-block:: console
+
+    $ python echotube.py tcp:4321
+
+and then in another command-line window:
+
+.. code-block:: console
+
+    $ telnet 127.0.0.1 4321
+    Trying 127.0.0.1...
+    Connected to localhost.
+    Escape character is '^]'.
+    are you an echo server?
+    are you an echo server?
+    ^]
+    telnet> close
+    Connection closed.
+
 You can test it out with ``telnet localhost 4321`` .
-(If you are on Windows, and do not have the command-line ``telnet`` client installed, try running ``dism /online /Enable-Feature /FeatureName:TelnetClient`` first.)
+
+.. note::
+
+    If you are on Windows, ``telnet`` is not installed by default.
+    If you see an error message like:
+
+    .. code-block:: console
+
+        'telnet' is not recognized as an internal or external command,
+        operable program or batch file.
+
+    then you can install ``telnet`` by running the command
+
+    .. code-block:: console
+
+        C:\> dism /online /Enable-Feature /FeatureName:TelnetClient
+
+    in an Administrator command-prompt first.
 
 However, this example still performs no processing of the data that it is receiving.
 
-To demonstrate both receiving and processing data, let's write a server that:
+To demonstrate both receiving and processing data, let's write a `reverse polish notation <https://en.wikipedia.org/wiki/Reverse_Polish_notation>`_ calculator for addition and multiplication.
 
-#. accepts an incoming connection
-#. receives lines from that connection
-#. interprets those lines as either:
-   
-   #. an integer, expressed as an ASCII decimal number, OR
-   #. a command, which is ``SUM`` or ``PRODUCT`` 
-   
-#. executes the SUM and PRODUCT commands by adding or multiplying all of the numbers received since the last command (or the beginning of the connection)
-#. responds to the SUM and PRODUCT commands by writing the result of the calculation out to the connection.
+Interacting with it should look like this:
 
-In order to implement this program, we will construct a *series* of objects which process the data; or, in the parlance of the ``tubes`` package, "``Pump`` s".
-Each ``Pump`` in the ``series`` will be responsible for processing part of the data.
+.. code-block:: console
 
-To demonstrate this, we'll build a little network-based calculator.
-This program will take input, provided as a series of lines.
-These lines will contain data (numbers) and instructions (arithmetic operations, in this case "SUM" and "PRODUCT" for addition and multiplication respectively) and produce output data (lines containing an equal sign and then results).
+    > 3
+    > 4
+    > +
+    = 7
+    > 2
+    > *
+    = 14
 
-First we will create a pump that transforms arbitrary segments of a TCP stream into lines.
-Then, a pump that will transform lines into a combination of integers and callables (functions that perform the work of the ``SUM`` and ``PRODUCT commands`` ), then from integers and callables into more integers - sums and products - from those integers into lines, and finally from those lines into CRLF-terminated segments of TCP data that are sent back out over the network.
+In order to implement this program, we will construct a *series* of objects which process the data; or, in the parlance of the ``tubes`` package, "``Tube`` s".
+Each ``Tube`` in the ``series`` will be responsible for processing part of the data.
+
+First we will create a tube that transforms arbitrary segments of a data stream into lines.
+Then, a tube that will transform lines into a combination of numbers and operators (functions that perform the work of the ``"+"`` and ``"*"`` commands), then from numbers and operators into more numbers - sums and products - from those integers into lines, and finally from those lines into newline-terminated segments of data that are sent back out.
 
 Here's a sketch of the overall structure of such a program:
 
@@ -117,7 +165,7 @@ So what is ``dataProcessor`` and what does it return?  We need to write it, and 
 
 .. literalinclude:: listings/tubes/dataproc.py
 
-To complete the example, we need to implement 3 classes, each of which is a Pump:
+To complete the example, we need to implement 3 classes, each of which is a Tube:
 
 - ``LinesToIntegersOrCommands`` 
 - ``CommandsAndIntegersToResultIntegers`` 

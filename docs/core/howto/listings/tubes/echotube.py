@@ -1,12 +1,12 @@
 from twisted.tubes.protocol import factoryFromFlow
-from twisted.internet.endpoints import TCP4ServerEndpoint
+from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
 
 def echoFlow(fount, drain):
     return fount.flowTo(drain)
 
-def main(reactor, port="4321"):
-    endpoint = TCP4ServerEndpoint(reactor, int(port))
+def main(reactor, listenOn="stdio:"):
+    endpoint = serverFromString(reactor, listenOn)
     endpoint.listen(factoryFromFlow(echoFlow))
     return Deferred()
 

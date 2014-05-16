@@ -346,7 +346,7 @@ class _Siphon(object):
     _pauseBecauseNoDrain = None
 
     def _deliverFrom(self, deliverySource):
-        assert self._pendingIterator is None
+        assert self._pendingIterator is None, list(self._pendingIterator)
         try:
             iterableOrNot = deliverySource()
         except:

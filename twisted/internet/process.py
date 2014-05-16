@@ -125,7 +125,7 @@ class ProcessWriter(abstract.FileDescriptor):
         Initialize, specifying a Process instance to connect to.
         """
         abstract.FileDescriptor.__init__(self, reactor)
-        fdesc.setNonBlocking(fileno)
+        # fdesc.setNonBlocking(fileno)
         self.proc = proc
         self.name = name
         self.fd = fileno
@@ -231,7 +231,7 @@ class ProcessReader(abstract.FileDescriptor):
         Initialize, specifying a process to connect to.
         """
         abstract.FileDescriptor.__init__(self, reactor)
-        fdesc.setNonBlocking(fileno)
+        # fdesc.setNonBlocking(fileno)
         self.proc = proc
         self.name = name
         self.fd = fileno
