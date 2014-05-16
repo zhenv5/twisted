@@ -5,7 +5,7 @@ An Introduction to Tubes
 Abstract
 --------
 
-The :api:`twisted.tubes <twisted.tubes>` package provides flow-control and composable data processing.
+The :api:`twisted.tubes <twisted.tubes>` package provides composable flow-control and data processing.
 
 Flow-control is control over the source, destination, and rate of data being processed.
 Tubes implements this in a type-agnostic way, meaning that a set of rules for controlling the flow of data can control that flow regardless of the type of that data, from raw streams of bytes to application-specific messages and back again.
@@ -28,7 +28,7 @@ If it receives ``b"hello\r\nworld\r\n"`` , then it should deliver two outputs, `
 If your program receives ``b"hello\r"`` , and then *later* receives ``b"\nworld\r\n"`` , the *second* invocation needs to return two outputs.
 
 When dealing with streams of data from networks, it's common to want to send data somewhere as well as receiving it from somewhere.
-Even if your all that your program is concerned with is converting a sequence bytes into a sequence of lines, it still needs to be aware of the fact that its output buffer may be full, and unprepared to receive any more lines.
+Even if all that your program is concerned with is converting a sequence bytes into a sequence of lines, it still needs to be aware of the fact that its output buffer may be full, and unprepared to receive any more lines.
 For example, the line-splitting code above might be used in a proxy that relays output from a server with a very fast, low-latency uplink, to client computers on very slow high-latency networks.
 The (fast) server's output will easily outpace a (slow) client's input, which means that if the line parser is going as fast as it can, lines will pile up in outgoing buffers while waiting to be sent out, and consume all of the proxy's memory.
 When this happens, the line parsing program needs to tell *its* input to slow down, by indicating that it should no longer produce bytes, until the program consuming the line parser's output is ready again.
