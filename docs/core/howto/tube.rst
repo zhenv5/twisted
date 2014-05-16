@@ -57,7 +57,7 @@ Tutorial
 
 Let's start with an example.
 The simplest way to process any data is to avoid processing it entirely, to pass input straight on to output.
-In a networking context, that means an echo server.
+On a network, that means an echo server.
 Here's a complete program which uses interfaces defined by ``twisted.tubes`` to send its input straight on to its output:
 
 .. code-block:: python
