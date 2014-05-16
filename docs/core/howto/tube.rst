@@ -38,7 +38,7 @@ That's where the ``twisted.tubes`` package comes in; the rest of this document w
 .. note::
    
    If you've used Twisted before, you may notice that half of the line-splitting above is exactly what :api:`twisted.protocols.basic.LineReceiver <LineReceiver>`  does, and that there are lots of related classes that can do similar things for other message types.
-   The other half is handled by :doc:`producers` .
+   The other half is handled by :doc:`producers and consumers <producers>` .
    ``tubes``  is a *newer*  interface than those things, and you will find it somewhat improved.
    If you're writing new code, you should generally prefer to use ``tubes`` .
    
@@ -55,7 +55,8 @@ That's where the ``twisted.tubes`` package comes in; the rest of this document w
 Tutorial
 --------
 
-Let's start with the simplest example; the simplest way to process any data is to avoid processing it entirely, to pass input straight on to output.
+Let's start with an example.
+The simplest way to process any data is to avoid processing it entirely, to pass input straight on to output.
 In a networking context, that means an echo server.
 Here's a complete program which uses interfaces defined by ``twisted.tubes`` to send its input straight on to its output:
 
@@ -170,5 +171,5 @@ In this case, ``.flowTo(Tube(stringToNetstring()))`` returns a new :api:`twisted
     If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>`  takes an :api:`twisted.tube.itube.IDrain <IDrain>`, and returns the result of that  :api:`twisted.tube.itube.IDrain <IDrain's>` :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>`method.
     This allows the ``Tube``  - which is the ``IDrain``  in this scenario, and therefore what knows what the output will be after it's processed it, to affect the return value of the previous ``IFount`` 's ``flowTo``  method.
 
-We have now extended our simple ``echoFlow`` to add a length prefix to each chunk of its input before echoing it back to your client.
+We have now extended ``echoFlow`` to add a length prefix to each chunk of its input before echoing it back to your client.
 This demonstrates how you can manipulate data as it passes through a flow.
