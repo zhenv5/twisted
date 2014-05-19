@@ -34,7 +34,7 @@ from twisted.python.failure import Failure
 from twisted.python.deprecate import deprecatedModuleAttribute
 from twisted.python.versions import Version
 
-from twisted.web.iweb import IPolicyForHTTPS
+from twisted.web.iweb import IPolicyForHTTPS, IAgentEndpointConstructor
 from twisted.python.deprecate import getDeprecationWarningString
 from twisted.web import http
 from twisted.internet import defer, protocol, task, reactor
@@ -1354,13 +1354,10 @@ class _AgentBase(object):
 
 
 
-@implementer(IAgent)
-class Agent(_AgentBase):
+@implementer(IAgentEndpointConstructor)
+class _StandardEndpointConstructor(object):
     """
-    L{Agent} is a very basic HTTP client.  It supports I{HTTP} and I{HTTPS}
-    scheme URIs (but performs no certificate checking by default).
-
-    @ivar _pool: An L{HTTPConnectionPool} instance.
+    Standard HTTP endpoint destinations - TCP for HTTP, TCP+TLS for HTTPS.
 
     @ivar _policyForHTTPS: A web context factory which will be used to create
         SSL context objects for any SSL connections the agent needs to make.
@@ -1372,10 +1369,59 @@ class Agent(_AgentBase):
     @ivar _bindAddress: If not C{None}, the address passed to
         L{TCP4ClientEndpoint} or C{SSL4ClientEndpoint} for specifying the local
         address to bind to.
+    """
+    def __init__(self, reactor, contextFactory, connectTimeout, bindAddress):
+        """
+        @param reactor: A provider of
+            L{twisted.internet.interfaces.IReactorTCP} and
+            L{twisted.internet.interfaces.IReactorSSL} for this L{Agent} to
+            place outgoing connections.
+        @type reactor: L{twisted.internet.interfaces.IReactorTCP} and
+            L{twisted.internet.interfaces.IReactorSSL}
 
-    @ivar _endpointConstructor: If not C{None}, the
-        L{IAgentEndpointConstructor} which will be used to create endpoints for
-        outgoing connections.
+        @param contextFactory: A factory for TLS contexts, to control the
+            verification parameters of OpenSSL.
+        @type contextFactory: L{IPolicyForHTTPS}.
+
+        @param connectTimeout: The amount of time that this L{Agent} will wait
+            for the peer to accept a connection.
+        @type connectTimeout: L{float} or L{None}
+
+        @param bindAddress: The local address for client sockets to bind to.
+        @type bindAddress: L{bytes} or L{None}
+        """
+        self._reactor = reactor
+        self._policyForHTTPS = contextFactory
+        self._connectTimeout = connectTimeout
+        self._bindAddress = bindAddress
+
+
+    def constructEndpoint(self, scheme, host, port):
+        kwargs = {}
+        if self._connectTimeout is not None:
+            kwargs['timeout'] = self._connectTimeout
+        kwargs['bindAddress'] = self._bindAddress
+        if scheme == 'http':
+            return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
+        elif scheme == 'https':
+            tlsPolicy = self._policyForHTTPS.creatorForNetloc(host, port)
+            return SSL4ClientEndpoint(self._reactor, host, port,
+                                      tlsPolicy, **kwargs)
+        else:
+            raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
+
+
+
+@implementer(IAgent)
+class Agent(_AgentBase):
+    """
+    L{Agent} is a very basic HTTP client.  It supports I{HTTP} and I{HTTPS}
+    scheme URIs (but performs no certificate checking by default).
+
+    @ivar _pool: An L{HTTPConnectionPool} instance.
+
+    @ivar _endpointConstructor: The L{IAgentEndpointConstructor} which will
+        be used to create endpoints for outgoing connections.
 
     @since: 9.0
     """
@@ -1411,14 +1457,7 @@ class Agent(_AgentBase):
             case a non-persistent L{HTTPConnectionPool} instance will be
             created.
         @type pool: L{HTTPConnectionPool}
-
-        @param endpointConstructor: An L{IAgentEndpointConstructor} provider or
-            L{None}. If not L{None}, this will be used to construct endpoints
-            instead of the default method, and as such, the C{connectTimeout}
-            and C{bindAddress} parameters will be ignored.
-        @type endpointConstructor: an L{IAgentEndpointConstructor} provider
         """
-        _AgentBase.__init__(self, reactor, pool)
         if not IPolicyForHTTPS.providedBy(contextFactory):
             warnings.warn(
                 repr(contextFactory) +
@@ -1428,17 +1467,62 @@ class Agent(_AgentBase):
                 stacklevel=2, category=DeprecationWarning
             )
             contextFactory = _DeprecatedToCurrentPolicyForHTTPS(contextFactory)
-        self._policyForHTTPS = contextFactory
-        self._connectTimeout = connectTimeout
-        self._bindAddress = bindAddress
+        endpointConstructor = _StandardEndpointConstructor(
+            reactor, contextFactory, connectTimeout, bindAddress)
+        self._init(reactor, endpointConstructor, pool)
+
+
+    @classmethod
+    def forEndpointConstructor(cls, reactor, endpointConstructor, pool=None):
+        """
+        Create a new L{Agent} that will use the endpoint constructor to figure
+        out how to connect to the server.
+
+        @param reactor: A provider of
+            L{twisted.internet.interfaces.IReactorTime}.
+
+        @param endpointConstructor: Used to construct endpoints which the
+            HTTP client will connect with.
+        @type endpointConstructor: an L{IAgentEndpointConstructor} provider.
+
+        @param pool: An L{HTTPConnectionPool} instance, or C{None}, in which
+            case a non-persistent L{HTTPConnectionPool} instance will be
+            created.
+        @type pool: L{HTTPConnectionPool}
+
+        @return: A new L{Agent}.
+        """
+        agent = cls.__new__(cls)
+        agent._init(reactor, endpointConstructor, pool)
+        return agent
+
+
+    def _init(self, reactor, endpointConstructor, pool):
+        """
+        Initialize a new L{Agent}.
+
+        @param reactor: A provider of relevant reactor interfaces, at a minimum
+            L{twisted.internet.interfaces.IReactorTime}.
+
+        @param endpointConstructor: Used to construct endpoints which the
+            HTTP client will connect with.
+        @type endpointConstructor: an L{IAgentEndpointConstructor} provider.
+
+        @param pool: An L{HTTPConnectionPool} instance, or C{None}, in which
+            case a non-persistent L{HTTPConnectionPool} instance will be
+            created.
+        @type pool: L{HTTPConnectionPool}
+
+        @return: A new L{Agent}.
+        """
+        _AgentBase.__init__(self, reactor, pool)
         self._endpointConstructor = endpointConstructor
 
 
     def _getEndpoint(self, scheme, host, port):
         """
-        Get an endpoint for the given host and port, using a transport
-        selected based on scheme. If C{self._endpointConstructor} is not
-        L{None}, that will be used instead of the default logic.
+        Get an endpoint for the given host and port, using
+        C{self._endpointConstructor}.
 
         @param scheme: A string like C{'http'} or C{'https'} (the only two
             supported values) to use to determine how to establish the
@@ -1452,34 +1536,15 @@ class Agent(_AgentBase):
 
         @return: An endpoint which can be used to connect to given address.
         """
-        if self._endpointConstructor is not None:
-            if SSL is None:
-                httpsConnectionCreator = None
-            else:
-                httpsConnectionCreator = self._policyForHTTPS.creatorForNetloc(
-                    host, port)
-            return self._endpointConstructor.constructEndpoint(
-                scheme, host, port, httpsConnectionCreator)
-
-        kwargs = {}
-        if self._connectTimeout is not None:
-            kwargs['timeout'] = self._connectTimeout
-        kwargs['bindAddress'] = self._bindAddress
-        if scheme == 'http':
-            return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
-        elif scheme == 'https':
-            tlsPolicy = self._policyForHTTPS.creatorForNetloc(host, port)
-            return SSL4ClientEndpoint(self._reactor, host, port,
-                                      tlsPolicy, **kwargs)
-        else:
-            raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
+        return self._endpointConstructor.constructEndpoint(scheme, host, port)
 
 
     def request(self, method, uri, headers=None, bodyProducer=None):
         """
         Issue a request to the server indicated by the given C{uri}.
 
-        An existing connection from the connection pool may be used or a new one may be created.
+        An existing connection from the connection pool may be used or a new
+        one may be created.
 
         I{HTTP} and I{HTTPS} schemes are supported in C{uri}.
 

@@ -759,7 +759,7 @@ class IAgentEndpointConstructor(Interface):
     @since: 14.1
     """
 
-    def constructEndpoint(scheme, hostname, port, httpsConnectionCreator):
+    def constructEndpoint(scheme, hostname, port):
         """
         Construct and return an L{IStreamClientEndpoint} for the outgoing
         request's connection.
@@ -774,16 +774,12 @@ class IAgentEndpointConstructor(Interface):
         @param port: The port of the request.
         @type port: L{int}
 
-        @param httpsConnectionCreator: The client connection creator which
-            would be used for outgoing HTTPS requests. Usually determined from
-            an L{IPolicyForHTTPS} provider. If TLS support is not available,
-            L{None} will be passed instead.
-        @type httpsConnectionCreator: an L{IOpenSSLClientConnectionCreator}
-            provider or C{NoneType}
-
         @return: An endpoint which will have its C{connect} method called to
             issue the request.
         @rtype: an L{IStreamClientEndpoint} provider
+
+        @raises twisted.internet.error.SchemeNotSupported: If the given
+            scheme cannot be handled by this constructor.
         """
 
 
