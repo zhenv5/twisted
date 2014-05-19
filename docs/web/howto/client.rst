@@ -771,17 +771,15 @@ use, gzip is the only encoding supported by Twisted itself.
 
 Arbitrary endpoint construction
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    
+
 Sometimes it's useful to be able to specify the endpoint used by the ``Agent`` when making a request.
-For example,
-when making an HTTP request over a SOCKS proxy connection.
-For this reason,
-there is an ``endpointConstructor`` argument to ``Agent.__init__``.
-The ``endpointConstructor`` passed in must provide the :api:`twisted.web.iweb.IAgentEndpointConstructor` interface.
+For example, when making an HTTP request over a SOCKS proxy connection.
+For this reason, there is an alternate constructor called ``Agent.forEndpointConstructor`` that takes a ``endpointConstructor`` argument.
+This argument must provide the :api:`twisted.web.iweb.IAgentEndpointConstructor` interface.
 
 :download:`endpointconstructor.py <listings/client/endpointconstructor.py>`
 
-.. literalinclude:: listings/client/endpointconstructorgzipdecoder.py
+.. literalinclude:: listings/client/endpointconstructor.py
 
 
 Conclusion
