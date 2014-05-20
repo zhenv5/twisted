@@ -1397,6 +1397,9 @@ class _StandardEndpointFactory(object):
 
 
     def endpointForURI(self, uri):
+        """
+        Connect directly over TCP for C{b'http'} scheme, and TLS for C{b'https'}.
+        """
         kwargs = {}
         if self._connectTimeout is not None:
             kwargs['timeout'] = self._connectTimeout
