@@ -4,8 +4,12 @@
 """
 Send a HTTP request to Docker over a Unix socket.
 
-May need to be run as root.
+Will probably need to be run as root.
+
+Usage:
+    $ sudo python endpointconstructor.py [<docker API path>]
 """
+
 from __future__ import print_function
 
 from sys import argv
@@ -28,7 +32,7 @@ class DockerEndpointFactory(object):
 
 
     def endpointForURI(self, uri):
-        return UNIXClientEndpoint(self.reactor, "/var/run/docker.sock")
+        return UNIXClientEndpoint(self.reactor, b"/var/run/docker.sock")
 
 
 
