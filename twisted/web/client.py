@@ -642,6 +642,9 @@ class URI(object):
         fragment identifier.
 
         @see: U{https://tools.ietf.org/html/draft-ietf-httpbis-p1-messaging-21#section-5.3}
+
+        @return: The absolute path in original form.
+        @rtype: L{bytes}
         """
         # The HTTP bis draft says the origin form should not include the
         # fragment.
@@ -1399,6 +1402,11 @@ class _StandardEndpointFactory(object):
     def endpointForURI(self, uri):
         """
         Connect directly over TCP for C{b'http'} scheme, and TLS for C{b'https'}.
+
+        @param uri: L{URI} to connect to.
+
+        @return: Endpoint to connect to.
+        @rtype: L{TCP4ClientEndpoint} or L{SSL4ClientEndpoint}
         """
         kwargs = {}
         if self._connectTimeout is not None:

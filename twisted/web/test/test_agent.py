@@ -716,6 +716,10 @@ class StubEndpointFactory(object):
     """
     def endpointForURI(self, uri):
         """
+        Testing implementation.
+
+        @param uri: A L{URI}.
+
         @return: C{(scheme, host, port)} of passed in URI; violation of
             interface but useful for testing.
         @rtype: L{tuple}
