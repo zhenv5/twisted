@@ -710,30 +710,17 @@ class AgentTestsMixin(object):
 
 
 @implementer(IAgentEndpointFactory)
-class FakeEndpointFactory(object):
+class StubEndpointFactory(object):
     """
-    A fake L{IAgentEndpointFactory} for use in testing.
-
-    @ivar endpoint: A unique L{object} which will be returned by
-        L{constructEndpoint}.
+    A stub L{IAgentEndpointFactory} for use in testing.
     """
-
-    def __init__(self):
-        self.endpoint = object()
-
-
     def endpointForURI(self, uri):
         """
-        Save the parameters passed.
-
-        @return: Not an actual endpoint, but a unique L{object} standing in
-            place of one.
-        @rtype: L{object}
+        @return: C{(scheme, host, port)} of passed in URI; violation of
+            interface but useful for testing.
+        @rtype: L{tuple}
         """
-        self.scheme = uri.scheme
-        self.hostname = uri.host
-        self.port = uri.port
-        return self.endpoint
+        return (uri.scheme, uri.host, uri.port)
 
 
 
@@ -1120,16 +1107,15 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
 
     def test_endpointFactory(self):
         """
-        L{Agent.usingEndpointFactory} can be passed an endpoint factory.
+        L{Agent.usingEndpointFactory} creates an L{Agent} that uses the given
+        factory to create endpoints.
         """
-        factory = FakeEndpointFactory()
+        factory = StubEndpointFactory()
         agent = client.Agent.usingEndpointFactory(
             None, endpointFactory=factory)
         uri = URI.fromBytes(b'http://example.com/')
         returnedEndpoint = agent._getEndpoint(uri)
-        self.assertEqual(
-            (returnedEndpoint, factory.scheme, factory.hostname, factory.port),
-            (factory.endpoint, b"http", b"example.com", 80))
+        self.assertEqual(returnedEndpoint, (b"http", b"example.com", 80))
 
 
     def test_endpointFactoryDefaultPool(self):
@@ -1138,7 +1124,7 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         pool is constructed with no persistent connections.
         """
         agent = client.Agent.usingEndpointFactory(
-            self.reactor, FakeEndpointFactory())
+            self.reactor, StubEndpointFactory())
         pool = agent._pool
         self.assertEqual((pool.__class__, pool.persistent, pool._reactor),
                           (HTTPConnectionPool, False, agent._reactor))
@@ -1151,8 +1137,8 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         """
         pool = object()
         agent = client.Agent.usingEndpointFactory(
-            self.reactor, FakeEndpointFactory(), pool)
-        self.assertIdentical(pool, agent._pool)
+            self.reactor, StubEndpointFactory(), pool)
+        self.assertIs(pool, agent._pool)
 
 
 
