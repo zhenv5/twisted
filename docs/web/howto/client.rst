@@ -654,10 +654,9 @@ Using a HTTP proxy
 
     
 
-To be able to use HTTP proxies with an agent, you can use the :api:`twisted.web.client.ProxyAgent <twisted.web.client.ProxyAgent>` class. It supports the
-same interface as ``Agent`` , but takes the endpoint of the proxy
-as initializer argument.
-
+To be able to use HTTP proxies with an agent, you can use the :api:`twisted.web.client.ProxyAgent <twisted.web.client.ProxyAgent>` class.
+It supports the same interface as ``Agent``, but takes the endpoint of the proxy as initializer argument.
+This is specifically intended for talking to servers that implement the proxying variation of the HTTP protocol; for other types of proxies you will want ``Agent.forEndpointConstructor`` (see documentation below).
 
     
 
@@ -774,6 +773,7 @@ Arbitrary endpoint construction
 
 Sometimes it's useful to be able to specify the endpoint used by the ``Agent`` when making a request.
 For example, when making an HTTP request over a SOCKS proxy connection.
+This is not the same as talking to a HTTP proxy, i.e. a server that talks a proxying-specific variant of HTTP; use ``ProxyAgent`` for that case.
 For this reason, there is an alternate constructor called ``Agent.forEndpointConstructor`` that takes a ``endpointConstructor`` argument.
 This argument must provide the :api:`twisted.web.iweb.IAgentEndpointConstructor` interface.
 
