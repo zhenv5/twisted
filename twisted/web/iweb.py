@@ -750,36 +750,29 @@ class IPolicyForHTTPS(Interface):
 
 
 
-class IAgentEndpointConstructor(Interface):
+class IAgentEndpointFactory(Interface):
     """
-    An L{IAgentEndpointConstructor} provides a way of constructing an endpoint
+    An L{IAgentEndpointFactory} provides a way of constructing an endpoint
     used for outgoing Agent requests. This is useful in the case of needing to
     proxy outgoing connections, or to otherwise vary the transport used.
 
     @since: 14.1
     """
 
-    def constructEndpoint(scheme, hostname, port):
+    def endpointForURI(uri):
         """
         Construct and return an L{IStreamClientEndpoint} for the outgoing
         request's connection.
 
-        @param scheme: The scheme of the request. Usually will be one of
-            C{b"http"} or C{b"https"}.
-        @type scheme: L{bytes}
-
-        @param hostname: The hostname of the request.
-        @type hostname: L{bytes}
-
-        @param port: The port of the request.
-        @type port: L{int}
+        @param uri: The URI of the request.
+        @type uri: L{twisted.web.client.URI}
 
         @return: An endpoint which will have its C{connect} method called to
             issue the request.
         @rtype: an L{IStreamClientEndpoint} provider
 
         @raises twisted.internet.error.SchemeNotSupported: If the given
-            scheme cannot be handled by this constructor.
+            URI's scheme cannot be handled by this factory.
         """
 
 

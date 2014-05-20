@@ -28,10 +28,10 @@ from twisted.internet.defer import Deferred, succeed, CancelledError
 from twisted.internet.endpoints import TCP4ClientEndpoint, SSL4ClientEndpoint
 
 from twisted.web.client import (FileBodyProducer, Request, HTTPConnectionPool,
-                                ResponseDone, _HTTP11ClientFactory)
+                                ResponseDone, _HTTP11ClientFactory, URI)
 
 from twisted.web.iweb import (
-    UNKNOWN_LENGTH, IAgent, IBodyProducer, IResponse, IAgentEndpointConstructor,
+    UNKNOWN_LENGTH, IAgent, IBodyProducer, IResponse, IAgentEndpointFactory,
     )
 from twisted.web.http_headers import Headers
 from twisted.web._newclient import HTTP11ClientProtocol, Response
@@ -709,10 +709,10 @@ class AgentTestsMixin(object):
 
 
 
-@implementer(IAgentEndpointConstructor)
-class FakeEndpointConstructor(object):
+@implementer(IAgentEndpointFactory)
+class FakeEndpointFactory(object):
     """
-    A fake L{IAgentEndpointConstructor} for use in testing.
+    A fake L{IAgentEndpointFactory} for use in testing.
 
     @ivar endpoint: A unique L{object} which will be returned by
         L{constructEndpoint}.
@@ -722,7 +722,7 @@ class FakeEndpointConstructor(object):
         self.endpoint = object()
 
 
-    def constructEndpoint(self, scheme, hostname, port):
+    def endpointForURI(self, uri):
         """
         Save the parameters passed.
 
@@ -730,9 +730,9 @@ class FakeEndpointConstructor(object):
             place of one.
         @rtype: L{object}
         """
-        self.scheme = scheme
-        self.hostname = hostname
-        self.port = port
+        self.scheme = uri.scheme
+        self.hostname = uri.host
+        self.port = uri.port
         return self.endpoint
 
 
@@ -805,8 +805,8 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         """
         endpoint = DummyEndpoint()
         class MyAgent(client.Agent):
-            def _getEndpoint(this, scheme, host, port):
-                self.assertEqual((scheme, host, port),
+            def _getEndpoint(this, uri):
+                self.assertEqual((uri.scheme, uri.host, uri.port),
                                  ("http", "foo", 80))
                 return endpoint
 
@@ -863,7 +863,8 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         """
         expectedHost = 'example.com'
         expectedPort = 1234
-        endpoint = self.agent._getEndpoint('http', expectedHost, expectedPort)
+        endpoint = self.agent._getEndpoint(
+            URI.fromBytes(b'http://%s:%s/' % (expectedHost, expectedPort)))
         self.assertEqual(endpoint._host, expectedHost)
         self.assertEqual(endpoint._port, expectedPort)
         self.assertIsInstance(endpoint, TCP4ClientEndpoint)
@@ -888,7 +889,8 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
                 return expectedContext
 
         agent = client.Agent(self.reactor, StubWebContextFactory())
-        endpoint = agent._getEndpoint('https', expectedHost, expectedPort)
+        endpoint = agent._getEndpoint(
+            URI.fromBytes(b'https://%s:%s/' % (expectedHost, expectedPort)))
         contextFactory = endpoint._sslContextFactory
         context = contextFactory.getContext()
         self.assertEqual(context, expectedContext)
@@ -1116,40 +1118,40 @@ class AgentTests(TestCase, FakeReactorAndConnectMixin, AgentTestsMixin):
         self.assertIdentical(request.absoluteURI, None)
 
 
-    def test_endpointConstructor(self):
+    def test_endpointFactory(self):
         """
-        L{Agent.forEndpointConstructor} can be passed an endpoint constructor.
+        L{Agent.usingEndpointFactory} can be passed an endpoint factory.
         """
-        constructor = FakeEndpointConstructor()
-        agent = client.Agent.forEndpointConstructor(
-            None, endpointConstructor=constructor)
-        returnedEndpoint = agent._getEndpoint('http', 'example.com', 80)
+        factory = FakeEndpointFactory()
+        agent = client.Agent.usingEndpointFactory(
+            None, endpointFactory=factory)
+        uri = URI.fromBytes(b'http://example.com/')
+        returnedEndpoint = agent._getEndpoint(uri)
         self.assertEqual(
-            (returnedEndpoint, constructor.scheme, constructor.hostname,
-             constructor.port),
-            (constructor.endpoint, b'http', b'example.com', 80))
+            (returnedEndpoint, factory.scheme, factory.hostname, factory.port),
+            (factory.endpoint, b"http", b"example.com", 80))
 
 
-    def test_endpointConstructorDefaultPool(self):
+    def test_endpointFactoryDefaultPool(self):
         """
-        If no pool is passed in to L{Agent.forEndpointConstructor}, a default
+        If no pool is passed in to L{Agent.usingEndpointFactory}, a default
         pool is constructed with no persistent connections.
         """
-        agent = client.Agent.forEndpointConstructor(
-            self.reactor, FakeEndpointConstructor())
+        agent = client.Agent.usingEndpointFactory(
+            self.reactor, FakeEndpointFactory())
         pool = agent._pool
         self.assertEqual((pool.__class__, pool.persistent, pool._reactor),
                           (HTTPConnectionPool, False, agent._reactor))
 
 
-    def test_endpointConstructorPool(self):
+    def test_endpointFactoryPool(self):
         """
-        If a pool is passed in to L{Agent.forEndpointConstructor} it is used as
+        If a pool is passed in to L{Agent.usingEndpointFactory} it is used as
         the L{Agent} pool.
         """
         pool = object()
-        agent = client.Agent.forEndpointConstructor(
-            self.reactor, FakeEndpointConstructor(), pool)
+        agent = client.Agent.usingEndpointFactory(
+            self.reactor, FakeEndpointFactory(), pool)
         self.assertIdentical(pool, agent._pool)
 
 
@@ -1176,7 +1178,8 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
         @return: An endpoint of an L{Agent} constructed according to args.
         @rtype: L{SSL4ClientEndpoint}
         """
-        return client.Agent(self.Reactor())._getEndpoint(b'https', host, port)
+        return client.Agent(self.Reactor())._getEndpoint(
+            URI.fromBytes(b'https://%s:%s/' % (host, port)))
 
 
     def test_endpointType(self):
@@ -1281,7 +1284,8 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
         expectedCreatorCreator = StubBrowserLikePolicyForHTTPS()
         reactor = self.Reactor()
         agent = client.Agent(reactor, expectedCreatorCreator)
-        endpoint = agent._getEndpoint('https', expectedHost, expectedPort)
+        endpoint = agent._getEndpoint(
+            URI.fromBytes(b'https://%s:%s/' %  (expectedHost, expectedPort)))
         endpoint.connect(Factory.forProtocol(Protocol))
         passedFactory = reactor.sslClients[-1][2]
         passedContextFactory = reactor.sslClients[-1][3]

@@ -34,7 +34,7 @@ from twisted.python.failure import Failure
 from twisted.python.deprecate import deprecatedModuleAttribute
 from twisted.python.versions import Version
 
-from twisted.web.iweb import IPolicyForHTTPS, IAgentEndpointConstructor
+from twisted.web.iweb import IPolicyForHTTPS, IAgentEndpointFactory
 from twisted.python.deprecate import getDeprecationWarningString
 from twisted.web import http
 from twisted.internet import defer, protocol, task, reactor
@@ -379,7 +379,7 @@ class HTTPClientFactory(protocol.ClientFactory):
 
     def setURL(self, url):
         self.url = url
-        uri = _URI.fromBytes(url)
+        uri = URI.fromBytes(url)
         if uri.scheme and uri.host:
             self.scheme = uri.scheme
             self.host = uri.host
@@ -545,7 +545,7 @@ class HTTPDownloader(HTTPClientFactory):
 
 
 
-class _URI(object):
+class URI(object):
     """
     A URI object.
 
@@ -591,7 +591,7 @@ class _URI(object):
     @classmethod
     def fromBytes(cls, uri, defaultPort=None):
         """
-        Parse the given URI into a L{_URI}.
+        Parse the given URI into a L{URI}.
 
         @type uri: C{bytes}
         @param uri: URI to parse.
@@ -600,7 +600,7 @@ class _URI(object):
         @param defaultPort: An alternate value to use as the port if the URI
             does not include one.
 
-        @rtype: L{_URI}
+        @rtype: L{URI}
         @return: Parsed URI instance.
         """
         uri = uri.strip()
@@ -698,7 +698,7 @@ def _makeGetterFactory(url, factoryFactory, contextFactory=None,
 
     @return: The factory created by C{factoryFactory}
     """
-    uri = _URI.fromBytes(url)
+    uri = URI.fromBytes(url)
     factory = factoryFactory(url, *args, **kwargs)
     if uri.scheme == b'https':
         from twisted.internet import ssl
@@ -1354,8 +1354,8 @@ class _AgentBase(object):
 
 
 
-@implementer(IAgentEndpointConstructor)
-class _StandardEndpointConstructor(object):
+@implementer(IAgentEndpointFactory)
+class _StandardEndpointFactory(object):
     """
     Standard HTTP endpoint destinations - TCP for HTTP, TCP+TLS for HTTPS.
 
@@ -1396,19 +1396,20 @@ class _StandardEndpointConstructor(object):
         self._bindAddress = bindAddress
 
 
-    def constructEndpoint(self, scheme, host, port):
+    def endpointForURI(self, uri):
         kwargs = {}
         if self._connectTimeout is not None:
             kwargs['timeout'] = self._connectTimeout
         kwargs['bindAddress'] = self._bindAddress
-        if scheme == 'http':
-            return TCP4ClientEndpoint(self._reactor, host, port, **kwargs)
-        elif scheme == 'https':
-            tlsPolicy = self._policyForHTTPS.creatorForNetloc(host, port)
-            return SSL4ClientEndpoint(self._reactor, host, port,
+        if uri.scheme == b'http':
+            return TCP4ClientEndpoint(
+                self._reactor, uri.host, uri.port, **kwargs)
+        elif uri.scheme == b'https':
+            tlsPolicy = self._policyForHTTPS.creatorForNetloc(uri.host, uri.port)
+            return SSL4ClientEndpoint(self._reactor, uri.host, uri.port,
                                       tlsPolicy, **kwargs)
         else:
-            raise SchemeNotSupported("Unsupported scheme: %r" % (scheme,))
+            raise SchemeNotSupported("Unsupported scheme: %r" % (uri.scheme,))
 
 
 
@@ -1420,7 +1421,7 @@ class Agent(_AgentBase):
 
     @ivar _pool: An L{HTTPConnectionPool} instance.
 
-    @ivar _endpointConstructor: The L{IAgentEndpointConstructor} which will
+    @ivar _endpointFactory: The L{IAgentEndpointFactory} which will
         be used to create endpoints for outgoing connections.
 
     @since: 9.0
@@ -1429,7 +1430,7 @@ class Agent(_AgentBase):
     def __init__(self, reactor,
                  contextFactory=BrowserLikePolicyForHTTPS(),
                  connectTimeout=None, bindAddress=None,
-                 pool=None, endpointConstructor=None):
+                 pool=None):
         """
         Create an L{Agent}.
 
@@ -1467,23 +1468,23 @@ class Agent(_AgentBase):
                 stacklevel=2, category=DeprecationWarning
             )
             contextFactory = _DeprecatedToCurrentPolicyForHTTPS(contextFactory)
-        endpointConstructor = _StandardEndpointConstructor(
+        endpointFactory = _StandardEndpointFactory(
             reactor, contextFactory, connectTimeout, bindAddress)
-        self._init(reactor, endpointConstructor, pool)
+        self._init(reactor, endpointFactory, pool)
 
 
     @classmethod
-    def forEndpointConstructor(cls, reactor, endpointConstructor, pool=None):
+    def usingEndpointFactory(cls, reactor, endpointFactory, pool=None):
         """
-        Create a new L{Agent} that will use the endpoint constructor to figure
+        Create a new L{Agent} that will use the endpoint factory to figure
         out how to connect to the server.
 
         @param reactor: A provider of
             L{twisted.internet.interfaces.IReactorTime}.
 
-        @param endpointConstructor: Used to construct endpoints which the
+        @param endpointFactory: Used to construct endpoints which the
             HTTP client will connect with.
-        @type endpointConstructor: an L{IAgentEndpointConstructor} provider.
+        @type endpointFactory: an L{IAgentEndpointFactory} provider.
 
         @param pool: An L{HTTPConnectionPool} instance, or C{None}, in which
             case a non-persistent L{HTTPConnectionPool} instance will be
@@ -1493,20 +1494,20 @@ class Agent(_AgentBase):
         @return: A new L{Agent}.
         """
         agent = cls.__new__(cls)
-        agent._init(reactor, endpointConstructor, pool)
+        agent._init(reactor, endpointFactory, pool)
         return agent
 
 
-    def _init(self, reactor, endpointConstructor, pool):
+    def _init(self, reactor, endpointFactory, pool):
         """
         Initialize a new L{Agent}.
 
         @param reactor: A provider of relevant reactor interfaces, at a minimum
             L{twisted.internet.interfaces.IReactorTime}.
 
-        @param endpointConstructor: Used to construct endpoints which the
+        @param endpointFactory: Used to construct endpoints which the
             HTTP client will connect with.
-        @type endpointConstructor: an L{IAgentEndpointConstructor} provider.
+        @type endpointFactory: an L{IAgentEndpointFactory} provider.
 
         @param pool: An L{HTTPConnectionPool} instance, or C{None}, in which
             case a non-persistent L{HTTPConnectionPool} instance will be
@@ -1516,27 +1517,19 @@ class Agent(_AgentBase):
         @return: A new L{Agent}.
         """
         _AgentBase.__init__(self, reactor, pool)
-        self._endpointConstructor = endpointConstructor
+        self._endpointFactory = endpointFactory
 
 
-    def _getEndpoint(self, scheme, host, port):
+    def _getEndpoint(self, uri):
         """
-        Get an endpoint for the given host and port, using
-        C{self._endpointConstructor}.
+        Get an endpoint for the given URI, using C{self._endpointFactory}.
 
-        @param scheme: A string like C{'http'} or C{'https'} (the only two
-            supported values) to use to determine how to establish the
-            connection.
-
-        @param host: A C{str} giving the hostname which will be connected to in
-            order to issue a request.
-
-        @param port: An C{int} giving the port number the connection will be
-            on.
+        @param uri: The URI of the request.
+        @type uri: L{URI}
 
         @return: An endpoint which can be used to connect to given address.
         """
-        return self._endpointConstructor.constructEndpoint(scheme, host, port)
+        return self._endpointFactory.endpointForURI(uri)
 
 
     def request(self, method, uri, headers=None, bodyProducer=None):
@@ -1550,10 +1543,9 @@ class Agent(_AgentBase):
 
         @see: L{twisted.web.iweb.IAgent.request}
         """
-        parsedURI = _URI.fromBytes(uri)
+        parsedURI = URI.fromBytes(uri)
         try:
-            endpoint = self._getEndpoint(parsedURI.scheme, parsedURI.host,
-                                         parsedURI.port)
+            endpoint = self._getEndpoint(parsedURI)
         except SchemeNotSupported:
             return defer.fail(Failure())
         key = (parsedURI.scheme, parsedURI.host, parsedURI.port)
@@ -1592,7 +1584,7 @@ class ProxyAgent(_AgentBase):
         # ("http-proxy-CONNECT", scheme, host, port), and an endpoint that
         # wraps _proxyEndpoint with an additional callback to do the CONNECT.
         return self._requestWithEndpoint(key, self._proxyEndpoint, method,
-                                         _URI.fromBytes(uri), headers,
+                                         URI.fromBytes(uri), headers,
                                          bodyProducer, uri)
 
 

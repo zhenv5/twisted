@@ -656,7 +656,7 @@ Using a HTTP proxy
 
 To be able to use HTTP proxies with an agent, you can use the :api:`twisted.web.client.ProxyAgent <twisted.web.client.ProxyAgent>` class.
 It supports the same interface as ``Agent``, but takes the endpoint of the proxy as initializer argument.
-This is specifically intended for talking to servers that implement the proxying variation of the HTTP protocol; for other types of proxies you will want :api:`twisted.web.client.Agent.forEndpointConstructor <Agent.forEndpointConstructor>` (see documentation below).
+This is specifically intended for talking to servers that implement the proxying variation of the HTTP protocol; for other types of proxies you will want :api:`twisted.web.client.Agent.usingEndpointFactory <Agent.usingEndpointFactory>` (see documentation below).
 
     
 
@@ -773,8 +773,8 @@ Connecting To Non-standard Destinations
 
 Typically you want your HTTP client to open a TCP connection directly to the web server.
 Sometimes however it's useful to be able to connect some other way, e.g. making an HTTP request over a SOCKS proxy connection or connecting to a server listening on a UNIX socket.
-For this reason, there is an alternate constructor called :api:`twisted.web.client.Agent.forEndpointConstructor <Agent.forEndpointConstructor>` that takes a ``endpointConstructor`` argument.
-This argument must provide the :api:`twisted.web.iweb.IAgentEndpointConstructor` interface.
+For this reason, there is an alternate constructor called :api:`twisted.web.client.Agent.usingEndpointFactory <Agent.usingEndpointFactory>` that takes a ``endpointFactory`` argument.
+This argument must provide the :api:`twisted.web.iweb.IAgentEndpointFactory` interface.
 Note that when talking to a HTTP proxy, i.e. a server that implements the proxying-specific variant of HTTP you should use :api:`twisted.web.client.ProxyAgent <ProxyAgent>` - see documentation above.
 
 :download:`endpointconstructor.py <listings/client/endpointconstructor.py>`
