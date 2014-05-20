@@ -773,7 +773,7 @@ Connecting To Non-standard Destinations
 
 Typically you want your HTTP client to open a TCP connection directly to the web server.
 Sometimes however it's useful to be able to connect some other way, e.g. making an HTTP request over a SOCKS proxy connection or connecting to a server listening on a UNIX socket.
-For this reason, there is an alternate constructor called :api:`twisted.web.client.Agent.usingEndpointFactory <Agent.usingEndpointFactory>` that takes a ``endpointFactory`` argument.
+For this reason, there is an alternate constructor called :api:`twisted.web.client.Agent.usingEndpointFactory <Agent.usingEndpointFactory>` that takes an ``endpointFactory`` argument.
 This argument must provide the :api:`twisted.web.iweb.IAgentEndpointFactory` interface.
 Note that when talking to a HTTP proxy, i.e. a server that implements the proxying-specific variant of HTTP you should use :api:`twisted.web.client.ProxyAgent <ProxyAgent>` - see documentation above.
 
