@@ -19,39 +19,6 @@ You'll also learn how to create your own tubes to perform your own conversions o
 By the end, you should be able to put a series of tubes onto the Internet as a server or a client.
 
 
-How Do You Use Them?
---------------------
-
-Suppose you are processing a stream of bytes, containing messages that are delimited by a marker, ``b"\r\n"`` (as many network protocols are).
-If your program receives ``b"hello, world"``, as an input, it should deliver zero outputs, since it hasn't seen a message boundary yet.
-If it receives ``b"hello\r\nworld\r\n"``, then it should deliver two outputs, ``b"hello"``, and ``b"world"``.
-If your program receives ``b"hello\r"``, and then *later* receives ``b"\nworld\r\n"``, the *second* invocation needs to return two outputs.
-
-
-
-When dealing with streams of data from networks, it's common to want to send data somewhere as well as receiving it from somewhere.
-Even if all that your program is concerned with is converting a sequence bytes into a sequence of lines, it still needs to be aware of the fact that its output buffer may be full, and unprepared to receive any more lines.
-For example, the line-splitting code above might be used in a proxy that relays output from a server with a very fast, low-latency uplink, to client computers on very slow high-latency networks.
-The (fast) server's output will easily outpace a (slow) client's input, which means that if the line parser is going as fast as it can, lines will pile up in outgoing buffers while waiting to be sent out, and consume all of the proxy's memory.
-When this happens, the line parsing program needs to tell *its* input to slow down, by indicating that it should no longer produce bytes, until the program consuming the line parser's output is ready again.
-
-.. note::
-
-   If you've used Twisted before, you may notice that half of the line-splitting above is exactly what :api:`twisted.protocols.basic.LineReceiver <LineReceiver>` does, and that there are lots of related classes that can do similar things for other message types.
-   The other half is handled by :doc:`producers and consumers <producers>`.
-   ``tubes`` is a *newer*  interface than those things, and you will find it somewhat improved.
-   If you're writing new code, you should generally prefer to use ``tubes``.
-
-   There are three ways in which ``tubes`` is better than using producers, consumers, and the various ``XXXReceiver`` classes directly.
-
-
-   #. ``twisted.tubes`` is *general purpose*.
-      Whereas each ``FooReceiver`` class receives ``Foo`` objects in its own way, ``tubes`` provides consistent, re-usable abstractions for sending and receiving.
-   #. ``twisted.tubes`` *does not require subclassing*.
-      The fact that different responsibilities live in different objects makes it easier to test and instrument them.
-   #. ``twisted.tubes`` *handles flow-control automatically*.
-      The manual flow-control notifications provided by ``IProducer`` and ``IConsumer`` are still used internally in ``tubes`` to hook up to ``twisted.internet``, but the interfaces defined in ``tubes`` itself are considerably more flexible, as they allow you to hook together chains of arbitrary length, as opposed to just getting buffer notifications for a single connection to a single object.
-
 Getting Connected: an Echo Server
 ---------------------------------
 
