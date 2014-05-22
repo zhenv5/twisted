@@ -107,8 +107,10 @@ def linesToBytes():
 
 
 
-def bytesToLines():
-    return _DataToStrings(LineOnlyReceiver, "lineReceived")
+def bytesToLines(delimiter="\r\n"):
+    thing = _DataToStrings(LineOnlyReceiver, "lineReceived")
+    thing._stringReceiver.delimiter = delimiter
+    return thing
 
 
 
