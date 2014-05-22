@@ -192,7 +192,9 @@ class _SiphonDrain(_SiphonPiece):
             self._siphon._pauseBecausePauseCalled = None
             pbpc.unpause()
             self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
-        self._siphon._deliverFrom(self._tube.started)
+        if not self._siphon._everStarted:
+            self._siphon._everStarted = True
+            self._siphon._deliverFrom(self._tube.started)
         nextFount = self._siphon._tfount
         nextDrain = nextFount.drain
         if nextDrain is None:
@@ -314,6 +316,10 @@ class _Siphon(object):
         on the downstream L{IDrain} at the next opportunity, where "the next
         opportunity" is when the last L{Deferred} yielded from L{ITube.stopped}
         has fired.
+
+    @ivar _everStarted: Has this L{_Siphon} ever called C{started} on its
+        L{Tube}?
+    @type _everStarted: L{bool}
     """
 
     _currentlyPaused = False
@@ -321,6 +327,7 @@ class _Siphon(object):
     _tube = None
     _pendingIterator = None
     _flowWasStopped = False
+    _everStarted = False
 
     def __init__(self, tube):
         """
@@ -346,7 +353,10 @@ class _Siphon(object):
     _pauseBecauseNoDrain = None
 
     def _deliverFrom(self, deliverySource):
-        assert self._pendingIterator is None, list(self._pendingIterator)
+        assert self._pendingIterator is None, \
+            repr(list(self._pendingIterator)) + " " + \
+            repr(deliverySource) + " " + \
+            repr(self._pauseBecauseNoDrain)
         try:
             iterableOrNot = deliverySource()
         except:
@@ -357,12 +367,12 @@ class _Siphon(object):
             if downstream is not None:
                 downstream.flowStopped(f)
             return
-            
         if iterableOrNot is None:
             return 0
         self._pendingIterator = iter(iterableOrNot)
         if self._tfount.drain is None:
-            self._pauseBecauseNoDrain = self._tfount.pauseFlow()
+            if self._pauseBecauseNoDrain is None:
+                self._pauseBecauseNoDrain = self._tfount.pauseFlow()
 
         self._unbufferIterator()
 
@@ -399,7 +409,7 @@ class _Siphon(object):
 
     def _divert(self, drain):
         """
-        Divert the flow to the 
+        Divert the flow to the
         """
         upstream = self._tdrain.fount
         anPause = upstream.pauseFlow()

@@ -204,6 +204,33 @@ class SiphonTest(TestCase):
         self.assertEquals(self.fd.received, ["greeting"])
 
 
+    def test_tubeReStarted(self):
+        """
+        It's perfectly valid to take a L{_Siphon} and call C{flowingFrom} with
+        the same drain it's already flowing to.
+
+        This will happen any time that a series is partially constructed and
+        then flowed to a new drain.
+        """
+        class ReStarter(Tube):
+            didStart = False
+            def started(self):
+                if self.didStart:
+                    yield "regreeting"
+                else:
+                    self.didStart = True
+                    yield "greeting"
+
+        srs = series(PassthruTube(), ReStarter(),
+                     PassthruTube())
+        nextFount = self.ff.flowTo(srs)
+        self.assertEqual(self.ff.flowIsPaused, 1)
+        print(nextFount)
+        nextFount.flowTo(self.fd)
+        self.assertEqual(self.ff.flowIsPaused, 0)
+        self.assertEquals(self.fd.received, ["greeting"])
+
+
     def test_tubeStopped(self):
         """
         The L{_Siphon} stops its L{Tube} and propagates C{flowStopped}
