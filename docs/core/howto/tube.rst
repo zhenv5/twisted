@@ -32,14 +32,12 @@ Here's a function which uses interfaces defined by ``twisted.tubes`` to send its
     def echoFlow(fount, drain):
         return fount.flowTo(drain)
 
-In the above example, ``echoFlow`` takes two things: a :api:`twisted.tubes.itube.IFount <fount>`, or a source of data, and a *drain* , or a place where data eventually goes.
+In the above example, ``echoFlow`` takes two things: a :api:`twisted.tubes.itube.IFount <fount>`, or a source of data, and a :api:`twisted.tubes.itube.IDrain <drain>` , or a place where data eventually goes.
 We call such a function a "flow", because it establishes a flow of data from one place to another.
 Most often, the arguments to such a function are the input from and the output to the same network connection.
 The fount represents data coming in over the connection, and the drain represents data going back out over that same connection.
 
 To *use* ``echoFlow`` as a server, we have to attach it to a listening :doc:`endpoint <endpoints>`.
-
-Let's do exactly that, and call ``echoFlow`` with a real, network-facing ``fount`` and ``drain``.
 
 :download:`echotube.py <listings/tubes/echotube.py>`
 
@@ -115,7 +113,7 @@ Interacting with it should look like this:
     > *
     = 14
 
-In order to implement this program, we will construct a *series* of objects which process the data; specifically, we will create a :api:`twisted.tubes.series` of :api:`twisted.tubes.Tube`\s.
+In order to implement this program, we will construct a *series* of objects which process the data; specifically, we will create a :api:`twisted.tubes.series <series>` of :api:`twisted.tubes.Tube <Tube>`\s.
 Each :api:`twisted.tubes.Tube` in the :api:`twisted.tubes.series` will be responsible for processing part of the data.
 
 First we will create a tube that transforms a continuous stream of bytes into lines.
@@ -191,3 +189,20 @@ In this case, ``.flowTo(Tube(stringToNetstring()))`` returns a new :api:`twisted
 
 We have now extended ``echoFlow`` to add a length prefix to each chunk of its input before echoing it back to your client.
 This demonstrates how you can manipulate data as it passes through a flow.
+
+Tubes Versus Protocols
+======================
+
+If you've used Twisted before, you may notice that half of the line-splitting above is exactly what :api:`twisted.protocols.basic.LineReceiver <LineReceiver>` does, and that there are lots of related classes that can do similar things for other message types.
+The other half is handled by :doc:`producers and consumers <producers>`.
+``tubes`` is a *newer*  interface than those things, and you will find it somewhat improved.
+If you're writing new code, you should generally prefer to use ``tubes``.
+
+There are three ways in which ``tubes`` is better than using producers, consumers, and the various ``XXXReceiver`` classes directly.
+
+#. ``twisted.tubes`` is *general purpose*.
+   Whereas each ``FooReceiver`` class receives ``Foo`` objects in its own way, ``tubes`` provides consistent, re-usable abstractions for sending and receiving.
+#. ``twisted.tubes`` *does not require subclassing*.
+   The fact that different responsibilities live in different objects makes it easier to test and instrument them.
+#. ``twisted.tubes`` *handles flow-control automatically*.
+   The manual flow-control notifications provided by ``IProducer`` and ``IConsumer`` are still used internally in ``tubes`` to hook up to ``twisted.internet``, but the interfaces defined in ``tubes`` itself are considerably more flexible, as they allow you to hook together chains of arbitrary length, as opposed to just getting buffer notifications for a single connection to a single object.
