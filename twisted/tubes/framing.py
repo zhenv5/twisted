@@ -10,6 +10,7 @@ from twisted.tubes.tube import Tube
 from twisted.protocols.basic import (
     LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
     Int16StringReceiver, Int32StringReceiver
+from twisted.tubes.tube import series
 )
 
 class _Transporter(object):
@@ -106,11 +107,23 @@ def linesToBytes():
     return _StringsToData(LineOnlyReceiver, "sendLine")
 
 
+class _CarriageReturnRemover(Tube):
+    """
+    Automatically fix newlines, because hacker news.
+    """
 
-def bytesToLines(delimiter="\r\n"):
+    def received(self, value):
+        if value.endswith(b'\r'):
+            yield value[:-1]
+        else:
+            yield value
+
+
+
+def bytesToLines():
     thing = _DataToStrings(LineOnlyReceiver, "lineReceived")
-    thing._stringReceiver.delimiter = delimiter
-    return thing
+    thing._stringReceiver.delimiter = b"\n"
+    return series(thing, _CarriageReturnRemover())
 
 
 
