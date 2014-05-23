@@ -6,9 +6,9 @@ Protocols to support framing.
 from zope.interface import implementer
 
 from twisted.tubes.itube import IDivertable
-from twisted.tubes.tube import Tube
+from twisted.tubes.tube import Tube, series
 from twisted.protocols.basic import (
-    series, LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
+    LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
     Int16StringReceiver, Int32StringReceiver
 )
 
@@ -113,8 +113,10 @@ class _CarriageReturnRemover(Tube):
 
     def received(self, value):
         if value.endswith(b'\r'):
+            print "STRIPPED"
             yield value[:-1]
         else:
+            print "UNSTRIPPED"
             yield value
 
 
@@ -122,7 +124,14 @@ class _CarriageReturnRemover(Tube):
 def bytesToLines():
     thing = _DataToStrings(LineOnlyReceiver, "lineReceived")
     thing._stringReceiver.delimiter = b"\n"
-    return series(thing, _CarriageReturnRemover())
+    def divert(*a):
+        """
+        IGNORE ME
+        """
+        return thing.divert(*a)
+    srs = series(thing, _CarriageReturnRemover())
+    srs.divert = divert
+    return srs
 
 
 
