@@ -743,12 +743,13 @@ class SeriesTest(TestCase):
 
     def test_drainPausesFlowWhenPreviouslyPaused(self):
         """
-        L{_SiphonDrain.flowingFrom} will pause its fount if its L{_SiphonFount} was
-        previously paused.
+        L{_SiphonDrain.flowingFrom} will pause its fount if its L{_SiphonFount}
+        was previously paused.
         """
         newFF = FakeFount()
+        pauses = []
 
-        myPause = self.ff.flowTo(self.siphonDrain).pauseFlow()
+        pauses.append(self.ff.flowTo(self.siphonDrain).pauseFlow())
         newFF.flowTo(self.siphonDrain)
 
         self.assertTrue(newFF.flowIsPaused, "New upstream is not paused.")
