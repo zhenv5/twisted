@@ -742,9 +742,11 @@ class SeriesTest(TestCase):
         self.assertEquals(self.ff.flowIsStopped, True)
 
 
-    def test_seriesSomething(self):
+    def test_seriesStartsWithSeries(self):
         """
-        ...?
+        If L{series} is called with the result of L{series} as its first
+        argument, then L{series}' second argument will receive values from the
+        last of the arguments to the first call to L{series}.
         """
         class Blub(Tube):
             def received(self, datum):
