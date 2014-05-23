@@ -180,21 +180,23 @@ class _SiphonDrain(_SiphonPiece):
         """
         This siphon will now have 'receive' called.
         """
-        out = fount.outputType
-        in_ = self.inputType
-        if out is not None and in_ is not None and not in_.isOrExtends(out):
-            raise TypeError()
-        self.fount = fount
-        if self._siphon._flowWasStopped:
-            fount.stopFlow()
-        if self._siphon._pauseBecausePauseCalled:
-            pbpc = self._siphon._pauseBecausePauseCalled
-            self._siphon._pauseBecausePauseCalled = None
-            pbpc.unpause()
-            self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
-        if not self._siphon._everStarted:
-            self._siphon._everStarted = True
-            self._siphon._deliverFrom(self._tube.started)
+        if fount is not None:
+            out = fount.outputType
+            in_ = self.inputType
+            if out is not None and in_ is not None:
+                if not in_.isOrExtends(out):
+                    raise TypeError()
+            self.fount = fount
+            if self._siphon._flowWasStopped:
+                fount.stopFlow()
+            if self._siphon._pauseBecausePauseCalled:
+                pbpc = self._siphon._pauseBecausePauseCalled
+                self._siphon._pauseBecausePauseCalled = None
+                pbpc.unpause()
+                self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
+            if not self._siphon._everStarted:
+                self._siphon._everStarted = True
+                self._siphon._deliverFrom(self._tube.started)
         nextFount = self._siphon._tfount
         nextDrain = nextFount.drain
         if nextDrain is None:
