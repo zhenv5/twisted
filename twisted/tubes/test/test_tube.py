@@ -19,6 +19,7 @@ from twisted.tubes.itube import IPause
 from twisted.tubes.itube import AlreadyUnpaused
 from twisted.tubes.itube import ITube
 from zope.interface.declarations import directlyProvides
+from twisted.tubes.itube import IFount
 from twisted.internet.defer import Deferred, succeed
 
 
