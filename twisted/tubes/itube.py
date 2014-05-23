@@ -127,6 +127,9 @@ class IDrain(Interface):
         """
         This drain is now accepting a flow from the given L{IFount}.
 
+        @param fount: A fount, or L{None} if no further input will be received.
+        @type fount: L{IFount} or L{types.NoneType}
+
         @return: another L{IFount}, if this L{IDrain} will produce more data,
             or C{None}.
         """
