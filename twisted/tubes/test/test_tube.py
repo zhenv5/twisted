@@ -633,10 +633,10 @@ class SeriesTest(TestCase):
         self.assertEqual(got, ["sample item"])
 
 
-    def test_flowFromTypeCheck(self):
+    def test_flowFromTypeCheckFails(self):
         """
-        L{_Siphon.flowingFrom} checks the type of its input.  If it doesn't match
-        (both are specified explicitly, and they don't match).
+        L{_Siphon.flowingFrom} checks the type of its input.  If it doesn't
+        match (both are specified explicitly, and they don't match).
         """
         class ToTube(Tube):
             inputType = IFakeInput
