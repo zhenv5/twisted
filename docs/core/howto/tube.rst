@@ -119,76 +119,14 @@ Each :api:`twisted.tubes.Tube` in the :api:`twisted.tubes.series` will be respon
 First we will create a tube that transforms a continuous stream of bytes into lines.
 Then, a tube that will transform lines into a combination of numbers and operators (functions that perform the work of the ``"+"`` and ``"*"`` commands), then from numbers and operators into more numbers - sums and products - from those integers into lines, and finally from those lines into newline-terminated segments of data that are sent back out.
 
-Here's a sketch of the overall structure of such a program:
 
-:download:`computube.py <listings/tubes/computube.py>`
 
-.. literalinclude:: listings/tubes/computube.py
 
-As with ``echoFlow``, ``mathFlow`` takes a fount and a drain.
-Rather than connecting them directly, it puts an object between them to process the data.
-So what is ``dataProcessor`` and what does it return?  We need to write it, and it would look something like this:
 
-:download:`dataproc.py <listings/tubes/dataproc.py>`
 
-.. literalinclude:: listings/tubes/dataproc.py
 
-To complete the example, we need to implement 3 classes, each of which is a Tube:
 
-- ``LinesToIntegersOrCommands``
-- ``CommandsAndIntegersToResultIntegers``
-- ``IntegersToLines``
 
-Let's implement them.  First, ``LinesToIntegersOrCommands`` receives lines and converts them into either integers, or functions, then delivers them on.
-
-:download:`intparse.py <listings/tubes/intparse.py>`
-
-.. literalinclude:: listings/tubes/intparse.py
-
-Next, ``CommandsAndIntegersToResultIntegers`` takes that output
-
-:download:`worker.py <listings/tubes/worker.py>`
-
-.. literalinclude:: listings/tubes/worker.py
-
-Next, ``IntegersToLines`` converts ``int`` objects into lines for output.
-
-:download:`output.py <listings/tubes/output.py>`
-
-.. literalinclude:: listings/tubes/output.py
-
-Finally, we can put them all together by importing them in our original program, and hooking it up to a server just like ``echoFlow``.
-
-:download:`computube3.py <listings/tubes/computube3.py>`
-
-.. literalinclude:: listings/tubes/computube3.py
-
-A more interesting example might demonstrate the use of tubes to send data to another server.
-
-:download:`portforward.py <listings/tubes/portforward.py>`
-
-.. literalinclude:: listings/tubes/portforward.py
-
-For each incoming connection on port ``6543``, we create an outgoing connection to the echo server in our previous example.
-When we have successfully connected to the echo server we connect our incoming ``listeningFount`` to our outgoing ``connectingDrain`` and our ``connectingFount`` to our ``listeningDrain``.
-This forwards all bytes from your ``telnet`` client to our echo server, and all bytes from our echo server to your client.
-
-.. code-block:: python
-
-    def echoFlow(fount, drain):
-        return (fount.flowTo(Tube(stringToNetstring()))
-                     .flowTo(drain))
-
-:api:`twisted.tubes.itube.IFount.flowTo <flowTo>` can return a :api:`twisted.tube.itube.IFount <IFount>` so we can chain :api:`twisted.tubes.itube.IFount.flowTo <flowTo>` calls (in other words, call ``flowTo`` on the result of ``flowTo`` ) to construct a "flow".
-In this case, ``.flowTo(Tube(stringToNetstring()))`` returns a new :api:`twisted.tubes.itube.IFount <IFount>` whose output will be `netstrings <http://cr.yp.to/proto/netstrings.txt>`_
-
-.. note::
-
-    If you're curious: specifically, :api:`twisted.tubes.itube.IFount.flowTo <flowTo>` takes an :api:`twisted.tube.itube.IDrain <IDrain>`, and returns the result of that  :api:`twisted.tube.itube.IDrain <IDrain>`’s :api:`twisted.tubes.itube.IDrain.flowingFrom <flowingFrom>` method.
-    This allows the :api:`twisted.tube.Tube` - which is the ``IDrain`` in this scenario, and therefore what knows what the output will be after it's processed it, to affect the return value of the previous ``IFount``’s ``flowTo`` method.
-
-We have now extended ``echoFlow`` to add a length prefix to each chunk of its input before echoing it back to your client.
-This demonstrates how you can manipulate data as it passes through a flow.
 
 Tubes Versus Protocols
 ======================
