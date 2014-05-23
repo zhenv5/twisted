@@ -156,6 +156,14 @@ class _SiphonFount(_SiphonPiece):
         fount.stopFlow()
 
 
+@implementer(IPause)
+class _PlaceholderPause(object):
+
+    def unpause(self):
+        """
+        No-op.
+        """
+
 
 @implementer(IDrain)
 class _SiphonDrain(_SiphonPiece):
@@ -190,14 +198,20 @@ class _SiphonDrain(_SiphonPiece):
         if fount is not None:
             if self._siphon._flowWasStopped:
                 fount.stopFlow()
-            if self._siphon._pauseBecausePauseCalled:
-                pbpc = self._siphon._pauseBecausePauseCalled
-                self._siphon._pauseBecausePauseCalled = None
-                pbpc.unpause()
-                self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
+            # Is this the right place, or does this need to come after
+            # _pauseBecausePauseCalled's check?
             if not self._siphon._everStarted:
                 self._siphon._everStarted = True
                 self._siphon._deliverFrom(self._tube.started)
+        if self._siphon._pauseBecausePauseCalled:
+            pbpc = self._siphon._pauseBecausePauseCalled
+            self._siphon._pauseBecausePauseCalled = None
+            pbpc.unpause()
+            if fount is None:
+                pauseFlow = _PlaceholderPause
+            else:
+                pauseFlow = fount.pauseFlow
+            self._siphon._pauseBecausePauseCalled = pauseFlow()
         nextFount = self._siphon._tfount
         nextDrain = nextFount.drain
         if nextDrain is None:
