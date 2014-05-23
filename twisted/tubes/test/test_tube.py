@@ -757,8 +757,7 @@ class SiphonTest(TestCase):
                 yield datum
 
         partially = series(Blub(), Glub())
-        nextFount = self.ff.flowTo(series(partially, PassthruTube()))
-        nextFount.flowTo(self.fd)
+        self.ff.flowTo(series(partially, self.fd))
         self.ff.drain.receive("hello")
         self.assertEqual(self.fd.received, ["Glub", "Blub", "Glub", "hello"])
 
