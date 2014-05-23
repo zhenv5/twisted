@@ -764,6 +764,16 @@ class SeriesTest(TestCase):
         self.assertEqual(self.fd.received, ["Glub", "Blub", "Glub", "hello"])
 
 
+    def test_seriesEndsInTerminalDrain(self):
+        """
+        If L{series} is called with an L{IDrain} which returns L{None} from
+        C{flowingFrom}, then the return value from L{series} will return
+        L{None} from its L{flowingFrom}.
+        """
+        terminalSeries = series(PassthruTube(), self.fd)
+        self.assertIdentical(self.ff.flowTo(terminalSeries), None)
+
+
 
 class Reminders(TestCase):
     def test_startedRaises(self):
