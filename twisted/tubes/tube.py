@@ -180,13 +180,14 @@ class _SiphonDrain(_SiphonPiece):
         """
         This siphon will now have 'receive' called.
         """
-        self.fount = fount
         if fount is not None:
             out = fount.outputType
             in_ = self.inputType
             if out is not None and in_ is not None:
                 if not in_.isOrExtends(out):
                     raise TypeError()
+        self.fount = fount
+        if fount is not None:
             if self._siphon._flowWasStopped:
                 fount.stopFlow()
             if self._siphon._pauseBecausePauseCalled:
