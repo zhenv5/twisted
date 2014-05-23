@@ -8,9 +8,8 @@ from zope.interface import implementer
 from twisted.tubes.itube import IDivertable
 from twisted.tubes.tube import Tube
 from twisted.protocols.basic import (
-    LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
+    series, LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
     Int16StringReceiver, Int32StringReceiver
-from twisted.tubes.tube import series
 )
 
 class _Transporter(object):
