@@ -744,7 +744,7 @@ class SeriesTest(TestCase):
     def test_drainPausesFlowWhenPreviouslyPaused(self):
         """
         L{_SiphonDrain.flowingFrom} will pause its fount if its L{_SiphonFount}
-        was previously paused.
+        was previously paused, and unpause its old fount.
         """
         newFF = FakeFount()
         pauses = []
@@ -752,6 +752,31 @@ class SeriesTest(TestCase):
         pauses.append(self.ff.flowTo(self.siphonDrain).pauseFlow())
         newFF.flowTo(self.siphonDrain)
 
+        self.assertFalse(self.ff.flowIsPaused, "Old fount still paused.")
+        self.assertTrue(newFF.flowIsPaused, "New upstream is not paused.")
+
+
+    def test_drainFlowingFromNoneAlsoUnpauses(self):
+        """
+        L{_SiphonDrain.flowingFrom} will resume its old fount when flowed to
+        L{None}.
+        """
+        self.ff.flowTo(self.siphonDrain).pauseFlow()
+        self.siphonDrain.flowingFrom(None)
+        self.assertFalse(self.ff.flowIsPaused, "Old fount still paused.")
+
+
+    def test_drainRemainsPausedAcrossDetachedState(self):
+        """
+        L{_SiphonDrain.flowingFrom} will pause its fount if its L{_SiphonFount}
+        was previously paused, prior to being in a detached state by having
+        L{_SiphonDrain.flowingFrom} called with C{None}.
+        """
+        newFF = FakeFount()
+
+        self.ff.flowTo(self.siphonDrain).pauseFlow()
+        self.siphonDrain.flowingFrom(None)
+        newFF.flowTo(self.siphonDrain)
         self.assertTrue(newFF.flowIsPaused, "New upstream is not paused.")
 
 
