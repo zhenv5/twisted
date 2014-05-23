@@ -205,6 +205,26 @@ class SeriesTest(TestCase):
         self.assertEquals(self.fd.received, ["greeting"])
 
 
+    def test_siphonFlowingFromReturnsSelfFount(self):
+        """
+        L{_SiphonDrain.flowingFrom} initially returns its L{_Siphon}'s
+        downstream fount.
+        """
+        drain = series(PassthruTube())
+        self.assertIdentical(drain.flowingFrom(self.ff),
+                             drain._siphon._tfount)
+
+
+    def test_siphonFlowingFromNoneReturnsSelfFount(self):
+        """
+        L{_SiphonDrain.flowingFrom} initially returns its L{_Siphon}'s
+        downstream fount when passed L{None} as well.
+        """
+        drain = series(PassthruTube())
+        self.assertIdentical(drain.flowingFrom(None),
+                             drain._siphon._tfount)
+
+
     def test_tubeReStarted(self):
         """
         It's perfectly valid to take a L{_Siphon} and call C{flowingFrom} with
