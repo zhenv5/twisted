@@ -721,7 +721,8 @@ class SiphonTest(TestCase):
 
     def test_stopFlow(self):
         """
-        L{_SiphonFount.stopFlow} stops the flow of its L{_Siphon}'s upstream fount.
+        L{_SiphonFount.stopFlow} stops the flow of its L{_Siphon}'s upstream
+        fount.
         """
         self.ff.flowTo(series(self.siphonDrain, self.fd))
         self.assertEquals(self.ff.flowIsStopped, False)
@@ -731,8 +732,9 @@ class SiphonTest(TestCase):
 
     def test_stopFlowBeforeFlowBegins(self):
         """
-        L{_SiphonFount.stopFlow} will stop the flow of its L{_Siphon}'s upstream
-        fount later, when it acquires one, if it's previously been stopped.
+        L{_SiphonFount.stopFlow} will stop the flow of its L{_Siphon}'s
+        upstream fount later, when it acquires one, if it's previously been
+        stopped.
         """
         partially = series(self.siphonDrain, self.fd)
         self.fd.fount.stopFlow()
