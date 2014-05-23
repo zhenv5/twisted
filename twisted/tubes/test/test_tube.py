@@ -740,6 +740,27 @@ class SiphonTest(TestCase):
         self.assertEquals(self.ff.flowIsStopped, True)
 
 
+    def test_seriesSomething(self):
+        """
+        ...?
+        """
+        class Blub(Tube):
+            def received(self, datum):
+                yield "Blub"
+                yield datum
+
+        class Glub(Tube):
+            def received(self, datum):
+                yield "Glub"
+                yield datum
+
+        partially = series(Blub(), Glub())
+        nextFount = self.ff.flowTo(series(partially, PassthruTube()))
+        nextFount.flowTo(self.fd)
+        self.ff.drain.receive("hello")
+        self.assertEqual(self.fd.received, ["Glub", "Blub", "Glub", "hello"])
+
+
 
 class Reminders(TestCase):
     def test_startedRaises(self):
