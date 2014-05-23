@@ -128,10 +128,10 @@ Now let's look at the full flow which will pass inputs to a ``Calculator`` and r
 .. literalinclude:: listings/tubes/rpn.py
    :pyobject: calculatorSeries
 
-The first tube in this series, provided by the `framing` module built in to `tubes`, transforms a stream of bytes into (``"\n"``\-delimited) lines.
+The first tube in this series, provided by the `framing` module built in to `tubes`, transforms a stream of bytes into lines.
 Then, ``LinesToNumbersOrOperators`` - which you'll write in a moment - should transform lines into a combination of numbers and operators (functions that perform the work of the ``"+"`` and ``"*"`` commands), then from numbers and operators into more numbers - sums and products - from those integers into lines, and finally from those lines into newline-terminated segments of data that are sent back out.
 A ``CalculatingTube`` should pass those numbers and operators to a ``Calculator``, and produce numbers as output.
-`NumbersToLines` should convert the output numbers into byte strings, and `linesToBytes` performs the inverse of `bytesToLines` by simply appending ``"\n"`` characters to those outputs.
+`NumbersToLines` should convert the output numbers into byte strings, and `linesToBytes` performs the inverse of `bytesToLines` by simply appending newlines to those outputs.
 
 Let's look at `LinesToNumbersOrOperators`.
 
