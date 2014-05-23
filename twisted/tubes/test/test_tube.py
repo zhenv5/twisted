@@ -225,6 +225,25 @@ class SeriesTest(TestCase):
                              drain._siphon._tfount)
 
 
+    def test_siphonFlowingFromReturnsNextFount(self):
+        """
+        Once L{_SiphonFount.flowTo} has been called,
+        L{_SiphonDrain.flowingFrom} returns the next fount in the chain.
+        """
+        drain = series(PassthruTube())
+        fount = drain.flowingFrom(self.ff)
+        drain2 = series(PassthruTube())
+        fount2 = fount.flowTo(drain2)
+        self.assertIdentical(fount2,
+                             drain2._siphon._tfount)
+
+        # Since flowTo implicitly calls flowingFrom the result should be the
+        # same, but since we're directly testing flowingFrom let's directly
+        # test it.
+        self.assertIdentical(drain.flowingFrom(self.ff),
+                             drain2._siphon._tfount)
+
+
     def test_tubeReStarted(self):
         """
         It's perfectly valid to take a L{_Siphon} and call C{flowingFrom} with
