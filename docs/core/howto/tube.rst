@@ -33,11 +33,11 @@ Here's a function which uses interfaces defined by ``twisted.tubes`` to send its
         return fount.flowTo(drain)
 
 In the above example, ``echoFlow`` takes two things: a :api:`twisted.tubes.itube.IFount <fount>`, or a source of data, and a :api:`twisted.tubes.itube.IDrain <drain>` , or a place where data eventually goes.
-We call such a function a "flow", because it establishes a flow of data from one place to another.
+Such a function is called a "flow", because it establishes a flow of data from one place to another.
 Most often, the arguments to such a function are the input from and the output to the same network connection.
 The fount represents data coming in over the connection, and the drain represents data going back out over that same connection.
 
-To *use* ``echoFlow`` as a server, we have to attach it to a listening :doc:`endpoint <endpoints>`.
+To *use* ``echoFlow`` as a server, you have to attach it to a listening :doc:`endpoint <endpoints>`.
 
 :download:`echotube.py <listings/tubes/echotube.py>`
 
@@ -113,18 +113,30 @@ Interacting with it should look like this:
     > *
     = 14
 
-In order to implement this program, we will construct a *series* of objects which process the data; specifically, we will create a :api:`twisted.tubes.series <series>` of :api:`twisted.tubes.Tube <Tube>`\s.
+In order to implement this program, you will construct a *series* of objects which process the data; specifically, you will create a :api:`twisted.tubes.series <series>` of :api:`twisted.tubes.Tube <Tube>`\s.
 Each :api:`twisted.tubes.Tube` in the :api:`twisted.tubes.series` will be responsible for processing part of the data.
 
-First we will create a tube that transforms a continuous stream of bytes into lines.
-Then, a tube that will transform lines into a combination of numbers and operators (functions that perform the work of the ``"+"`` and ``"*"`` commands), then from numbers and operators into more numbers - sums and products - from those integers into lines, and finally from those lines into newline-terminated segments of data that are sent back out.
+Lets get started with just the core component that will actually perform calculations.
 
+.. literalinclude:: listings/tubes/rpn.py
+   :pyobject: Calculator
 
+``Calculator`` gives you an API for pushing numbers onto a stack, and for performing an operation on the top two items in the stack, the result of which is then pushed to the top of the stack.
 
+Now let's look at the full flow which will pass inputs to a ``Calculator`` and relay its output:
 
+.. literalinclude:: listings/tubes/rpn.py
+   :pyobject: calculatorSeries
 
+The first tube in this series, provided by the `framing` module built in to `tubes`, transforms a stream of bytes into (``"\n"``\-delimited) lines.
+Then, ``LinesToNumbersOrOperators`` - which you'll write in a moment - should transform lines into a combination of numbers and operators (functions that perform the work of the ``"+"`` and ``"*"`` commands), then from numbers and operators into more numbers - sums and products - from those integers into lines, and finally from those lines into newline-terminated segments of data that are sent back out.
+A ``CalculatingTube`` should pass those numbers and operators to a ``Calculator``, and produce numbers as output.
+`NumbersToLines` should convert the output numbers into byte strings, and `linesToBytes` performs the inverse of `bytesToLines` by simply appending ``"\n"`` characters to those outputs.
 
+Let's look at `LinesToNumbersOrOperators`.
 
+.. literalinclude:: listings/tubes/rpn.py
+   :pyobject: LinesToNumbersOrOperators
 
 
 
