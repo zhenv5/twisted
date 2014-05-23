@@ -674,6 +674,7 @@ class SeriesTest(TestCase):
             inputType = IFakeInput
         siphonDrain = series(ToTube())
         self.failUnlessRaises(TypeError, self.ff.flowTo, siphonDrain)
+        self.assertIdentical(siphonDrain.fount, None)
 
 
     def test_flowFromTypeCheckSucceeds(self):
