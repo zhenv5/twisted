@@ -1,15 +1,29 @@
 
-from twisted.tubes.framing import bytesToLines, linesToBytes
 from twisted.tubes.protocol import factoryFromFlow
-from twisted.tubes.tube import series, Tube
+from twisted.tubes.tube import Tube
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
 
+class Calculator(object):
+    def __init__(self):
+        self.stack = []
+
+    def push(self, number):
+        self.stack.append(number)
+
+    def do(self, operator):
+        left = self.stack.pop()
+        right = self.stack.pop()
+        result = operator(left, right)
+        self.push(result)
+        return result
+
 class LinesToNumbersOrOperators(Tube):
     def received(self, line):
-        line = line.strip()
         from operator import add, mul
+
+        line = line.strip()
         try:
             yield int(line)
         except ValueError:
@@ -18,45 +32,34 @@ class LinesToNumbersOrOperators(Tube):
             elif line == '*':
                 yield mul
 
-class Calculator(Tube):
-    def __init__(self):
-        self.stack = []
-
-    def push(self, number):
-        self.stack.append(number)
-
-    def pop2(self):
-        a = self.stack.pop()
-        b = self.stack.pop()
-        return a, b
-
-    def do(self, operator):
-        values = self.pop2()
-        result = operator(*values)
-        self.push(result)
-        return result
+class CalculatingTube(Tube):
+    def __init__(self, calculator):
+        self.calculator = calculator
 
     def received(self, value):
         if isinstance(value, int):
-            self.push(value)
+            self.calculator.push(value)
         else:
-            yield self.do(value)
+            yield self.calculator.do(value)
 
 class NumbersToLines(Tube):
     def received(self, value):
         yield u"{0}".format(value).encode("ascii")
 
-def calculatorDrain():
+def calculatorSeries():
+    from twisted.tubes.tube import series
+    from twisted.tubes.framing import bytesToLines, linesToBytes
+
     return series(
         bytesToLines("\n"),
         LinesToNumbersOrOperators(),
-        Calculator(),
+        CalculatingTube(Calculator()),
         NumbersToLines(),
         linesToBytes()
     )
 
 def mathFlow(fount, drain):
-    processor = calculatorDrain()
+    processor = calculatorSeries()
     nextDrain = fount.flowTo(processor)
     nextDrain.flowTo(drain)
 
