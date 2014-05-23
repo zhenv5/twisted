@@ -177,7 +177,7 @@ class TubeTest(TestCase):
 
 
 
-class SiphonTest(TestCase):
+class SeriesTest(TestCase):
     """
     Tests for L{series}.
     """
