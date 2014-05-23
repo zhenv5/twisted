@@ -23,7 +23,6 @@ class LinesToNumbersOrOperators(Tube):
     def received(self, line):
         from operator import add, mul
 
-        line = line.strip()
         try:
             yield int(line)
         except ValueError:
@@ -51,7 +50,7 @@ def calculatorSeries():
     from twisted.tubes.framing import bytesToLines, linesToBytes
 
     return series(
-        bytesToLines("\n"),
+        bytesToLines(),
         LinesToNumbersOrOperators(),
         CalculatingTube(Calculator()),
         NumbersToLines(),
