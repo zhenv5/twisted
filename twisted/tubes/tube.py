@@ -452,14 +452,8 @@ def _tube2drain(tube):
 
 
 
-def _siphonDrain2Fount(siphonDrain):
-    return siphonDrain._siphon._tfount
-
-
-
 _tubeRegistry = _registryAdapting(
     (ITube, IDrain, _tube2drain),
-    (implementedBy(_SiphonDrain), IFount, _siphonDrain2Fount),
 )
 
 
