@@ -225,6 +225,19 @@ class SeriesTest(TestCase):
                              drain._siphon._tfount)
 
 
+    def test_siphonFlowingFromSomethingThenNothing(self):
+        """
+        L{_SiphonDrain.flowingFrom} sets L{_SiphonDrain.fount}, whether it is
+        passed a valid L{IFount} (one with matching input/output types) or
+        L{None}.
+        """
+        drain = series(PassthruTube())
+        drain.flowingFrom(self.ff)
+        self.assertIdentical(drain.fount, self.ff)
+        drain.flowingFrom(None)
+        self.assertIdentical(drain.fount, None)
+
+
     def test_siphonFlowingFromReturnsNextFount(self):
         """
         Once L{_SiphonFount.flowTo} has been called,
