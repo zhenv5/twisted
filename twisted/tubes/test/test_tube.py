@@ -9,8 +9,8 @@ from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
-from twisted.tubes.test.util import (TesterTube, FakeFount,
-                                     FakeDrain, IFakeInput)
+from twisted.tubes.test.util import (TesterTube, FakeFount, FakeDrain,
+                                     IFakeInput, IFakeOutput)
 
 from twisted.tubes.itube import IDivertable
 from twisted.python.failure import Failure
@@ -621,6 +621,18 @@ class SeriesTest(TestCase):
             inputType = IFakeInput
         siphonDrain = series(ToTube())
         self.failUnlessRaises(TypeError, self.ff.flowTo, siphonDrain)
+
+
+    def test_flowFromTypeCheckSucceeds(self):
+        """
+        L{_Siphon.flowingFrom} checks the type of its input.  If it doesn't
+        match (both are specified explicitly, and they don't match).
+        """
+        class ToTube(Tube):
+            inputType = IFakeOutput
+        siphonDrain = series(ToTube())
+        obj = self.ff.flowTo(siphonDrain)
+        self.assertTrue(IFount.providedBy(obj))
 
 
     def test_receiveIterableDeliversDownstream(self):
