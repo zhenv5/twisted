@@ -442,7 +442,7 @@ class SeriesTest(TestCase):
         self.assertEqual(self.fd.received, ["something", "else"])
 
 
-    def test_flowingFromNoneInitialNoOp(self):
+    def test_flowToNoneInitialNoOp(self):
         """
         L{_SiphonFount.flowTo}C{(None)} is a no-op when called before
         any other invocations of L{_SiphonFount.flowTo}.
