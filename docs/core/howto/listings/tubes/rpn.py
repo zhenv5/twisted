@@ -43,7 +43,7 @@ class CalculatingTube(Tube):
 
 class NumbersToLines(Tube):
     def received(self, value):
-        yield u"{0}".format(value).encode("ascii")
+        yield str(value).encode("ascii")
 
 def calculatorSeries():
     from twisted.tubes.tube import series
