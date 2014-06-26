@@ -68,6 +68,7 @@ Developer Guides
    positioning
    glossary
    debug-with-emacs
+   tube
 
 
 
