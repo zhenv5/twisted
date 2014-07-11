@@ -113,26 +113,34 @@ class _CarriageReturnRemover(Tube):
 
     def received(self, value):
         if value.endswith(b'\r'):
-            print "STRIPPED"
             yield value[:-1]
         else:
-            print "UNSTRIPPED"
             yield value
 
 
 
-def bytesToLines():
+def bytesDelimitedBy(delimiter):
+    """
+    Create a drain that consumes a stream of bytes and produces frames
+    delimited by the given delimiter.
+    """
     thing = _DataToStrings(LineOnlyReceiver, "lineReceived")
-    thing._stringReceiver.delimiter = b"\n"
+    thing._stringReceiver.delimiter = delimiter
+    return thing
+
+
+
+def bytesToLines():
+    """
+    Create a drain that consumes a stream of bytes and produces frames
+    delimited by LF, CRLF or some combination thereof.
+    """
+    dedelimiter = bytesDelimitedBy("\n")
     def divert(*a):
-        """
-        IGNORE ME
-        """
-        return thing.divert(*a)
-    srs = series(thing, _CarriageReturnRemover())
+        return dedelimiter.divert(*a)
+    srs = series(dedelimiter, _CarriageReturnRemover())
     srs.divert = divert
     return srs
-
 
 
 _packedPrefixProtocols = {
