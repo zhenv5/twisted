@@ -266,13 +266,11 @@ class SeriesTest(TestCase):
         then flowed to a new drain.
         """
         class ReStarter(Tube):
-            didStart = False
+            startedCount = 0
             def started(self):
-                if self.didStart:
-                    yield "regreeting"
-                else:
-                    self.didStart = True
-                    yield "greeting"
+                count = self.startedCount
+                self.startedCount += 1
+                yield ("re" * count) + "greeting"
 
         srs = series(PassthruTube(), ReStarter(),
                      PassthruTube())

@@ -73,13 +73,16 @@ class LineTests(TestCase):
 
     def test_stringToLines(self):
         """
-        A line is something delimited by CRLF.
+        A line is something delimited by a LF or CRLF.
         """
-        ff = FakeFount()
-        fd = FakeDrain()
-        ff.flowTo(series(bytesToLines())).flowTo(fd)
-        ff.drain.receive(b"alpha\r\nbeta\r\ngamma")
-        self.assertEquals(fd.received, [b"alpha", b"beta"])
+        def splitALine(newline):
+            ff = FakeFount()
+            fd = FakeDrain()
+            ff.flowTo(series(bytesToLines())).flowTo(fd)
+            ff.drain.receive(newline.join([b"alpha", "beta", "gamma"]))
+            self.assertEquals(fd.received, [b"alpha", b"beta"])
+        splitALine("\n")
+        splitALine("\r\n")
 
 
     def test_linesToStrings(self):
