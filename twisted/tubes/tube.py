@@ -7,12 +7,13 @@ See L{_Siphon}.
 """
 import itertools
 
-from zope.interface import implementer, implementedBy
+from zope.interface import implementer
 
 from twisted.internet.defer import Deferred
 
 from twisted.python import log
 from twisted.python.failure import Failure
+from twisted.python.components import proxyForInterface
 
 from twisted.tubes.itube import (IDrain, ITube, IFount, IPause, IDivertable,
                                  AlreadyUnpaused)
@@ -355,8 +356,6 @@ class _Siphon(object):
         assert not getattr(tube, "__marked__", False)
         tube.__marked__ = True
         self._tube = tube
-        if IDivertable.providedBy(tube):
-            tube.divert = self._divert
 
 
     def __repr__(self):
@@ -502,3 +501,25 @@ class Tube(object):
         """
         @see: L{ITube.stopped}
         """
+
+
+
+class Diverter(proxyForInterface(IDrain, "_drain")):
+    """
+    
+    """
+
+    def __init__(self, divertable):
+        """
+        
+        """
+        self._friendSiphon = _Siphon(divertable)
+        self._drain = self._friendSiphon._tdrain
+
+
+    def divert(self, elsewhere):
+        """
+        
+        """
+        self._friendSiphon._divert(elsewhere)
+

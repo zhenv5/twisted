@@ -14,7 +14,7 @@ from twisted.tubes.test.util import (TesterTube, FakeFount, FakeDrain,
 
 from twisted.tubes.itube import IDivertable
 from twisted.python.failure import Failure
-from twisted.tubes.tube import Tube, series, _Pauser, _Siphon
+from twisted.tubes.tube import Tube, series, _Pauser, _Siphon, Diverter
 from twisted.tubes.itube import IPause
 from twisted.tubes.itube import AlreadyUnpaused
 from twisted.tubes.itube import ITube
@@ -348,7 +348,7 @@ class SeriesTest(TestCase):
             def reassemble(self, data):
                 return data
 
-        sourceTube = SwitchablePassthruTube()
+        diverter = Diverter(SwitchablePassthruTube())
         fakeDrain = self.fd
         testCase = self
 
@@ -356,16 +356,14 @@ class SeriesTest(TestCase):
             def received(self, data):
                 # Sanity check: this should be the only input ever received.
                 testCase.assertEqual(data, "switch")
-                sourceTube.divert(series(Switchee(), fakeDrain))
+                diverter.divert(series(Switchee(), fakeDrain))
                 return ()
 
         class Switchee(Tube):
             def received(self, data):
                 yield "switched " + data
 
-        firstDrain = series(sourceTube)
-
-        self.ff.flowTo(firstDrain).flowTo(series(Switcher(), fakeDrain))
+        self.ff.flowTo(diverter).flowTo(series(Switcher(), fakeDrain))
         self.ff.drain.receive("switch")
         self.ff.drain.receive("to switchee")
         self.assertEquals(fakeDrain.received, ["switched to switchee"])
@@ -394,17 +392,16 @@ class SeriesTest(TestCase):
             def received(self, data):
                 # Sanity check: this should be the only input ever received.
                 preSwitch.append(data)
-                sourceTube.divert(series(Switchee(), fakeDrain))
+                diverter.divert(series(Switchee(), fakeDrain))
                 return ()
 
         class Switchee(Tube):
             def received(self, data):
                 yield "switched " + data
 
-        sourceTube = ReassemblingTube()
+        diverter = Diverter(ReassemblingTube())
         fakeDrain = self.fd
-        firstDrain = series(sourceTube)
-        self.ff.flowTo(firstDrain).flowTo(series(Switcher(), fakeDrain))
+        self.ff.flowTo(diverter).flowTo(series(Switcher(), fakeDrain))
 
         self.ff.drain.receive("beforeBORKto switchee")
 
@@ -423,7 +420,7 @@ class SeriesTest(TestCase):
             def received(self, data):
                 if data == "switch":
                     yield "switching"
-                    destinationTube.divert(series(Switchee(), fakeDrain))
+                    diverter.divert(series(Switchee(), fakeDrain))
                     yield "switched"
                 else:
                     yield data
@@ -436,8 +433,9 @@ class SeriesTest(TestCase):
         destinationTube = PassthruTube()
         # reassemble should not be called, so don't implement it
         directlyProvides(destinationTube, IDivertable)
+        diverter = Diverter(PassthruTube())
 
-        firstDrain = series(Switcher(), destinationTube)
+        firstDrain = series(Switcher(), diverter)
         self.ff.flowTo(firstDrain).flowTo(fakeDrain)
         self.ff.drain.receive("before")
         self.ff.drain.receive("switch")
@@ -490,7 +488,7 @@ class SeriesTest(TestCase):
         class Switcher(Tube):
             def received(self, data):
                 if data == "switch":
-                    destinationTube.divert(series(Switchee(), fakeDrain))
+                    diverter.divert(series(Switchee(), fakeDrain))
                     return None
                 else:
                     return [data]
@@ -504,7 +502,9 @@ class SeriesTest(TestCase):
         # reassemble should not be called, so don't implement it
         directlyProvides(destinationTube, IDivertable)
 
-        firstDrain = series(Switcher(), destinationTube)
+        diverter = Diverter(destinationTube)
+
+        firstDrain = series(Switcher(), diverter)
 
         ff = FakeFountWithBuffer()
         ff.bufferUp("before")
@@ -532,7 +532,7 @@ class SeriesTest(TestCase):
         class Switcher(Tube):
             def received(self, data):
                 if data == "switch":
-                    destinationTube.divert(series(Switchee(), fakeDrain))
+                    diverter.divert(series(Switchee(), fakeDrain))
                     return None
                 else:
                     return [data]
@@ -542,9 +542,9 @@ class SeriesTest(TestCase):
                 yield "switched " + data
 
         fakeDrain = self.fd
-        destinationTube = SwitchablePassthruTube()
+        diverter = Diverter(SwitchablePassthruTube())
 
-        firstDrain = series(Multiplier(), Switcher(), destinationTube)
+        firstDrain = series(Multiplier(), Switcher(), diverter)
 
         self.ff.flowTo(firstDrain).flowTo(fakeDrain)
         self.ff.drain.receive(["before", "switch", "after"])
