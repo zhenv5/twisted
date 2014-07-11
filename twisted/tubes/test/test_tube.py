@@ -309,9 +309,9 @@ class SeriesTest(TestCase):
 
     def test_tubeStoppedDeferredly(self):
         """
-        The L{_Siphon} stops its L{Tube} and propagates C{flowStopped} downstream
-        upon the completion of all L{Deferred}s returned from its L{Tube}'s
-        C{stopped} implementation.
+        The L{_Siphon} stops its L{Tube} and propagates C{flowStopped}
+        downstream upon the completion of all L{Deferred}s returned from its
+        L{Tube}'s C{stopped} implementation.
         """
         reasons = []
         conclusion = Deferred()
@@ -451,8 +451,8 @@ class SeriesTest(TestCase):
     def test_initiallyEnthusiasticFountBecomesDisillusioned(self):
         """
         If an L{IFount} provider synchronously calls C{receive} on a
-        L{_SiphonDrain}, whose corresponding L{_SiphonFount} is not flowing to an
-        L{IDrain} yet, it will be synchronously paused with
+        L{_SiphonDrain}, whose corresponding L{_SiphonFount} is not flowing to
+        an L{IDrain} yet, it will be synchronously paused with
         L{IFount.pauseFlow}; when that L{_SiphonFount} then flows to something
         else, the buffer will be unspooled.
         """
@@ -617,8 +617,8 @@ class SeriesTest(TestCase):
     def test_tubeYieldedDeferredFiresWhileFlowIsPaused(self):
         """
         When a L{Tube} yields an L{Deferred} and that L{Deferred} fires when
-        the L{_SiphonFount} is paused it should buffer it's result and deliver it
-        when L{_SiphonFount.resumeFlow} is called.
+        the L{_SiphonFount} is paused it should buffer it's result and deliver
+        it when L{_SiphonFount.resumeFlow} is called.
         """
         d = Deferred()
 
@@ -641,9 +641,9 @@ class SeriesTest(TestCase):
 
     def test_flowingFromFirst(self):
         """
-        If L{_Siphon.flowingFrom} is called before L{_Siphon.flowTo}, the argument
-        to L{_Siphon.flowTo} will immediately have its L{IDrain.flowingFrom}
-        called.
+        If L{_Siphon.flowingFrom} is called before L{_Siphon.flowTo}, the
+        argument to L{_Siphon.flowTo} will immediately have its
+        L{IDrain.flowingFrom} called.
         """
         self.ff.flowTo(self.siphonDrain).flowTo(self.fd)
         self.assertNotIdentical(self.fd.fount, None)
