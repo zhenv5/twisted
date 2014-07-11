@@ -340,8 +340,8 @@ class SeriesTest(TestCase):
 
     def test_tubeFlowSwitching(self):
         """
-        The L{_Siphon} of a L{Tube} sends on data to a newly specified L{IDrain}
-        when its L{IDivertable.divert} method is called.
+        The L{_Siphon} of a L{Tube} sends on data to a newly specified
+        L{IDrain} when its L{IDivertable.divert} method is called.
         """
         @implementer(IDivertable)
         class SwitchablePassthruTube(PassthruTube):
@@ -373,10 +373,10 @@ class SeriesTest(TestCase):
 
     def test_tubeFlowSwitchingReassembly(self):
         """
-        The L{_Siphon} of a L{Tube} sends on reassembled data - the return value
-        of L{Tube.reassemble} to a newly specified L{Drain}; it is only called
-        with un-consumed elements of data (those which have never been passed
-        to C{receive}).
+        The L{_Siphon} of a L{Tube} sends on reassembled data - the return
+        value of L{Tube.reassemble} to a newly specified L{Drain}; it is only
+        called with un-consumed elements of data (those which have never been
+        passed to C{receive}).
         """
         preSwitch = []
         @implementer(IDivertable)
@@ -651,8 +651,8 @@ class SeriesTest(TestCase):
 
     def test_siphonReceiveCallsTubeReceived(self):
         """
-        L{_SiphonDrain.receive} will call C{tube.received} and synthesize a fake
-        "0.5" progress result if L{None} is returned.
+        L{_SiphonDrain.receive} will call C{tube.received} and synthesize a
+        fake "0.5" progress result if L{None} is returned.
         """
         got = []
         class ReceivingTube(Tube):
@@ -689,8 +689,8 @@ class SeriesTest(TestCase):
 
     def test_receiveIterableDeliversDownstream(self):
         """
-        When L{Tube.received} yields a value, L{_Siphon} will call L{receive} on
-        its downstream drain.
+        When L{Tube.received} yields a value, L{_Siphon} will call L{receive}
+        on its downstream drain.
         """
         self.ff.flowTo(series(PassthruTube())).flowTo(self.fd)
         self.ff.drain.receive(7)
