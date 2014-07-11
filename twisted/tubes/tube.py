@@ -258,8 +258,7 @@ def series(start, *tubes):
 
     @param start: The initial element in the chain; the object that will
         consume inputs passed to the result of this call to C{series}.
-    @type start: an L{ITube}, or anything adaptable to L{IFount}, as well as
-        L{IDrain}.
+    @type start: an L{ITube}, or anything adaptable to L{IDrain}.
 
     @param tubes: Each element of C{plumbing}.
     @type tubes: a L{tuple} of L{ITube}s or objects adaptable to L{IDrain}.
