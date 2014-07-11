@@ -249,22 +249,6 @@ class IDivertable(ITube):
     from it.
     """
 
-    divert = Attribute(
-        """
-        This attribute will be set when this L{ITube} is hooked up to an
-        L{IFount} with L{twisted.tubes.tube.series}.
-
-        C{divert} is a reference to a 1-argument callable which takes an
-        L{IDrain} and returns nothing, and diverts the flow I{away from this}
-        L{ITube}.
-
-        When you call C{someDivertable.divert(someDrain)}, C{someDivertable}'s
-        C{received} method will stop being called.  It itself will no longer
-        participate in the data flow.
-        """
-    )
-
-
     def reassemble(data): # pragma:nocover
         """
         Reverse the transformation done by calling L{received}, so as to
