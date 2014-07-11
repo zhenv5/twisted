@@ -258,10 +258,9 @@ class IDivertable(ITube):
         L{IDrain} and returns nothing, and diverts the flow I{away from this}
         L{ITube}.
 
-        This is slightly non-intuitive so it's worth repeating.  When you call
-        C{someDivertable.divert(someDrain)}, C{someDivertable}'s C{received}
-        method will stop being called.  It itself will no longer participate in
-        the data flow.
+        When you call C{someDivertable.divert(someDrain)}, C{someDivertable}'s
+        C{received} method will stop being called.  It itself will no longer
+        participate in the data flow.
         """
     )
 
