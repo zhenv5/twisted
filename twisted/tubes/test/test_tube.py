@@ -431,7 +431,9 @@ class SeriesTest(TestCase):
             def reassemble(self, data):
                 print("First reassemblin'.", data)
                 yield "more data"
+                print("Yielding more data.")
                 yield "yet more data"
+                print("Reassembly complete.")
 
 
         firstDiverter = Diverter(FirstDivertable())

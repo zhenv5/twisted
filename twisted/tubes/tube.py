@@ -459,21 +459,29 @@ class _Siphon(object):
 
     def _divert(self, drain):
         """
-        Divert the flow to the
+        Divert the flow from the fount which is flowing into this siphon's
+        drain to the given drain, reassembling any buffered output from this
+        siphon's tube first.
         """
         upstream = self._tdrain.fount
 
-        pendingPending = list(self._tube.reassemble(self._pendingIterator or []))
+        pendingPending = self._tube.reassemble(self._pendingIterator) or []
+        print("Pending pending", pendingPending)
         f = _FakestFount()
-        f.flowTo(series(_DrainingTube(pendingPending, upstream, drain))).flowTo(drain)
+        dt = series(_DrainingTube(pendingPending, upstream, drain))
+        print("Flowing to DT")
+        again = f.flowTo(dt)
+        print("Flowing to ultimate drain.")
+        again.flowTo(drain)
 
-        
-            
+
+
 @implementer(IFount)
 class _FakestFount(object):
     outputType = None
 
     def flowTo(self, drain):
+        print("Flowing from", self, drain)
         return drain.flowingFrom(self)
 
 
@@ -513,7 +521,13 @@ class _DrainingTube(Tube):
         self._hangOn.unpause()
         print("Flowed.")
 
-            
+    def receive(self, what):
+        """
+        
+        """
+        print("WHY DID I RECEIVE ANYTHING", what)
+
+
 @implementer(IFount)
 class _DrainingFount(object):
     """
@@ -536,6 +550,7 @@ class _DrainingFount(object):
         self._drain = drain
         result = self._drain.flowingFrom(self)
         self._drain.receive(next(self._items))
+        return result
 
 
 
