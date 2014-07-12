@@ -28,10 +28,13 @@ class ReprTube(Tube):
         return '<Tube For Testing>'
 
 
-
+@implementer(IDivertable)
 class PassthruTube(Tube):
     def received(self, data):
         yield data
+
+    def reassemble(self, data):
+        return data
 
 
 
@@ -417,6 +420,37 @@ class SeriesTest(TestCase):
         C to redirect the flow as it's receiving those values and subsequent
         values will be delivered to C{C.receive}.
         """
+        finalDrain = self.fd
+
+        @implementer(IDivertable)
+        class FirstDivertable(Tube):
+            def received(self, datum):
+                print("First divertin'.", datum)
+                firstDiverter.divert(secondDiverter)
+
+            def reassemble(self, data):
+                print("First reassemblin'.", data)
+                yield "more data"
+                yield "yet more data"
+
+
+        firstDiverter = Diverter(FirstDivertable())
+
+        @implementer(IDivertable)
+        class SecondDivertable(Tube):
+            def received(self, datum):
+                print("Second divertin'.", datum)
+                secondDiverter.divert(finalDrain)
+                return []
+
+            def reassemble(self, data):
+                print("Second reassemblin'.", data)
+                return []
+
+        secondDiverter = Diverter(SecondDivertable())
+        self.ff.flowTo(firstDiverter)
+        self.ff.drain.receive("first data")
+        self.assertEqual(self.fd.received, ["yet more data"])
 
 
     def test_tubeFlowSwitchingControlsWhereOutputGoes(self):

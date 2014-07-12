@@ -19,6 +19,41 @@ from twisted.tubes.itube import (IDrain, ITube, IFount, IPause, IDivertable,
                                  AlreadyUnpaused)
 
 
+
+@implementer(ITube)
+class Tube(object):
+    """
+    Null implementation for L{ITube}.  You can inherit from this to get no-op
+    implementation of all of L{ITube}'s required implementation so you can just
+    just implement the parts you're interested in.
+
+    @ivar inputType: The type of data expected to be received by C{receive}.
+
+    @ivar outputType: The type of data expected to be emitted by C{receive}.
+    """
+
+    inputType = None
+    outputType = None
+
+    def started(self):
+        """
+        @see: L{ITube.started}
+        """
+
+
+    def received(self, item):
+        """
+        @see: L{ITube.received}
+        """
+
+
+    def stopped(self, reason):
+        """
+        @see: L{ITube.stopped}
+        """
+
+
+
 class _SiphonPiece(object):
     """
     Shared functionality between L{_SiphonFount} and L{_SiphonDrain}
@@ -427,12 +462,83 @@ class _Siphon(object):
         Divert the flow to the
         """
         upstream = self._tdrain.fount
-        anPause = upstream.pauseFlow()
-        upstream.flowTo(drain)
-        anPause.unpause()
-        if self._pendingIterator is not None:
-            for element in self._tube.reassemble(self._pendingIterator):
-                drain.receive(element)
+
+        pendingPending = list(self._tube.reassemble(self._pendingIterator or []))
+        f = _FakestFount()
+        f.flowTo(series(_DrainingTube(pendingPending, upstream, drain))).flowTo(drain)
+
+        
+            
+@implementer(IFount)
+class _FakestFount(object):
+    outputType = None
+
+    def flowTo(self, drain):
+        return drain.flowingFrom(self)
+
+
+    def pauseFlow(self):
+        return _PlaceholderPause()
+
+
+    def stopFlow(self):
+        pass
+
+
+class _DrainingTube(Tube):
+    """
+    
+    """
+    def __init__(self, items, eventualUpstream, eventualDownstream):
+        """
+        
+        """
+        self._items = items
+        self._eventualUpstream = eventualUpstream
+        self._hangOn = self._eventualUpstream.pauseFlow()
+        self._eventualDownstream = eventualDownstream
+        
+        
+    def started(self):
+        """
+        
+        """
+        print("Starting.")
+        for item in self._items:
+            print("Iteming.", item)
+            yield item
+            print("Item'd", item)
+        print("Flowing...")
+        self._eventualUpstream.flowTo(self._eventualDownstream)
+        self._hangOn.unpause()
+        print("Flowed.")
+
+            
+@implementer(IFount)
+class _DrainingFount(object):
+    """
+    
+    """
+    def __init__(self, items, fount):
+        """
+        
+        """
+        self._items = iter(items)
+        self._fount = fount
+        self._pauser = _Pauser()
+        self.pauseFlow = self._pauser.pauseFlow
+
+
+    def flowTo(self, drain):
+        """
+        
+        """
+        self._drain = drain
+        result = self._drain.flowingFrom(self)
+        self._drain.receive(next(self._items))
+
+
+
 
 
 def _registryAdapting(*fromToAdapterTuples):
@@ -467,40 +573,6 @@ def _tube2drain(tube):
 _tubeRegistry = _registryAdapting(
     (ITube, IDrain, _tube2drain),
 )
-
-
-
-@implementer(ITube)
-class Tube(object):
-    """
-    Null implementation for L{ITube}.  You can inherit from this to get no-op
-    implementation of all of L{ITube}'s required implementation so you can just
-    just implement the parts you're interested in.
-
-    @ivar inputType: The type of data expected to be received by C{receive}.
-
-    @ivar outputType: The type of data expected to be emitted by C{receive}.
-    """
-
-    inputType = None
-    outputType = None
-
-    def started(self):
-        """
-        @see: L{ITube.started}
-        """
-
-
-    def received(self, item):
-        """
-        @see: L{ITube.received}
-        """
-
-
-    def stopped(self, reason):
-        """
-        @see: L{ITube.stopped}
-        """
 
 
 
