@@ -147,6 +147,10 @@ class _SiphonFount(_SiphonPiece):
             pbnd = self._siphon._pauseBecauseNoDrain
             self._siphon._pauseBecauseNoDrain = None
             pbnd.unpause()
+        print "Flowing to", drain
+        if self._siphon._pendingIterator is not None:
+            print("Pending iterator in flowTo, unbuffering")
+            self._siphon._unbufferIterator()
         return result
 
 
@@ -431,6 +435,7 @@ class _Siphon(object):
 
     def _unbufferIterator(self):
         if self._unbuffering:
+            print("Short-circuit: already unbuffering")
             return
         whatever = object()
         self._unbuffering = True
@@ -464,11 +469,14 @@ class _Siphon(object):
         siphon's tube first.
         """
         upstream = self._tdrain.fount
+        unpending = self._pendingIterator
 
-        pendingPending = self._tube.reassemble(self._pendingIterator) or []
+        pendingPending = self._tube.reassemble(unpending) or []
+        print("Diverting", upstream)
         print("Pending pending", pendingPending)
         f = _FakestFount()
         dt = series(_DrainingTube(pendingPending, upstream, drain))
+        dt._siphon.noisy = True
         print("Flowing to DT")
         again = f.flowTo(dt)
         print("Flowing to ultimate drain.")
@@ -481,7 +489,7 @@ class _FakestFount(object):
     outputType = None
 
     def flowTo(self, drain):
-        print("Flowing from", self, drain)
+        print("FakestFountFlowingFrom", self, drain)
         return drain.flowingFrom(self)
 
 
@@ -501,25 +509,35 @@ class _DrainingTube(Tube):
         """
         
         """
-        self._items = items
+        self._items = list(items)
+        print("Beginning with items:", self._items)
         self._eventualUpstream = eventualUpstream
         self._hangOn = self._eventualUpstream.pauseFlow()
         self._eventualDownstream = eventualDownstream
+
+
+    def __repr__(self):
+        """
         
-        
+        """
+        return ("<Draining Tube {}>".format(repr(self._items)))
+
+
     def started(self):
         """
         
         """
         print("Starting.")
-        for item in self._items:
+        while self._items:
+            item = self._items.pop(0)
             print("Iteming.", item)
             yield item
-            print("Item'd", item)
-        print("Flowing...")
+            print("Item'd", item, self._items)
+        print("Flowing...", self._eventualUpstream, self._eventualDownstream)
         self._eventualUpstream.flowTo(self._eventualDownstream)
+        print("Flowed, and...")
         self._hangOn.unpause()
-        print("Flowed.")
+        print("Unpaused.")
 
     def receive(self, what):
         """
