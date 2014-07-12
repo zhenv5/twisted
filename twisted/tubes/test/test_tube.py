@@ -410,6 +410,15 @@ class SeriesTest(TestCase):
                                             "switched to switchee"])
 
 
+    def test_diverterInYourDiverterSoYouCanDivertWhileYouDivert(self):
+        """
+        When L{IDivertable.reassemble} returns multiple values, the argument to
+        L{Diverter.divert}, B, may itself call L{Diverter.divert} with a drain
+        C to redirect the flow as it's receiving those values and subsequent
+        values will be delivered to C{C.receive}.
+        """
+
+
     def test_tubeFlowSwitchingControlsWhereOutputGoes(self):
         """
         If a siphon A with a tube Ap is flowing to a siphon B with a switchable
