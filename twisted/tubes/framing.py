@@ -135,9 +135,8 @@ def bytesToLines():
     Create a drain that consumes a stream of bytes and produces frames
     delimited by LF, CRLF or some combination thereof.
     """
-    dedelimiter = Diverter(bytesDelimitedBy("\n"))
-    srs = series(dedelimiter, _CarriageReturnRemover())
-    return dedelimiter
+    return series(Diverter(bytesDelimitedBy("\n")), _CarriageReturnRemover())
+
 
 
 _packedPrefixProtocols = {
