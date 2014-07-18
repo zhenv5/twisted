@@ -41,7 +41,8 @@ class _OutFount(object):
     """
 
     """
-
+    drain = None
+        
     def flowTo(self, drain):
         """
         
@@ -73,7 +74,8 @@ class _OutDrain(object):
         
         """
         for fount in self._founts:
-            fount.drain.receive(item)
+            if fount.drain is not None:
+                fount.drain.receive(item)
 
 
 class Out(object):

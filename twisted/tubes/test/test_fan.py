@@ -31,3 +31,36 @@ class FanOutTests(SynchronousTestCase):
 
         self.assertEquals(fdA.received, ["foo"])
         self.assertEquals(fdB.received, ["foo"])
+
+    def test_fanReceivesBeforeFountsHaveDrains(self):
+        """
+        
+        """
+        ff = FakeFount()
+        fd = FakeDrain()
+
+        out = Out()
+        fount = out.newFount()
+
+        ff.flowTo(out.drain)
+
+        ff.drain.receive("foo")
+
+        fount.flowTo(fd)
+        self.assertEquals(fd.received, [])
+        
+        
+    def test_oneFountPausesEveryonePauses(self):
+        """
+        
+        """
+
+    def test_oneFountStops(self):
+        """
+        
+        """
+        
+    def test_outFountStartsDrains(self):
+        """
+        
+        """
