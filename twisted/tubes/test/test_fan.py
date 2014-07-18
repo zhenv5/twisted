@@ -50,10 +50,19 @@ class FanOutTests(SynchronousTestCase):
         self.assertEquals(fd.received, [])
         
         
-    def test_oneFountPausesEveryonePauses(self):
+    def test_oneFountPausesUpstreamFount(self):
         """
         
         """
+        ff = FakeFount()
+        out = Out()
+        fount = out.newFount()
+
+        ff.flowTo(out.drain)
+
+        fount.pauseFlow()
+        self.assertEquals(ff.flowIsPaused, 1)
+
 
     def test_oneFountStops(self):
         """
