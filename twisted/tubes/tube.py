@@ -15,8 +15,8 @@ from twisted.python import log
 from twisted.python.failure import Failure
 from twisted.python.components import proxyForInterface
 
-from twisted.tubes.itube import (IDrain, ITube, IFount, IPause, IDivertable,
-                                 AlreadyUnpaused)
+from twisted.tubes.itube import (IDrain, ITube, IFount, IPause,
+                                 AlreadyUnpaused) # IDivertable
 
 
 
@@ -148,9 +148,7 @@ class _SiphonFount(_SiphonPiece):
             self._siphon._pauseBecauseNoDrain = None
             pbnd.unpause()
         print "Flowing to", drain
-        if self._siphon._pendingIterator is not None:
-            print("Pending iterator in flowTo, unbuffering")
-            self._siphon._unbufferIterator()
+        self._siphon._unbufferIterator()
         return result
 
 
@@ -176,8 +174,7 @@ class _SiphonFount(_SiphonPiece):
         fount = self._siphon._tdrain.fount
         self._siphon._currentlyPaused = False
 
-        if self._siphon._pendingIterator is not None:
-            self._siphon._unbufferIterator()
+        self._siphon._unbufferIterator()
 
         if fount is not None and self._siphon._pauseBecausePauseCalled:
             fp = self._siphon._pauseBecausePauseCalled
@@ -234,6 +231,13 @@ class _SiphonDrain(_SiphonPiece):
             if out is not None and in_ is not None:
                 if not in_.isOrExtends(out):
                     raise TypeError()
+        #ifdef DEBUG
+        if self.fount is None:
+            print(self, "initially flowing from", fount)
+        else:
+            print(self, "was flowing from", self.fount, "now flowing from",
+                  fount)
+        #endif
         self.fount = fount
         if fount is not None:
             if self._siphon._flowWasStopped:
@@ -437,13 +441,18 @@ class _Siphon(object):
         if self._unbuffering:
             print("Short-circuit: already unbuffering")
             return
+        if self._pendingIterator is None:
+            print("Short-circuit: pending iterator is gone")
+            return
         whatever = object()
         self._unbuffering = True
         while not self._currentlyPaused:
             value = next(self._pendingIterator, whatever)
             if value is whatever:
                 self._pendingIterator = None
+                print("Pending iterator complete, finished unbuffering.")
                 if self._flowStoppingReason is not None:
+                    print("(And flow stopped too)", self._flowStoppingReason)
                     self._tfount.drain.flowStopped(self._flowStoppingReason)
                 break
             if isinstance(value, Deferred):
@@ -539,7 +548,7 @@ class _DrainingTube(Tube):
         self._hangOn.unpause()
         print("Unpaused.")
 
-    def receive(self, what):
+    def received(self, what):
         """
         
         """
