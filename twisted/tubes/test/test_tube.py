@@ -5,6 +5,8 @@
 Tests for L{twisted.tubes.tube}.
 """
 
+from __future__ import print_function
+
 from zope.interface import implementer
 from zope.interface.verify import verifyObject
 
@@ -279,7 +281,6 @@ class SeriesTest(TestCase):
                      PassthruTube())
         nextFount = self.ff.flowTo(srs)
         self.assertEqual(self.ff.flowIsPaused, 1)
-        print(nextFount)
         nextFount.flowTo(self.fd)
         self.assertEqual(self.ff.flowIsPaused, 0)
         self.assertEquals(self.fd.received, ["greeting"])
@@ -425,34 +426,27 @@ class SeriesTest(TestCase):
         @implementer(IDivertable)
         class FirstDivertable(Tube):
             def received(self, datum):
-                print("First divertin'.", datum)
                 firstDiverter.divert(secondDiverter)
 
             def reassemble(self, data):
-                print("First reassemblin'.", data)
                 yield "more data"
-                print("Yielding more data.")
                 yield "yet more data"
-                print("Reassembly complete.")
-
 
         firstDiverter = Diverter(FirstDivertable())
 
         @implementer(IDivertable)
         class SecondDivertable(Tube):
             def received(self, datum):
-                print("Second divertin'.", datum)
                 secondDiverter.divert(finalDrain)
                 return []
 
             def reassemble(self, data):
-                print("Second reassemblin'.", data)
                 return []
 
         secondDiverter = Diverter(SecondDivertable())
         self.ff.flowTo(firstDiverter)
         self.ff.drain.receive("first data")
-        self.assertEqual(self.fd.received, ["yet more data"])
+        self.assertEqual(finalDrain.received, ["yet more data"])
 
 
     def test_tubeFlowSwitchingControlsWhereOutputGoes(self):

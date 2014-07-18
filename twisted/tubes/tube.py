@@ -1,10 +1,14 @@
 # -*- test-case-name: twisted.tubes.test.test_tube -*-
+# -*- test-case-name: twisted.tubes.test.test_tube.SeriesTest.test_diverterInYourDiverterSoYouCanDivertWhileYouDivert -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
 """
-See L{_Siphon}.
+See L{Tube}.
 """
+
+from __future__ import print_function
+
 import itertools
 
 from zope.interface import implementer
@@ -16,7 +20,7 @@ from twisted.python.failure import Failure
 from twisted.python.components import proxyForInterface
 
 from twisted.tubes.itube import (IDrain, ITube, IFount, IPause,
-                                 AlreadyUnpaused) # IDivertable
+                                 IDivertable, AlreadyUnpaused)
 
 
 
@@ -111,10 +115,12 @@ class _SiphonFount(_SiphonPiece):
     Implementation of L{IFount} for L{_Siphon}.
 
     @ivar fount: the implementation of the L{IDrain.fount} attribute.  The
-        L{IFount} which is flowing to this L{_Siphon}'s L{IDrain} implementation.
+        L{IFount} which is flowing to this L{_Siphon}'s L{IDrain}
+        implementation.
 
     @ivar drain: the implementation of the L{IFount.drain} attribute.  The
-        L{IDrain} to which this L{_Siphon}'s L{IFount} implementation is flowing.
+        L{IDrain} to which this L{_Siphon}'s L{IFount} implementation is
+        flowing.
     """
     drain = None
 
@@ -147,7 +153,6 @@ class _SiphonFount(_SiphonPiece):
             pbnd = self._siphon._pauseBecauseNoDrain
             self._siphon._pauseBecauseNoDrain = None
             pbnd.unpause()
-        print "Flowing to", drain
         self._siphon._unbufferIterator()
         return result
 
@@ -164,6 +169,9 @@ class _SiphonFount(_SiphonPiece):
         fount = self._siphon._tdrain.fount
         self._siphon._currentlyPaused = True
         if fount is not None and self._siphon._pauseBecausePauseCalled is None:
+            assert fount.drain is self._siphon._tdrain,\
+                "{fdrain} is not {me}".format(fdrain=repr(fount.drain),
+                                              me=self._siphon._tdrain)
             self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
 
 
@@ -171,12 +179,15 @@ class _SiphonFount(_SiphonPiece):
         """
         Resume the flow from the fount to this L{_Siphon}.
         """
-        fount = self._siphon._tdrain.fount
         self._siphon._currentlyPaused = False
 
         self._siphon._unbufferIterator()
+        if self._siphon._currentlyPaused:
+            return
 
-        if fount is not None and self._siphon._pauseBecausePauseCalled:
+        if self._siphon._pauseBecausePauseCalled:
+            # TODO: validate that the siphon's fount is always set consisetntly
+            # with _pauseBecausePauseCalled.
             fp = self._siphon._pauseBecausePauseCalled
             self._siphon._pauseBecausePauseCalled = None
             fp.unpause()
@@ -231,22 +242,7 @@ class _SiphonDrain(_SiphonPiece):
             if out is not None and in_ is not None:
                 if not in_.isOrExtends(out):
                     raise TypeError()
-        #ifdef DEBUG
-        if self.fount is None:
-            print(self, "initially flowing from", fount)
-        else:
-            print(self, "was flowing from", self.fount, "now flowing from",
-                  fount)
-        #endif
         self.fount = fount
-        if fount is not None:
-            if self._siphon._flowWasStopped:
-                fount.stopFlow()
-            # Is this the right place, or does this need to come after
-            # _pauseBecausePauseCalled's check?
-            if not self._siphon._everStarted:
-                self._siphon._everStarted = True
-                self._siphon._deliverFrom(self._tube.started)
         if self._siphon._pauseBecausePauseCalled:
             pbpc = self._siphon._pauseBecausePauseCalled
             self._siphon._pauseBecausePauseCalled = None
@@ -256,6 +252,14 @@ class _SiphonDrain(_SiphonPiece):
             else:
                 pauseFlow = fount.pauseFlow
             self._siphon._pauseBecausePauseCalled = pauseFlow()
+        if fount is not None:
+            if self._siphon._flowWasStopped:
+                fount.stopFlow()
+            # Is this the right place, or does this need to come after
+            # _pauseBecausePauseCalled's check?
+            if not self._siphon._everStarted:
+                self._siphon._everStarted = True
+                self._siphon._deliverFrom(self._tube.started)
         nextFount = self._siphon._tfount
         nextDrain = nextFount.drain
         if nextDrain is None:
@@ -439,10 +443,8 @@ class _Siphon(object):
 
     def _unbufferIterator(self):
         if self._unbuffering:
-            print("Short-circuit: already unbuffering")
             return
         if self._pendingIterator is None:
-            print("Short-circuit: pending iterator is gone")
             return
         whatever = object()
         self._unbuffering = True
@@ -450,9 +452,7 @@ class _Siphon(object):
             value = next(self._pendingIterator, whatever)
             if value is whatever:
                 self._pendingIterator = None
-                print("Pending iterator complete, finished unbuffering.")
                 if self._flowStoppingReason is not None:
-                    print("(And flow stopped too)", self._flowStoppingReason)
                     self._tfount.drain.flowStopped(self._flowStoppingReason)
                 break
             if isinstance(value, Deferred):
@@ -471,34 +471,14 @@ class _Siphon(object):
         self._unbuffering = False
 
 
-    def _divert(self, drain):
-        """
-        Divert the flow from the fount which is flowing into this siphon's
-        drain to the given drain, reassembling any buffered output from this
-        siphon's tube first.
-        """
-        upstream = self._tdrain.fount
-        unpending = self._pendingIterator
-
-        pendingPending = self._tube.reassemble(unpending) or []
-        print("Diverting", upstream)
-        print("Pending pending", pendingPending)
-        f = _FakestFount()
-        dt = series(_DrainingTube(pendingPending, upstream, drain))
-        dt._siphon.noisy = True
-        print("Flowing to DT")
-        again = f.flowTo(dt)
-        print("Flowing to ultimate drain.")
-        again.flowTo(drain)
-
-
 
 @implementer(IFount)
 class _FakestFount(object):
     outputType = None
+    drain = None
 
     def flowTo(self, drain):
-        print("FakestFountFlowingFrom", self, drain)
+        self.drain = drain
         return drain.flowingFrom(self)
 
 
@@ -519,7 +499,6 @@ class _DrainingTube(Tube):
         
         """
         self._items = list(items)
-        print("Beginning with items:", self._items)
         self._eventualUpstream = eventualUpstream
         self._hangOn = self._eventualUpstream.pauseFlow()
         self._eventualDownstream = eventualDownstream
@@ -536,17 +515,12 @@ class _DrainingTube(Tube):
         """
         
         """
-        print("Starting.")
         while self._items:
             item = self._items.pop(0)
-            print("Iteming.", item)
             yield item
-            print("Item'd", item, self._items)
-        print("Flowing...", self._eventualUpstream, self._eventualDownstream)
         self._eventualUpstream.flowTo(self._eventualDownstream)
-        print("Flowed, and...")
         self._hangOn.unpause()
-        print("Unpaused.")
+
 
     def received(self, what):
         """
@@ -578,8 +552,6 @@ class _DrainingFount(object):
         result = self._drain.flowingFrom(self)
         self._drain.receive(next(self._items))
         return result
-
-
 
 
 
@@ -627,13 +599,30 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
         """
         
         """
+        assert IDivertable.providedBy(divertable)
         self._friendSiphon = _Siphon(divertable)
         self._drain = self._friendSiphon._tdrain
 
 
-    def divert(self, elsewhere):
+    def __repr__(self):
         """
         
         """
-        self._friendSiphon._divert(elsewhere)
+        return "<Diverter for {}>".format(self._drain)
 
+
+    def divert(self, drain):
+        """
+        Divert the flow from the fount which is flowing into this siphon's
+        drain to the given drain, reassembling any buffered output from this
+        siphon's tube first.
+        """
+        upstream = self._friendSiphon._tdrain.fount
+        unpending = self._friendSiphon._pendingIterator
+
+        pendingPending = self._friendSiphon._tube.reassemble(unpending) or []
+        f = _FakestFount()
+        dt = series(_DrainingTube(pendingPending, upstream, drain))
+        dt._siphon.noisy = True
+        again = f.flowTo(dt)
+        again.flowTo(drain)
