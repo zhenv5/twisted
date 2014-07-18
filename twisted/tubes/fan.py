@@ -46,7 +46,7 @@ class _OutFount(object):
         """
         
         """
-        
+        self.drain = drain
 
 
 
@@ -59,21 +59,21 @@ class _OutDrain(object):
         """
         
         """
-        self._founts = []
+        self._founts = founts
 
 
     def flowingFrom(self, fount):
         """
         
         """
-
+        
 
     def receive(self, item):
         """
         
         """
-        
-
+        for fount in self._founts:
+            fount.drain.receive(item)
 
 
 class Out(object):
@@ -87,6 +87,7 @@ class Out(object):
         self._founts = []
         self._drain = _OutDrain(self._founts)
 
+        
     @property
     def drain(self):
         """
@@ -99,4 +100,6 @@ class Out(object):
         """
 
         """
-        return _OutFount()
+        f = _OutFount()
+        self._founts.append(f)
+        return f
