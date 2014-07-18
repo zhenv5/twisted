@@ -5,11 +5,39 @@ from twisted.tubes.test.util import FakeFount, FakeDrain
 from twisted.tubes.fan import Out
 
 
+class FakeIntermediateDrain(FakeDrain):
+    """
+    
+    """
+
+    nextStep = FakeFount()
+
+    def flowingFrom(self, something):
+        """
+        
+        """
+        super(FakeIntermediateDrain, self).flowingFrom(something)
+        return self.nextStep
+
+
 
 class FanOutTests(SynchronousTestCase):
     """
     Tests for L{twisted.tubes.fan.Out}
     """
+
+    def test_outFountFlowTo(self):
+        """
+        L{Out.newFount}'s C{flowTo} calls C{flowingFrom} on its drain and
+        returns the result.
+        """
+        out = Out()
+        aFount = out.newFount()
+        aFakeDrain = FakeIntermediateDrain()
+        result = aFount.flowTo(aFakeDrain)
+        self.assertIdentical(aFakeDrain.fount, aFount)
+        self.assertIdentical(result, aFakeDrain.nextStep)
+
 
     def test_fanOut(self):
         """
@@ -31,6 +59,7 @@ class FanOutTests(SynchronousTestCase):
 
         self.assertEquals(fdA.received, ["foo"])
         self.assertEquals(fdB.received, ["foo"])
+
 
     def test_fanReceivesBeforeFountsHaveDrains(self):
         """
@@ -65,6 +94,29 @@ class FanOutTests(SynchronousTestCase):
 
 
     def test_oneFountStops(self):
+        """
+        
+        """
+        ff = FakeFount()
+        out = Out()
+        fountA = out.newFount()
+        fountB = out.newFount()
+        ff.flowTo(out.drain)
+
+        fdA = FakeDrain()
+        fdB = FakeDrain()
+
+        fountA.flowTo(fdA)
+        fountB.flowTo(fdB)
+
+        ff.drain.receive("before")
+        fdA.fount.stopFlow()
+        ff.drain.receive("after")
+        self.assertEqual(fdA.received, ["before"])
+        self.assertEqual(fdB.received, ["before", "after"])
+
+
+    def test_oneFountStopsInReceive(self):
         """
         
         """
