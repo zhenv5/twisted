@@ -46,11 +46,12 @@ class _OutFount(object):
 
     outputType = None
 
-    def __init__(self, pauser):
+    def __init__(self, pauser, stopper):
         """
         
         """
         self._pauser = pauser
+        self._stopper = stopper
 
 
     def flowTo(self, drain):
@@ -72,7 +73,7 @@ class _OutFount(object):
         """
         
         """
-        
+        self._stopper(self)
 
 
 
@@ -154,6 +155,6 @@ class Out(object):
         """
 
         """
-        f = _OutFount(self._pauser)
+        f = _OutFount(self._pauser, self._founts.remove)
         self._founts.append(f)
         return f
