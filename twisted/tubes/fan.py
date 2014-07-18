@@ -55,6 +55,7 @@ class _OutFount(object):
         
         """
         self.drain = drain
+        return drain.flowingFrom(self)
 
     def pauseFlow(self):
         """
