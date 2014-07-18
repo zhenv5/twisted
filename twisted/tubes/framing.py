@@ -6,7 +6,7 @@ Protocols to support framing.
 from zope.interface import implementer
 
 from twisted.tubes.itube import IDivertable
-from twisted.tubes.tube import Tube, series
+from twisted.tubes.tube import Tube, series, Diverter
 from twisted.protocols.basic import (
     LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
     Int16StringReceiver, Int32StringReceiver
@@ -135,12 +135,9 @@ def bytesToLines():
     Create a drain that consumes a stream of bytes and produces frames
     delimited by LF, CRLF or some combination thereof.
     """
-    dedelimiter = bytesDelimitedBy("\n")
-    def divert(*a):
-        return dedelimiter.divert(*a)
+    dedelimiter = Diverter(bytesDelimitedBy("\n"))
     srs = series(dedelimiter, _CarriageReturnRemover())
-    srs.divert = divert
-    return srs
+    return dedelimiter
 
 
 _packedPrefixProtocols = {
