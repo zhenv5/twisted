@@ -204,6 +204,7 @@ class _SiphonFount(_SiphonPiece):
         fount.stopFlow()
 
 
+
 @implementer(IPause)
 class _PlaceholderPause(object):
 
@@ -211,6 +212,7 @@ class _PlaceholderPause(object):
         """
         No-op.
         """
+
 
 
 @implementer(IDrain)
@@ -600,6 +602,7 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
         
         """
         assert IDivertable.providedBy(divertable)
+        self._divertable = divertable
         self._friendSiphon = _Siphon(divertable)
         self._drain = self._friendSiphon._tdrain
 
@@ -617,12 +620,11 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
         drain to the given drain, reassembling any buffered output from this
         siphon's tube first.
         """
-        upstream = self._friendSiphon._tdrain.fount
         unpending = self._friendSiphon._pendingIterator
 
-        pendingPending = self._friendSiphon._tube.reassemble(unpending) or []
+        pendingPending = self._divertable.reassemble(unpending) or []
+        upstream = self._friendSiphon._tdrain.fount
         f = _FakestFount()
         dt = series(_DrainingTube(pendingPending, upstream, drain))
-        dt._siphon.noisy = True
         again = f.flowTo(dt)
         again.flowTo(drain)
