@@ -549,7 +549,8 @@ class SeriesTest(TestCase):
         ff.bufferUp("before")
         ff.bufferUp("switch")
         ff.bufferUp("after")
-        ff.flowTo(firstDrain).flowTo(fakeDrain)
+        nf = ff.flowTo(firstDrain)
+        nf.flowTo(fakeDrain)
         self.assertEquals(self.fd.received, ["before", "switched after"])
 
 
@@ -772,7 +773,8 @@ class SeriesTest(TestCase):
                 self.fount = fount
                 self.fount.flowTo(test_fd)
 
-        self.ff.flowTo(series(PassthruTube())).flowTo(ReflowingDrain())
+        nf = self.ff.flowTo(series(PassthruTube()))
+        nf.flowTo(ReflowingDrain())
 
         self.ff.drain.receive("hello")
         self.assertEqual(self.fd.received, ["hello"])
