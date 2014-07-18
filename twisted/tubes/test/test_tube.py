@@ -771,7 +771,8 @@ class SeriesTest(TestCase):
         class ReflowingDrain(FakeDrain):
             def flowingFrom(self, fount):
                 self.fount = fount
-                self.fount.flowTo(test_fd)
+                if fount is not None:
+                    self.fount.flowTo(test_fd)
 
         nf = self.ff.flowTo(series(PassthruTube()))
         nf.flowTo(ReflowingDrain())
