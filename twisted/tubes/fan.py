@@ -103,7 +103,7 @@ class _OutDrain(object):
         """
         
         """
-        for fount in self._founts:
+        for fount in self._founts[:]:
             if fount.drain is not None:
                 fount.drain.receive(item)
 

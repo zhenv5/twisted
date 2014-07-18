@@ -156,7 +156,30 @@ class FanOutTests(SynchronousTestCase):
         """
         
         """
-        
+        ff = FakeFount()
+        out = Out()
+        fountA = out.newFount()
+        fountB = out.newFount()
+        class StoppingDrain(FakeDrain):
+            def receive(self, item):
+                super(StoppingDrain, self).receive(item)
+                self.fount.stopFlow()
+        stoppingDrain = StoppingDrain()
+        fountA.flowTo(stoppingDrain)
+        fakeDrain = FakeDrain()
+        fountB.flowTo(fakeDrain)
+        ff.flowTo(out.drain)
+        ff.drain.receive("something")
+        self.assertEqual(stoppingDrain.received, ["something"])
+        self.assertEqual(fakeDrain.received, ["something"])
+
+        ff.drain.receive("something else")
+        self.assertEqual(stoppingDrain.received, ["something"])
+        self.assertEqual(fakeDrain.received, ["something", "something else"])
+
+        self.assertFalse(ff.flowIsStopped)
+
+
     def test_outFountStartsDrains(self):
         """
         
