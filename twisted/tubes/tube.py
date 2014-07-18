@@ -145,6 +145,15 @@ class _SiphonFount(_SiphonPiece):
         """
         Flow data from this siphon to the given drain.
         """
+        if self.drain:
+            # FIXME: direct test for this.  The behavior here ought to be that
+            # when we make it so that our drain is no longer actually our
+            # drain, it stops telling us to pause/stop/etc.  Open question:
+            # what if it had already paused us?  Can we simply discard that
+            # now?  Note that this flowingFrom may re-entrantly call this
+            # flowTo again, which is probably nonsense, but ugh, what should
+            # even happen then...
+            self.drain.flowingFrom(None)
         self.drain = drain
         if drain is None:
             return
