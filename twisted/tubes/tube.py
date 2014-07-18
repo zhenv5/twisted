@@ -431,7 +431,8 @@ class _Siphon(object):
             iterableOrNot = deliverySource()
         except:
             f = Failure()
-            log.err(f, "Exception raised when delivering from {0!r}".format(deliverySource))
+            log.err(f, "Exception raised when delivering from {0!r}"
+                    .format(deliverySource))
             self._tdrain.fount.stopFlow()
             downstream = self._tfount.drain
             if downstream is not None:
