@@ -1,5 +1,9 @@
 
+from zope.interface.verify import verifyObject
+
 from twisted.trial.unittest import SynchronousTestCase
+
+from twisted.tubes.itube import IFount, IDrain
 
 from twisted.tubes.test.util import FakeFount, FakeDrain
 from twisted.tubes.fan import Out
@@ -37,6 +41,15 @@ class FanOutTests(SynchronousTestCase):
         result = aFount.flowTo(aFakeDrain)
         self.assertIdentical(aFakeDrain.fount, aFount)
         self.assertIdentical(result, aFakeDrain.nextStep)
+
+
+    def test_verifyCompliance(self):
+        """
+        
+        """
+        out = Out()
+        verifyObject(IFount, out.newFount())
+        verifyObject(IDrain, out.drain)
 
 
     def test_fanOut(self):

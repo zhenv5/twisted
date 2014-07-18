@@ -44,11 +44,14 @@ class _OutFount(object):
     """
     drain = None
 
+    outputType = None
+
     def __init__(self, pauser):
         """
         
         """
         self._pauser = pauser
+
 
     def flowTo(self, drain):
         """
@@ -65,12 +68,22 @@ class _OutFount(object):
         return self._pauser.pauseFlow()
 
 
+    def stopFlow(self):
+        """
+        
+        """
+        
+
+
 
 @implementer(IDrain)
 class _OutDrain(object):
     """
 
     """
+    fount = None
+    inputType = None
+
     def __init__(self, founts):
         """
         
@@ -106,6 +119,13 @@ class _OutDrain(object):
         
         """
         self._paused.unpause()
+
+
+    def flowStopped(self, reason):
+        """
+        
+        """
+        
 
 
 
