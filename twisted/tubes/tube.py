@@ -178,9 +178,6 @@ class _SiphonFount(_SiphonPiece):
         fount = self._siphon._tdrain.fount
         self._siphon._currentlyPaused = True
         if fount is not None and self._siphon._pauseBecausePauseCalled is None:
-            assert fount.drain is self._siphon._tdrain,\
-                "{fdrain} is not {me}".format(fdrain=repr(fount.drain),
-                                              me=self._siphon._tdrain)
             self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
 
 
