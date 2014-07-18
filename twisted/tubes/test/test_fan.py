@@ -90,8 +90,8 @@ class FanOutTests(SynchronousTestCase):
 
         fount.flowTo(fd)
         self.assertEquals(fd.received, [])
-        
-        
+
+
     def test_oneFountPausesUpstreamFount(self):
         """
         
@@ -104,6 +104,29 @@ class FanOutTests(SynchronousTestCase):
 
         fount.pauseFlow()
         self.assertEquals(ff.flowIsPaused, 1)
+
+
+    def test_oneFountPausesInReceive(self):
+        """
+        
+        """
+        ff = FakeFount()
+        out = Out()
+        fountA = out.newFount()
+        fountB = out.newFount()
+        class PausingDrain(FakeDrain):
+            def receive(self, item):
+                super(PausingDrain, self).receive(item)
+                self.fount.pauseFlow()
+        pausingDrain = PausingDrain()
+        fountA.flowTo(pausingDrain)
+        fakeDrain = FakeDrain()
+        fountB.flowTo(fakeDrain)
+        ff.flowTo(out.drain)
+        ff.drain.receive("something")
+        self.assertEqual(pausingDrain.received, ["something"])
+        self.assertEqual(fakeDrain.received, ["something"])
+        self.assertEqual(ff.flowIsPaused, 1)
 
 
     def test_oneFountStops(self):
