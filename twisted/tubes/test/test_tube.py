@@ -996,16 +996,3 @@ class Todo(TestCase):
         self.fail()
 
 
-    def test_setDivertRaises(self):
-        """
-        What if setting the C{divert} attribute of an L{IDivertable} raises?
-        """
-        self.fail()
-
-
-    def test_setDivertToNoneRaises(self):
-        """
-        What if setting the C{divert} attribute of an L{IDivertable} to C{None}
-        raises?
-        """
-        self.fail()
