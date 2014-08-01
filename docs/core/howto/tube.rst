@@ -39,16 +39,16 @@ The fount represents data coming in over the connection, and the drain represent
 
 To *use* ``echoFlow`` as a server, you have to attach it to a listening :doc:`endpoint <endpoints>`.
 
-:download:`echotube.py <listings/tubes/echotube.py>`
+:download:`echotube.py <listings/tubes/echoflow.py>`
 
-.. literalinclude:: listings/tubes/echotube.py
+.. literalinclude:: listings/tubes/echoflow.py
 
-This fully-functioning example (just run it with "``python echotube.py``") implements an echo server.
+This fully-functioning example (just run it with "``python echoflow.py``") implements an echo server.
 By default, you can test it out by typing into it.
 
 .. code-block:: console
 
-    $ python echotube.py
+    $ python echoflow.py
     are you an echo server?
     are you an echo server?
     ^C
@@ -58,7 +58,7 @@ For example, to run on TCP port 4321:
 
 .. code-block:: console
 
-    $ python echotube.py tcp:4321
+    $ python echoflow.py tcp:4321
 
 and then in another command-line window:
 
@@ -104,14 +104,15 @@ To demonstrate both receiving and processing data, let's write a `reverse polish
 Interacting with it should look like this:
 
 .. code-block:: console
+    :emphasize-lines: 4,7
 
-    > 3
-    > 4
-    > +
-    = 7
-    > 2
-    > *
-    = 14
+    3
+    4
+    +
+    7
+    2
+    *
+    14
 
 In order to implement this program, you will construct a *series* of objects which process the data; specifically, you will create a :api:`twisted.tubes.series <series>` of :api:`twisted.tubes.Tube <Tube>`\s.
 Each :api:`twisted.tubes.Tube` in the :api:`twisted.tubes.series` will be responsible for processing part of the data.
