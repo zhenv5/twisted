@@ -94,8 +94,29 @@ You can test it out with ``telnet localhost 4321``.
 
 However, this example still performs no processing of the data that it is receiving.
 
-Processing Some Data: A Networked Calculator
+Processing A Little Data: Reversing A String
 --------------------------------------------
+
+Let's perform some very simple processing on our input data: we will reverse each line that we receive.
+
+This immediately raises the question: how do we tell when we have received a whole line?
+The previous echo example didn't care because it would just emit whatever bytes were sent to it, regardless of whether it had received a whole message or not.
+(It just so happens that your terminal only sends the bytes when you hit the "enter" key.)
+We can't just split up the incoming data with ``bytes.split`` because we might receive one line, part of a line, or multiple lines in one network message.
+Luckily Twisted implements this for us, with the handy :api:`twisted.tubes.framing` module (so called because it puts "frames" around chunks of bytes, and you can distinguish one chunk from the next).
+
+.. note::
+
+    There are many types of framing mechanisms, and the one we're demonstrating here, line-oriented message separation, while it is extremely common, is one of the worst ones.
+    For example, a line-delimited message obviously cannot include a newline, and if you try to transmit one that does, you may get a garbled data stream.
+    The main advantage of a line-separated protocol is that it works well for interactive examples, since a human being can type lines into a terminal.
+    For example, it works well for documentation :-).
+    However, if you're designing your own network protocol, please consider using a length-prefixed framing mechanism, such as :api:`twisted.tubes.framing.netstringsToStrings <netstrings>`.
+
+
+
+Managing State with a Tube: A Networked Calculator
+--------------------------------------------------
 
 To demonstrate both receiving and processing data, let's write a `reverse polish notation <https://en.wikipedia.org/wiki/Reverse_Polish_notation>`_ calculator for addition and multiplication.
 
