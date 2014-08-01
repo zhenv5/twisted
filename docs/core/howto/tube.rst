@@ -27,10 +27,8 @@ The simplest way to process any data is to avoid processing it entirely, to pass
 On a network, that means an echo server as described in :rfc:`862`.
 Here's a function which uses interfaces defined by ``twisted.tubes`` to send its input straight on to its output:
 
-.. code-block:: python
-
-    def echoFlow(fount, drain):
-        fount.flowTo(drain)
+.. literalinclude:: listings/tubes/echoflow.py
+    :pyobject: echoFlow
 
 In the above example, ``echoFlow`` takes two things: a :api:`twisted.tubes.itube.IFount <fount>`, or a source of data, and a :api:`twisted.tubes.itube.IDrain <drain>` , or a place where data eventually goes.
 Such a function is called a "flow", because it establishes a flow of data from one place to another.
@@ -39,7 +37,7 @@ The fount represents data coming in over the connection, and the drain represent
 
 To *use* ``echoFlow`` as a server, you have to attach it to a listening :doc:`endpoint <endpoints>`.
 
-:download:`echotube.py <listings/tubes/echoflow.py>`
+:download:`echoflow.py <listings/tubes/echoflow.py>`
 
 .. literalinclude:: listings/tubes/echoflow.py
 

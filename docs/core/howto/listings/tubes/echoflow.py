@@ -3,7 +3,7 @@ from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
 
 def echoFlow(fount, drain):
-    return fount.flowTo(drain)
+    fount.flowTo(drain)
 
 def main(reactor, listenOn="stdio:"):
     endpoint = serverFromString(reactor, listenOn)
