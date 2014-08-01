@@ -1,3 +1,9 @@
+from twisted.python.log import startLogging
+from sys import stdout
+startLogging(stdout)
+
+# cut here
+
 from twisted.tubes.protocol import factoryFromFlow
 from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
@@ -18,9 +24,6 @@ def main(reactor, listenOn="stdio:"):
     return Deferred()
 
 from twisted.internet.task import react
-from twisted.python.log import startLogging
-from sys import stdout
-startLogging(stdout)
 
 from sys import argv
 react(main, argv[1:])
