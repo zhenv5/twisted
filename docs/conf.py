@@ -115,10 +115,22 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
-on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+on_rtd = True # os.environ.get('READTHEDOCS', None) == 'True'
 
 if not on_rtd:
     html_theme = 'twistedtrac'
+    html_theme_path = ['_themes']
+    
+try:
+    import sphinx_rtd_theme
+except ImportError:
+    sphinx_rtd_theme = None
+
+if sphinx_rtd_theme and on_rtd:
+    html_theme = "sphinx_rtd_theme"
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+else:
+    html_theme = "default"
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -126,7 +138,7 @@ if not on_rtd:
 #html_theme_options = {}
 
 # Add any paths that contain custom themes here, relative to this directory.
-html_theme_path = ['_themes']
+#html_theme_path = ['_themes']
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 # "<project> v<release> documentation".

@@ -557,6 +557,9 @@ class SeriesTest(TestCase):
     def test_tubeFlowSwitching_LotsOfStuffAtOnce(self):
         """
         If a tube returns a sequence of multiple things, great.
+
+        (This is a test for switching when a receive method has returned
+        multiple things.)
         """
         # TODO: docstring.
         @implementer(IDivertable)

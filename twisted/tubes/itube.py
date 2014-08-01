@@ -88,7 +88,7 @@ class IFount(Interface):
         Temporarily refrain from delivery of items to this L{IFount}'s C{drain}
         attribute.
 
-        @return: a L{pause token <IPause>} which may used to remove the
+        @return: a L{pause token <IPause>} which may be used to remove the
             impediment to this L{IFount}'s flow established by this call to
             C{pauseFlow}.  Multiple calls will result in multiple tokens, all
             of which must be unpaused for the flow to resume.

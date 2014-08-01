@@ -48,7 +48,9 @@ class StandardIO(object):
             self._writer.loseConnection()
 
     def write(self, data):
+        print("stdio writer write", repr(data))
         if self._writer is not None:
+            print("really writer write", repr(data))
             self._writer.write(data)
 
     def writeSequence(self, data):
@@ -151,11 +153,15 @@ class StandardIO(object):
         self.loseConnection()
 
     def pauseProducing(self):
+        print("stdio pause")
         if self._reader is not None:
+            print("reader pause")
             self._reader.pauseProducing()
 
     def resumeProducing(self):
+        print("stdio resume")
         if self._reader is not None:
+            print("reader resume")
             self._reader.resumeProducing()
 
     def stopReading(self):

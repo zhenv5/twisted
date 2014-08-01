@@ -113,6 +113,23 @@ Luckily Twisted implements this for us, with the handy :api:`twisted.tubes.frami
     For example, it works well for documentation :-).
     However, if you're designing your own network protocol, please consider using a length-prefixed framing mechanism, such as :api:`twisted.tubes.framing.netstringsToStrings <netstrings>`.
 
+Much like in the echo example, we need a flow function which sets up the flow of data from a fount to a drain.
+
+.. literalinclude:: listings/tubes/reversetube.py
+   :pyobject: reverseFlow
+
+In this flow function, we have a new object, a *series of Tubes*, created by the :api:`twisted.tubes.tube.series <series>` function.
+You can read the construction of the ``lineReverser`` series as a flow of data from left to right.
+The output from each tube in the series is passed as the input to the tube to its right.
+
+We are expecting a stream of bytes as our input, because that's the only thing that ever comes in from a network.
+Therefore the first element in the series, :api:`twisted.tubes.framing.bytesToLines <bytesToLines>`, as its name implies, converts the stream of bytes into a sequence of lines.
+The next element in the series, ``Reverser``, reverses its inputs, which, being the output of :api:`twisted.tubes.framing.bytesToLines <bytesToLines>`, are lines.
+
+``Reverser`` is implemented like so:
+
+.. literalinclude:: listings/tubes/reversetube.py
+   :pyobject: Reverser
 
 
 Managing State with a Tube: A Networked Calculator
