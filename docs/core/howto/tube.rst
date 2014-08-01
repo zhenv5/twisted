@@ -30,7 +30,7 @@ Here's a function which uses interfaces defined by ``twisted.tubes`` to send its
 .. code-block:: python
 
     def echoFlow(fount, drain):
-        return fount.flowTo(drain)
+        fount.flowTo(drain)
 
 In the above example, ``echoFlow`` takes two things: a :api:`twisted.tubes.itube.IFount <fount>`, or a source of data, and a :api:`twisted.tubes.itube.IDrain <drain>` , or a place where data eventually goes.
 Such a function is called a "flow", because it establishes a flow of data from one place to another.
