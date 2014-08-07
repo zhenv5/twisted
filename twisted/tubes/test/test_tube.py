@@ -8,6 +8,7 @@ Tests for L{twisted.tubes.tube}.
 from __future__ import print_function
 
 from zope.interface import implementer
+from zope.interface.declarations import directlyProvides
 from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import TestCase
@@ -16,13 +17,13 @@ from twisted.tubes.test.util import (TesterTube, FakeFount, FakeDrain,
 
 from twisted.tubes.itube import IDivertable
 from twisted.python.failure import Failure
-from twisted.tubes.tube import tube, series, _Pauser, _Siphon, Diverter
-from twisted.tubes.itube import IPause
-from twisted.tubes.itube import AlreadyUnpaused
-from twisted.tubes.itube import ITube
-from zope.interface.declarations import directlyProvides
-from twisted.tubes.itube import IFount
 from twisted.internet.defer import Deferred, succeed
+
+from ..itube import IPause, AlreadyUnpaused, ITube, IFount
+from ..tube import tube, series, Diverter
+from .._siphon import _Siphon
+from ..pauser import Pauser
+
 
 
 @tube
@@ -70,86 +71,6 @@ class FakeFountWithBuffer(FakeFount):
         while not self.flowIsPaused and self.buffer:
             item = self.buffer.pop(0)
             self.drain.receive(item)
-
-
-
-class StopperTest(TestCase):
-    """
-    Tests for L{_Pauser}, helper for someone who wants to implement a thing
-    that pauses.
-    """
-
-    def test_pauseOnce(self):
-        """
-        One call to L{_Pauser.pause} will call the actuallyPause callable.
-        """
-        def pause():
-            pause.d += 1
-        pause.d = 0
-        pauser = _Pauser(pause, None)
-        result = pauser.pauseFlow()
-        self.assertTrue(verifyObject(IPause, result))
-        self.assertEqual(pause.d, 1)
-
-
-    def test_pauseThenUnpause(self):
-        """
-        A call to L{_Pauser.pause} followed by a call to the result's
-        C{unpause} will call the C{actuallyResume} callable.
-        """
-        def pause():
-            pause.d += 1
-        pause.d = 0
-        def resume():
-            resume.d += 1
-        resume.d = 0
-        pauser = _Pauser(pause, resume)
-        pauser.pauseFlow().unpause()
-        self.assertEqual(pause.d, 1)
-        self.assertEqual(resume.d, 1)
-
-
-    def test_secondUnpauseFails(self):
-        """
-        The second of two consectuive calls to L{IPause.unpause} results in an
-        L{AlreadyUnpaused} exception.
-        """
-        def pause():
-            pass
-        def resume():
-            resume.d += 1
-        resume.d = 0
-        pauser = _Pauser(pause, resume)
-        aPause = pauser.pauseFlow()
-        aPause.unpause()
-        self.assertRaises(AlreadyUnpaused, aPause.unpause)
-        self.assertEqual(resume.d, 1)
-
-
-    def test_repeatedlyPause(self):
-        """
-        Multiple calls to L{_Pauser.pause} where not all of the pausers are
-        unpaused do not result in any calls to C{actuallyResume}.
-        """
-        def pause():
-            pause.d += 1
-        pause.d = 0
-        def resume():
-            resume.d += 1
-        resume.d = 0
-        pauser = _Pauser(pause, resume)
-        one = pauser.pauseFlow()
-        two = pauser.pauseFlow()
-        three = pauser.pauseFlow()
-        four = pauser.pauseFlow()
-
-        one.unpause()
-        two.unpause()
-        three.unpause()
-        self.assertEqual(pause.d, 1)
-        self.assertEqual(resume.d, 0)
-        four.unpause()
-        self.assertEqual(resume.d, 1)
 
 
 

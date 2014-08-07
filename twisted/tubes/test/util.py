@@ -11,10 +11,10 @@ from zope.interface.verify import verifyClass
 
 from twisted.test.proto_helpers import StringTransport
 from twisted.internet.defer import succeed
-from twisted.tubes.itube import IDrain
-from twisted.tubes.itube import IFount
-from twisted.tubes.itube import IDivertable
-from twisted.tubes.tube import _Pauser, tube
+
+from ..itube import IDrain, IFount, IDivertable
+from ..tube import tube
+from ..pauser import Pauser
 
 
 class StringEndpoint(object):
@@ -96,7 +96,7 @@ class FakeFount(object):
     flowIsPaused = 0
     flowIsStopped = False
     def __init__(self):
-        self._pauser = _Pauser(self._actuallyPause, self._actuallyResume)
+        self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
 
 
     def flowTo(self, drain):
@@ -105,7 +105,7 @@ class FakeFount(object):
 
 
     def pauseFlow(self):
-        return self._pauser.pauseFlow()
+        return self._pauser.pause()
 
 
     def _actuallyPause(self):

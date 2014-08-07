@@ -1,8 +1,8 @@
 # -*- test-case-name: twisted.tubes.test.test_fan -*-
 from zope.interface import implementer
 
-from twisted.tubes.tube import _Pauser
-from twisted.tubes.itube import IDrain, IFount
+from .pauser import Pauser
+from .itube import IDrain, IFount
 
 
 class _InDrain(object):
@@ -66,7 +66,7 @@ class _OutFount(object):
         """
         
         """
-        return self._pauser.pauseFlow()
+        return self._pauser.pause()
 
 
     def stopFlow(self):
@@ -140,9 +140,10 @@ class Out(object):
         """
         self._founts = []
         self._drain = _OutDrain(self._founts)
-        self._pauser = _Pauser(self._drain._actuallyPause,
-                               self._drain._actuallyResume)
-        
+        self._pauser = Pauser(self._drain._actuallyPause,
+                              self._drain._actuallyResume)
+
+
     @property
     def drain(self):
         """
