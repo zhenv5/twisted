@@ -6,9 +6,7 @@ from twisted.tubes.framing import stringsToNetstrings
 
 from twisted.tubes.test.util import FakeFount
 from twisted.tubes.test.util import FakeDrain
-from twisted.tubes.tube import series
-
-from twisted.tubes.tube import Tube
+from twisted.tubes.tube import tube, series
 
 from twisted.tubes.framing import netstringsToStrings
 from twisted.tubes.framing import bytesToLines
@@ -107,14 +105,16 @@ class LineTests(TestCase):
         ff = FakeFount()
         fd = FakeDrain()
 
-        class Switcher(Tube):
+        @tube
+        class Switcher(object):
             def received(self, line):
                 splitted = line.split(" ", 1)
                 if splitted[0] == 'switch':
                     length = int(splitted[1])
                     lines.divert(series(Switchee(length), fd))
 
-        class Switchee(Tube):
+        @tube
+        class Switchee(object):
             datums = []
             def __init__(self, length):
                 self.length = length
@@ -138,7 +138,8 @@ class LineTests(TestCase):
         fd1 = FakeDrain()
         fd2 = FakeDrain()
 
-        class Switcher(Tube):
+        @tube
+        class Switcher(object):
             def received(self, line):
                 if 'switch' in line:
                     lines.divert(series(netstringsToStrings(), fd2))

@@ -8,13 +8,13 @@ Tests for L{twisted.tubes.protocol}.
 from twisted.tubes.test.util import StringEndpoint
 from twisted.trial.unittest import TestCase
 from twisted.tubes.protocol import factoryFromFlow
-from twisted.tubes.tube import Tube
-from twisted.tubes.tube import series
+from twisted.tubes.tube import tube, series
 from twisted.python.failure import Failure
 from twisted.tubes.test.util import FakeDrain
 from twisted.tubes.test.util import FakeFount
 
-class RememberingTube(Tube):
+@tube
+class RememberingTube(object):
     """
     A tube that remembers what it receives.
 

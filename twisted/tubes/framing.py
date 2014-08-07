@@ -6,7 +6,7 @@ Protocols to support framing.
 from zope.interface import implementer
 
 from twisted.tubes.itube import IDivertable
-from twisted.tubes.tube import Tube, series, Diverter
+from twisted.tubes.tube import tube, series, Diverter
 from twisted.protocols.basic import (
     LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
     Int16StringReceiver, Int32StringReceiver
@@ -27,7 +27,8 @@ class _Transporter(object):
 
 
 
-class _StringsToData(Tube):
+@tube
+class _StringsToData(object):
     def __init__(self, stringReceiverClass, sendMethodName="sendString"):
         self._stringReceiver = stringReceiverClass()
         self._received = getattr(self._stringReceiver, sendMethodName)
@@ -63,7 +64,8 @@ class _NotDisconnecting(object):
 
 
 @implementer(IDivertable)
-class _DataToStrings(Tube):
+@tube
+class _DataToStrings(object):
     def __init__(self, stringReceiverClass,
                  receivedMethodName="stringReceived"):
         self._stringReceiver = stringReceiverClass()
@@ -106,7 +108,8 @@ def linesToBytes():
     return _StringsToData(LineOnlyReceiver, "sendLine")
 
 
-class _CarriageReturnRemover(Tube):
+@tube
+class _CarriageReturnRemover(object):
     """
     Automatically fix newlines, because hacker news.
     """
