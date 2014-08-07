@@ -46,3 +46,7 @@ Only the *last*, fully-integrated example really ought to have that sort of conc
 Having to explain all this stuff up front makes all the introductory prose very unweildy.
 
 It would be nice to have a constructor or utility function that constructs a QueueFount from a list so you don't have to call "push" yourself a bunch of times.
+
+There are some asserts littered around the code.
+They all need to be deleted.
+Some of them should be replaced with real exceptions, because they're a result of bad inputs, and some of them should be replaced with unit tests that more convincingly prove to us that the internal state can never get into that bad place.
