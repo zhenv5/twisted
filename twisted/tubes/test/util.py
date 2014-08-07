@@ -14,7 +14,7 @@ from twisted.internet.defer import succeed
 from twisted.tubes.itube import IDrain
 from twisted.tubes.itube import IFount
 from twisted.tubes.itube import IDivertable
-from twisted.tubes.tube import Tube, _Pauser
+from twisted.tubes.tube import _Pauser, tube
 
 
 class StringEndpoint(object):
@@ -123,7 +123,8 @@ verifyClass(IFount, FakeFount)
 
 
 
-class TesterTube(Tube):
+@tube
+class TesterTube(object):
     """
     Tube for testing that records its inputs.
     """

@@ -16,7 +16,7 @@ from twisted.tubes.test.util import (TesterTube, FakeFount, FakeDrain,
 
 from twisted.tubes.itube import IDivertable
 from twisted.python.failure import Failure
-from twisted.tubes.tube import Tube, series, _Pauser, _Siphon, Diverter
+from twisted.tubes.tube import tube, series, _Pauser, _Siphon, Diverter
 from twisted.tubes.itube import IPause
 from twisted.tubes.itube import AlreadyUnpaused
 from twisted.tubes.itube import ITube
@@ -25,13 +25,15 @@ from twisted.tubes.itube import IFount
 from twisted.internet.defer import Deferred, succeed
 
 
-class ReprTube(Tube):
+@tube
+class ReprTube(object):
     def __repr__(self):
         return '<Tube For Testing>'
 
 
 @implementer(IDivertable)
-class PassthruTube(Tube):
+@tube
+class PassthruTube(object):
     def received(self, data):
         yield data
 
@@ -151,6 +153,12 @@ class StopperTest(TestCase):
 
 
 
+@tube
+class NullTube(object):
+    ""
+
+
+
 class TubeTest(TestCase):
     """
     Tests for L{Tube}'s various no-ops.
@@ -160,7 +168,7 @@ class TubeTest(TestCase):
         """
         L{Tube} provides L{ITube}.
         """
-        self.failUnless(verifyObject(ITube, Tube()))
+        self.failUnless(verifyObject(ITube, NullTube()))
 
 
     def test_noOps(self):
@@ -176,7 +184,7 @@ class TubeTest(TestCase):
         # TODO: maybe make a policy of this or explain it somewhere other than
         # a comment.  Institutional learning ftw.
 
-        tube = Tube()
+        tube = NullTube()
         tube.started()
         tube.received(None)
         tube.stopped(None)
@@ -202,7 +210,8 @@ class SeriesTest(TestCase):
         """
         The L{_Siphon} starts its L{Tube} upon C{flowingFrom}.
         """
-        class Starter(Tube):
+        @tube
+        class Starter(object):
             def started(self):
                 yield "greeting"
 
@@ -270,7 +279,8 @@ class SeriesTest(TestCase):
         This will happen any time that a series is partially constructed and
         then flowed to a new drain.
         """
-        class ReStarter(Tube):
+        @tube
+        class ReStarter(object):
             startedCount = 0
             def started(self):
                 count = self.startedCount
@@ -292,7 +302,8 @@ class SeriesTest(TestCase):
         downstream upon C{flowStopped}.
         """
         reasons = []
-        class Ender(Tube):
+        @tube
+        class Ender(object):
             def stopped(self, reason):
                 reasons.append(reason)
                 yield "conclusion"
@@ -319,7 +330,8 @@ class SeriesTest(TestCase):
         """
         reasons = []
         conclusion = Deferred()
-        class SlowEnder(Tube):
+        @tube
+        class SlowEnder(object):
             def stopped(self, reason):
                 reasons.append(reason)
                 yield conclusion
@@ -356,14 +368,16 @@ class SeriesTest(TestCase):
         fakeDrain = self.fd
         testCase = self
 
-        class Switcher(Tube):
+        @tube
+        class Switcher(object):
             def received(self, data):
                 # Sanity check: this should be the only input ever received.
                 testCase.assertEqual(data, "switch")
                 diverter.divert(series(Switchee(), fakeDrain))
                 return ()
 
-        class Switchee(Tube):
+        @tube
+        class Switchee(object):
             def received(self, data):
                 yield "switched " + data
 
@@ -382,7 +396,8 @@ class SeriesTest(TestCase):
         """
         preSwitch = []
         @implementer(IDivertable)
-        class ReassemblingTube(Tube):
+        @tube
+        class ReassemblingTube(object):
             def received(self, datum):
                 nonBorks = datum.split("BORK")
                 return nonBorks
@@ -392,14 +407,16 @@ class SeriesTest(TestCase):
                     yield '(bork was here)'
                     yield element
 
-        class Switcher(Tube):
+        @tube
+        class Switcher(object):
             def received(self, data):
                 # Sanity check: this should be the only input ever received.
                 preSwitch.append(data)
                 diverter.divert(series(Switchee(), fakeDrain))
                 return ()
 
-        class Switchee(Tube):
+        @tube
+        class Switchee(object):
             def received(self, data):
                 yield "switched " + data
 
@@ -424,7 +441,8 @@ class SeriesTest(TestCase):
         finalDrain = self.fd
 
         @implementer(IDivertable)
-        class FirstDivertable(Tube):
+        @tube
+        class FirstDivertable(object):
             def received(self, datum):
                 firstDiverter.divert(secondDiverter)
 
@@ -435,7 +453,8 @@ class SeriesTest(TestCase):
         firstDiverter = Diverter(FirstDivertable())
 
         @implementer(IDivertable)
-        class SecondDivertable(Tube):
+        @tube
+        class SecondDivertable(object):
             def received(self, datum):
                 secondDiverter.divert(finalDrain)
                 return []
@@ -455,7 +474,8 @@ class SeriesTest(TestCase):
         tube Bp, Ap.received may switch B to a drain C, and C will receive any
         outputs produced by that received call; B (and Bp) will not.
         """
-        class Switcher(Tube):
+        @tube
+        class Switcher(object):
             def received(self, data):
                 if data == "switch":
                     yield "switching"
@@ -464,7 +484,8 @@ class SeriesTest(TestCase):
                 else:
                     yield data
 
-        class Switchee(Tube):
+        @tube
+        class Switchee(object):
             def received(self, data):
                 yield "switched({})".format(data)
 
@@ -524,7 +545,8 @@ class SeriesTest(TestCase):
         Switching a tube that is receiving data from a fount which
         synchronously produces some data to C{receive} will ... uh .. work.
         """
-        class Switcher(Tube):
+        @tube
+        class Switcher(object):
             def received(self, data):
                 if data == "switch":
                     diverter.divert(series(Switchee(), fakeDrain))
@@ -532,7 +554,8 @@ class SeriesTest(TestCase):
                 else:
                     return [data]
 
-        class Switchee(Tube):
+        @tube
+        class Switchee(object):
             def received(self, data):
                 yield "switched " + data
 
@@ -568,11 +591,13 @@ class SeriesTest(TestCase):
             Reassemble should not be called; don't implement it.
             """
 
-        class Multiplier(Tube):
+        @tube
+        class Multiplier(object):
             def received(self, datums):
                 return datums
 
-        class Switcher(Tube):
+        @tube
+        class Switcher(object):
             def received(self, data):
                 if data == "switch":
                     diverter.divert(series(Switchee(), fakeDrain))
@@ -580,7 +605,8 @@ class SeriesTest(TestCase):
                 else:
                     return [data]
 
-        class Switchee(Tube):
+        @tube
+        class Switchee(object):
             def received(self, data):
                 yield "switched " + data
 
@@ -600,7 +626,8 @@ class SeriesTest(TestCase):
         delivered.
         """
 
-        class SucceedingTube(Tube):
+        @tube
+        class SucceedingTube(object):
             def received(self, data):
                 yield succeed(''.join(reversed(data)))
 
@@ -618,7 +645,8 @@ class SeriesTest(TestCase):
 
         d = Deferred()
 
-        class WaitingTube(Tube):
+        @tube
+        class WaitingTube(object):
             def received(self, data):
                 yield d
 
@@ -640,7 +668,8 @@ class SeriesTest(TestCase):
 
         d = Deferred()
 
-        class MultiDeferredTube(Tube):
+        @tube
+        class MultiDeferredTube(object):
             didYield = False
             def received(self, data):
                 yield d
@@ -665,7 +694,8 @@ class SeriesTest(TestCase):
         """
         d = Deferred()
 
-        class DeferredTube(Tube):
+        @tube
+        class DeferredTube(object):
             def received(self, data):
                 yield d
 
@@ -698,7 +728,8 @@ class SeriesTest(TestCase):
         fake "0.5" progress result if L{None} is returned.
         """
         got = []
-        class ReceivingTube(Tube):
+        @tube
+        class ReceivingTube(object):
             def received(self, item):
                 got.append(item)
         drain = series(ReceivingTube())
@@ -711,7 +742,8 @@ class SeriesTest(TestCase):
         L{_Siphon.flowingFrom} checks the type of its input.  If it doesn't
         match (both are specified explicitly, and they don't match).
         """
-        class ToTube(Tube):
+        @tube
+        class ToTube(object):
             inputType = IFakeInput
         siphonDrain = series(ToTube())
         self.failUnlessRaises(TypeError, self.ff.flowTo, siphonDrain)
@@ -723,7 +755,8 @@ class SeriesTest(TestCase):
         L{_Siphon.flowingFrom} checks the type of its input.  If it doesn't
         match (both are specified explicitly, and they don't match).
         """
-        class ToTube(Tube):
+        @tube
+        class ToTube(object):
             inputType = IFakeOutput
         siphonDrain = series(ToTube())
         obj = self.ff.flowTo(siphonDrain)
@@ -883,12 +916,14 @@ class SeriesTest(TestCase):
         argument, then L{series}' second argument will receive values from the
         last of the arguments to the first call to L{series}.
         """
-        class Blub(Tube):
+        @tube
+        class Blub(object):
             def received(self, datum):
                 yield "Blub"
                 yield datum
 
-        class Glub(Tube):
+        @tube
+        class Glub(object):
             def received(self, datum):
                 yield "Glub"
                 yield datum
@@ -917,7 +952,8 @@ class Reminders(TestCase):
         the tube's fount will have L{IFount.stopFlow} called, and
         L{IDrain.flowStopped} will be called on the tube's downstream drain.
         """
-        class UnstartableTube(Tube):
+        @tube
+        class UnstartableTube(object):
             def started(self):
                 raise ZeroDivisionError
 
@@ -937,7 +973,8 @@ class Reminders(TestCase):
         the tube's fount will have L{IFount.stopFlow} called, and
         L{IDrain.flowStopped} will be called on the tube's downstream drain.
         """
-        class UnstartableTube(Tube):
+        @tube
+        class UnstartableTube(object):
             def started(self):
                 raise ZeroDivisionError
 

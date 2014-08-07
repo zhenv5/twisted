@@ -24,39 +24,74 @@ from twisted.tubes.itube import (IDrain, ITube, IFount, IPause,
 
 
 
-@implementer(ITube)
-class Tube(object):
+def tube(cls):
     """
-    Null implementation for L{ITube}.  You can inherit from this to get no-op
-    implementation of all of L{ITube}'s required implementation so you can just
-    just implement the parts you're interested in.
-
-    @ivar inputType: The type of data expected to be received by C{receive}.
-
-    @ivar outputType: The type of data expected to be emitted by C{receive}.
+    L{tube} is a class decorator which declares a given class to be an
+    implementer of L{ITube} and fills out any methods or attributes which are
+    not present on the decorated type with null-implementation methods (those
+    which return None) and None attributes.
     """
 
-    inputType = None
-    outputType = None
+    # This is better than a superclass, because:
+
+    # - you can't do a separate 'isinstance(Tube)' check instead of
+    #   ITube.providedBy like you're supposed to
+
+    # - you can't just instantiate Tube directly, that is pointless
+    #   functionality so we're not providing it
+
+    # - it avoids propagating a bad example that other codebases will copy to
+    #   depth:infinity, rather than depth:1 where subclassing is actually sort
+    #   of okay
+
+    # - it provides a more straightforward and reliable mechanism for
+    #   future-proofing code.  If you're inheriting from a superclass and you
+    #   want it to do something to warn users, upgrade an interface, and so on,
+    #   you have to try to cram a new meta-type into the user's hierarchy so a
+    #   function gets invoked at the right time.  If you're invoking this class
+    #   decorator, then it just gets invoked like a normal function, and we can
+    #   put some code in here that examines the type and does whatever it wants
+    #   to do, because the @ syntax simply called it as a function.
+
+    # It still shares some issues with inheritance, such as:
+
+    # - the direction of visibility within the hierarchy is still wrong.  you
+    #   can still do 'self.someMethodIDidntImplement()' and get a result.
+
+    # - it destructively modifies the original class, so what you see isn't
+    #   quite what you get.  a cleaner compositional approach would simply wrap
+    #   an object around another object (but that would mean inventing a new
+    #   incompletely-specified type that floats around at runtime, rather than
+    #   a utility to help you completely implement ITube at import time)
 
     def started(self):
         """
-        @see: L{ITube.started}
+        A null implementation of started.
         """
-
-
-    def received(self, item):
-        """
-        @see: L{ITube.received}
-        """
-
 
     def stopped(self, reason):
         """
-        @see: L{ITube.stopped}
+        A null implementation of stopped.
         """
 
+    def received(self, item):
+        """
+        A null implementation of received
+        """
 
+    fillers = [('started', started),
+               ('stopped', stopped),
+               ('received', received),
+               ('inputType', None),
+               ('outputType', None)]
+
+    notHere = object()
+
+    for name, value in fillers:
+        if getattr(cls, name, notHere) is notHere:
+            setattr(cls, name, value)
+
+    return implementer(ITube)(cls)
 
 class _SiphonPiece(object):
     """
@@ -499,10 +534,13 @@ class _FakestFount(object):
         pass
 
 
-class _DrainingTube(Tube):
+
+@tube
+class _DrainingTube(object):
     """
     
     """
+
     def __init__(self, items, eventualUpstream, eventualDownstream):
         """
         
@@ -536,6 +574,7 @@ class _DrainingTube(Tube):
         
         """
         print("WHY DID I RECEIVE ANYTHING", what)
+
 
 
 @implementer(IFount)
