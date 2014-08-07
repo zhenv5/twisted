@@ -30,6 +30,13 @@ def tube(cls):
     implementer of L{ITube} and fills out any methods or attributes which are
     not present on the decorated type with null-implementation methods (those
     which return None) and None attributes.
+
+    @param cls: A class with some or all of the attributes or methods described
+        by L{ITube}.
+    @type cls: L{type}
+
+    @return: C{cls}
+    @rtype: L{type} which implements L{ITube}
     """
 
     # This is better than a superclass, because:
