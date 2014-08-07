@@ -284,8 +284,6 @@ class _Siphon(object):
         """
         self._tfount = _SiphonFount(self)
         self._tdrain = _SiphonDrain(self)
-        assert not getattr(tube, "__marked__", False)
-        tube.__marked__ = True
         self._tube = tube
 
 
