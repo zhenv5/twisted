@@ -50,3 +50,7 @@ It would be nice to have a constructor or utility function that constructs a Que
 There are some asserts littered around the code.
 They all need to be deleted.
 Some of them should be replaced with real exceptions, because they're a result of bad inputs, and some of them should be replaced with unit tests that more convincingly prove to us that the internal state can never get into that bad place.
+
+The adapter registry in ``_siphon.py`` is probably silly.
+It used to contain a lot more entries, but as the code has evolved it has boiled down into 20 or 30 lines of code and docstrings that might be more easily expressed as a single providedBy check.
+Unless more entries show up, we want to delete it and fix ``series`` to just do ``ITube.providedBy`` and inline the implementation of ``tube2drain``.
