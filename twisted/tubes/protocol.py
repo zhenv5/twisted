@@ -5,7 +5,13 @@
 """
 Objects to connect L{real data <twisted.internet.protocol.Protocol>} to
 L{Tube}s.
+
+@see: L{factoryFromFlow}
 """
+
+__all__ = [
+    'factoryFromFlow',
+]
 
 from zope.interface import implementer
 
