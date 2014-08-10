@@ -6,6 +6,9 @@ It hasn't changed a whole lot so documenting and testing this module might be a 
 ``twisted.tubes.protocol`` is pretty well tested and roughly complete but could really use some docstrings, and improve the ones it has.
 See for example the docstring for factoryFromFlow.
 
+The objects in ``twisted.tubes.protocol``, especially those that show up in log messages, could really use nicer reprs that indicate what they're doing.
+For example ``_ProtocolPlumbing`` and ``_FlowFactory`` should both include information about the flow function they're working on behalf of.
+
 Similarly, ``twisted.tubes.fan`` is a pretty rough sketch, although it's a bit less self-evident what is going on there since it's not fully implemented.
 (*Hopefully* it's straightforward, but let's not count on hope.)
 
