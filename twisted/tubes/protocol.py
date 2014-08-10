@@ -23,26 +23,52 @@ from .pauser import Pauser
 
 @implementer(IPushProducer)
 class _FountProducer(object):
+    """
+    A L{_FountProducer} is an adapter to L{IPushProducer} for an L{IFount}.
+
+    @ivar _fount: An L{IFount}.
+
+    @ivar _pause: An L{IPause}, or C{None}.
+    """
     def __init__(self, fount):
         self._fount = fount
-        self._pauses = []
+        self._pause = None
 
 
     def pauseProducing(self):
-        self._pauses.append(self._fount.pauseFlow())
+        """
+        The producer has been paused.  Ensure that the fount is paused.
+        """
+        # TODO: this implementation is (obviously) incorrect; we could lose
+        # track of pauses.  Write some tests.
+        self._pause = self._fount.pauseFlow()
 
 
     def resumeProducing(self):
-        self._pauses.pop().unpause()
+        """
+        The producer has been resumed.  Ensure that the fount is unpaused.
+        """
+        self._pause.unpause()
 
 
     def stopProducing(self):
+        """
+        Stop producing data.
+        """
         self._fount.stopFlow()
 
 
 
 @implementer(IDrain)
-class _ProtocolDrain(object):
+class _TransportDrain(object):
+    """
+    A L{_TransportDrain} is an L{IDrain} that wraps around an object that
+    provides L{ITransport} and L{IConsumer}, and delivers data to that
+    transport, and flow-control notifications from the consumer.
+
+    @ivar _transport: The transport.
+    @type _transport: L{IConsumer} / L{ITransport} provider.
+    """
 
     fount = None
     inputType = ISegment
@@ -51,15 +77,23 @@ class _ProtocolDrain(object):
         self._transport = transport
 
 
-    # drain -> data being written from elsewhere
     def flowingFrom(self, fount):
+        """
+        Data is flowing to this transport from the given fount.  Register that
+        fount as the transport's producer.
+        """
         self._transport.registerProducer(_FountProducer(fount), True)
         self.fount = fount
-        # The transport is ready to receive data, so let's immediately indicate
-        # that.
 
 
     def receive(self, item):
+        """
+        Receive an item of data, some bytes, from the fount.  Pass it along to
+        the transport.
+
+        @param item: a fragment of a stream of bytes.
+        @type item: L{bytes}
+        """
         self._transport.write(item)
 
 
@@ -69,12 +103,30 @@ class _ProtocolDrain(object):
         ceased.  Perform a half-close on the transport if possible so that it
         knows no further data is forthcoming.
         """
+        # TODO: this should be loseWriteConnection.
         self._transport.loseConnection()
 
 
 
 @implementer(IFount)
-class _ProtocolFount(object):
+class _TransportFount(object):
+    """
+    An L{IFount} that wraps around an L{ITransport}, and, with the help of a
+    L{_ProtocolPlumbing}, delivers any data received by that L{ITransport} to
+    an L{IDrain}.
+
+    @ivar _transport:
+    @type _transport:
+
+    @ivar _pauser:
+    @type _pauser:
+
+    @ivar _preReceivePause:
+    @type _preReceivePause:
+
+    @ivar _preReceiveBuffer:
+    @ivar _preReceiveBuffer:
+    """
 
     drain = None
     outputType = ISegment
@@ -90,7 +142,7 @@ class _ProtocolFount(object):
     # fount -> deliver data to elsewhere
     def flowTo(self, drain):
         """
-        Flow to the given drain.
+        Start delivering data from the transport to the given drain.
         """
         if self.drain is not None:
             self.drain.flowingFrom(None)
@@ -131,34 +183,34 @@ class _ProtocolPlumbing(_Protocol):
     """
     An adapter between an L{ITransport} and L{IFount} / L{IDrain} interfaces.
 
-    The L{IFount} implementation represents the data being delievered from this
-    transport; the bytes coming off the wire.
-
-    The L{IDrain} implementation represents the data being sent I{to} this
-    transport; being delivered to the peer.
+    A L{_ProtocolPlumbing} implements L{IProtocol} to deliver all incoming data
+    to the drain associated with its L{fount <IFount>}.
     """
 
-    # IProtocol -> deliver data to the drain, if any.
-
     def __init__(self, flow):
+        """
+        @param flow: A flow function, as described in L{factoryFromFlow}.
+        """
         self._flow = flow
 
 
     def connectionMade(self):
         """
-        The connection was established.  We don't want to deliver any data yet,
-        maybe?
+        The connection was established.  Create an L{IDrain} and an L{IFount}
+        and give them to the flow function.
         """
-        self._drain = _ProtocolDrain(self.transport)
-        self._fount = _ProtocolFount(self.transport)
+        self._drain = _TransportDrain(self.transport)
+        self._fount = _TransportFount(self.transport)
         self._flow(self._fount, self._drain)
 
 
     def dataReceived(self, data):
         """
-        Here's some data.  Data data data.
+        Some data was received.  Deliver it to the fount created in
+        L{connectionMade}.
 
-        Some data was received.
+        @param data: The bytes that were received.
+        @type data: L{bytes}
         """
         drain = self._fount.drain
         if drain is None:
@@ -169,6 +221,18 @@ class _ProtocolPlumbing(_Protocol):
 
 
     def connectionLost(self, reason):
+        """
+        The connection was lost.
+
+        If our fount is flowing to a drain, alert that drain that the flow was
+        stopped.
+
+        If our drain is flowing from a fount, alert that fount that it should
+        stop flowing.
+
+        @param reason: The reason that the connection was terminated.
+        @type reason: L{Failure}
+        """
         if self._fount.drain is not None:
             self._fount.drain.flowStopped(reason)
         if self._drain.fount is not None:
@@ -176,22 +240,23 @@ class _ProtocolPlumbing(_Protocol):
 
 
 
-from twisted.internet.protocol import Factory
-
-class _FlowFactory(Factory):
-    def __init__(self, flow):
-        self.flow = flow
-
-
-    def buildProtocol(self, addr):
-        return _ProtocolPlumbing(self.flow)
-
-
-
 def factoryFromFlow(flow):
     """
-    Construct a L{Factory} that is great.
+    Convert a flow function into an L{IProtocolFactory}.
+
+    A "flow function" is a function which takes a L{fount <IFount>} and an
+    L{drain <IDrain>}.
+
+    L{factoryFromFlow} takes such a function and creates an L{IProtocolFactory}
+    which, upon each new connection, provides the flow function with an
+    L{IFount} and an L{IDrain} representing the read end and the write end of
+    the incoming connection, respectively.
 
     @param flow: a 2-argument callable, taking (fount, drain).
+    @type flow: L{callable}
+
+    @return: a protocol factory.
+    @rtype: L{IProtocolFactory}
     """
-    return _FlowFactory(flow)
+    from twisted.internet.protocol import Factory
+    return Factory.forProtocol(lambda: _ProtocolPlumbing(flow))
