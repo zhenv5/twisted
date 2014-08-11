@@ -1,5 +1,9 @@
 # -*- test-case-name: twisted.tubes.test.test_tube -*-
 
+"""
+Adapters for converting L{ITube} to L{IDrain} and L{IFount}.
+"""
+
 import itertools
 
 from zope.interface import implementer
