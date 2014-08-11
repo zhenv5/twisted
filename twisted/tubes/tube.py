@@ -15,7 +15,8 @@ from zope.interface.verify import verifyClass
 from twisted.python.components import proxyForInterface
 
 from .itube import IDrain, ITube, IDivertable, IFount
-from ._siphon import _registryActive, _tubeRegistry, _Siphon, _PlaceholderPause
+from ._siphon import _tubeRegistry, _Siphon, _PlaceholderPause
+from ._components import _registryActive
 
 
 
