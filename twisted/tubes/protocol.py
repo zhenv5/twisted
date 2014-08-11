@@ -115,17 +115,19 @@ class _TransportFount(object):
     L{_ProtocolPlumbing}, delivers any data received by that L{ITransport} to
     an L{IDrain}.
 
-    @ivar _transport:
-    @type _transport:
+    @ivar _transport: the transport.
+    @type _transport: provider of L{ITransport} and L{IProducer}.
 
-    @ivar _pauser:
-    @type _pauser:
+    @ivar _pauser: a pauser that will pause and resume the transport.
+    @type _pauser: L{Pauser}
 
-    @ivar _preReceivePause:
-    @type _preReceivePause:
+    @ivar _preReceivePause: If data is received from the protocol when no drain
+        is connected, this will be an L{IPause}.
+    @type _preReceivePause: L{IPause} or L{NoneType}
 
-    @ivar _preReceiveBuffer:
-    @ivar _preReceiveBuffer:
+    @ivar _preReceiveBuffer: If data is received from the protocol when no
+        drain is connected, then this will be the bytes.
+    @type _preReceiveBuffer: L{bytes} or L{NoneType}
     """
 
     drain = None
@@ -185,12 +187,20 @@ class _ProtocolPlumbing(_Protocol):
 
     A L{_ProtocolPlumbing} implements L{IProtocol} to deliver all incoming data
     to the drain associated with its L{fount <IFount>}.
+
+    @ivar _flow: A flow function, as described in L{factoryFromFlow}.
+    @type _flow: L{callable}
+
+    @ivar _drain: The drain that is passed on to the application, created after
+        the connection is established in L{_ProtocolPlumbing.connectionMade}.
+    @type _drain: L{_TransportDrain}
+
+    @ivar _fount: The fount that is passed on to the application, created after
+        the connection is established in L{_ProtocolPlumbing.connectionMade}.
+    @type _fount: L{_TransportFount}
     """
 
     def __init__(self, flow):
-        """
-        @param flow: A flow function, as described in L{factoryFromFlow}.
-        """
         self._flow = flow
 
 
