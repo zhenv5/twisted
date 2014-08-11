@@ -19,10 +19,9 @@ from twisted.tubes.itube import IDivertable
 from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred, succeed
 
-from ..itube import IPause, AlreadyUnpaused, ITube, IFount
+from ..itube import ITube, IFount
 from ..tube import tube, series, Diverter
 from .._siphon import _Siphon
-from ..pauser import Pauser
 
 
 
