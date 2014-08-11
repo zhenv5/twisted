@@ -27,8 +27,10 @@ class _FountProducer(object):
     A L{_FountProducer} is an adapter to L{IPushProducer} for an L{IFount}.
 
     @ivar _fount: An L{IFount}.
+    @type _fount: L{IFount}.
 
-    @ivar _pause: An L{IPause}, or C{None}.
+    @ivar _pause: A pause if the fount has been paused by C{pauseProducing}
+    @type _pause: L{IPause} or L{NoneType}
     """
     def __init__(self, fount):
         self._fount = fount
