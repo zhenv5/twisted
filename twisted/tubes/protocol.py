@@ -143,7 +143,6 @@ class _TransportFount(object):
         self._preReceiveBuffer = None
 
 
-    # fount -> deliver data to elsewhere
     def flowTo(self, drain):
         """
         Start delivering data from the transport to the given drain.
