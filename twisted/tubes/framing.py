@@ -1,6 +1,6 @@
 # -*- test-case-name: twisted.tubes.test.test_framing -*-
 """
-Protocols to support framing.
+Tubes that can convert streams of data into discrete chunks and back again.
 """
 
 from zope.interface import implementer
@@ -13,30 +13,53 @@ from twisted.protocols.basic import (
 )
 
 class _Transporter(object):
-    def __init__(self, stuff):
-        self._stuff = stuff
+    """
+    Just enough of a mock of L{ITransport} to work with the protocols in
+    L{twisted.protocols.basic}, as a wrapper around a callable taking some
+    data.
+
+    @ivar _dataWritten: 1-argument callable taking L{bytes}, a chunk of data
+        from a stream.
+    """
+
+    def __init__(self, dataWritten):
+        self._dataWritten = dataWritten
 
 
     def write(self, data):
-        self._stuff(data)
+        """
+        Call the C{_dataWritten} callback.
+        """
+        self._dataWritten(data)
 
 
     def writeSequence(self, dati):
+        """
+        Call the C{_dataWritten} callback for each element.
+        """
         for data in dati:
-            self._stuff(data)
+            self._dataWritten(data)
 
 
 
 @tube
 class _StringsToData(object):
-    def __init__(self, stringReceiverClass, sendMethodName="sendString"):
-        self._stringReceiver = stringReceiverClass()
-        self._received = getattr(self._stringReceiver, sendMethodName)
+    """
+    A tube which could convert "strings" - discrete chunks of data - into
+    "data" - parts of a data stream, with framing.
+
+    @param _received: the C{sendString} method, a 1-argument callable taking
+        L{bytes}.
+    @type _received: L{callable}
+    """
+
+    def __init__(self, stringReceiver, sendMethodName="sendString"):
+        stringReceiver.makeConnection(_Transporter(self._unflush))
+        self._received = getattr(stringReceiver, sendMethodName)
 
 
     def started(self):
         self._buf = []
-        self._stringReceiver.makeConnection(_Transporter(self._unflush))
         return self._flush()
 
 
@@ -66,17 +89,13 @@ class _NotDisconnecting(object):
 @implementer(IDivertable)
 @tube
 class _DataToStrings(object):
-    def __init__(self, stringReceiverClass,
+    def __init__(self, stringReceiver,
                  receivedMethodName="stringReceived"):
-        self._stringReceiver = stringReceiverClass()
-        self._receivedMethodName = receivedMethodName
-        self._stringReceiver.makeConnection(_NotDisconnecting())
-
-
-    def started(self):
+        self._stringReceiver = stringReceiver
         self._ugh = []
-        setattr(self._stringReceiver, self._receivedMethodName,
+        setattr(self._stringReceiver, receivedMethodName,
                 lambda aaaugh: self._ugh.append(aaaugh))
+        self._stringReceiver.makeConnection(_NotDisconnecting())
 
 
     def received(self, string):
@@ -95,17 +114,17 @@ class _DataToStrings(object):
 
 
 def stringsToNetstrings():
-    return _StringsToData(NetstringReceiver)
+    return _StringsToData(NetstringReceiver())
 
 
 
 def netstringsToStrings():
-    return _DataToStrings(NetstringReceiver)
+    return _DataToStrings(NetstringReceiver())
 
 
 
 def linesToBytes():
-    return _StringsToData(LineOnlyReceiver, "sendLine")
+    return _StringsToData(LineOnlyReceiver(), "sendLine")
 
 
 @tube
@@ -124,12 +143,19 @@ class _CarriageReturnRemover(object):
 
 def bytesDelimitedBy(delimiter):
     """
-    Create a drain that consumes a stream of bytes and produces frames
-    delimited by the given delimiter.
+    Consumes a stream of bytes and produces frames delimited by the given
+    delimiter.
+
+    @param delimiter: an octet sequence that separates frames in the incoming
+        stream of bytes.
+    @type delimiter: L{bytes}
+
+    @return: a tube that converts a stream of bytes into a sequence of frames.
+    @rtype: L{ITube}
     """
-    thing = _DataToStrings(LineOnlyReceiver, "lineReceived")
-    thing._stringReceiver.delimiter = delimiter
-    return thing
+    receiver = LineOnlyReceiver()
+    receiver.delimiter = delimiter
+    return _DataToStrings(receiver, "lineReceived")
 
 
 
@@ -149,9 +175,9 @@ _packedPrefixProtocols = {
 }
 
 def packedPrefixToStrings(prefixBits):
-    return _DataToStrings(_packedPrefixProtocols[prefixBits])
+    return _DataToStrings(_packedPrefixProtocols[prefixBits]())
 
 
 
 def stringsToPackedPrefix(prefixBits):
-    return _StringsToData(_packedPrefixProtocols[prefixBits])
+    return _StringsToData(_packedPrefixProtocols[prefixBits]())
