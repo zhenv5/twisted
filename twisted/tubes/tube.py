@@ -157,7 +157,6 @@ class _DrainingTube(object):
         """
         self._items = list(items)
         self._eventualUpstream = eventualUpstream
-        self._hangOn = self._eventualUpstream.pauseFlow()
         self._eventualDownstream = eventualDownstream
 
 
@@ -176,7 +175,6 @@ class _DrainingTube(object):
             item = self._items.pop(0)
             yield item
         self._eventualUpstream.flowTo(self._eventualDownstream)
-        self._hangOn.unpause()
 
 
 
