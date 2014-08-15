@@ -198,6 +198,7 @@ class _FakestFount(object):
         pass
 
 
+
 class Diverter(proxyForInterface(IDrain, "_drain")):
     """
     
@@ -215,7 +216,8 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
 
     def __repr__(self):
         """
-        
+        Nice string representation for this Diverter which mentions what it is
+        diverting.
         """
         return "<Diverter for {}>".format(self._divertable)
 
