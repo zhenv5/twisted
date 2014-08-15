@@ -248,6 +248,9 @@ class _Siphon(object):
     _pendingIterator = None
     _flowWasStopped = False
     _everStarted = False
+    _unbuffering = False
+    _flowStoppingReason = None
+    _pauseBecauseNoDrain = None
 
     def __init__(self, tube):
         """
@@ -265,8 +268,6 @@ class _Siphon(object):
         """
         return '<_Siphon for {0}>'.format(repr(self._tube))
 
-
-    _pauseBecauseNoDrain = None
 
     def _deliverFrom(self, deliverySource):
         assert self._pendingIterator is None, \
@@ -293,8 +294,6 @@ class _Siphon(object):
 
         self._unbufferIterator()
 
-    _unbuffering = False
-    _flowStoppingReason = None
 
     def _unbufferIterator(self):
         if self._unbuffering:
@@ -318,8 +317,6 @@ class _Siphon(object):
                     self._pendingIterator = itertools.chain(iter([result]),
                                                             pending)
                     anPause.unpause()
-
-                from twisted.python import log
                 value.addCallback(whenUnclogged).addErrback(log.err, "WHAT")
             else:
                 self._tfount.drain.receive(value)
