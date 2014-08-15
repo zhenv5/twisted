@@ -275,17 +275,17 @@ class SeriesTest(TestCase):
         self.assertEqual(self.fd.stopped, [stopReason])
 
 
-    def test_tubeFlowSwitching(self):
+    def test_tubeDiverting(self):
         """
         The L{_Siphon} of a L{Tube} sends on data to a newly specified
         L{IDrain} when its L{IDivertable.divert} method is called.
         """
         @implementer(IDivertable)
-        class SwitchablePassthruTube(PassthruTube):
+        class DivertablePassthruTube(PassthruTube):
             def reassemble(self, data):
                 return data
 
-        diverter = Diverter(SwitchablePassthruTube())
+        diverter = Diverter(DivertablePassthruTube())
         fakeDrain = self.fd
         testCase = self
 
@@ -308,7 +308,7 @@ class SeriesTest(TestCase):
         self.assertEquals(fakeDrain.received, ["switched to switchee"])
 
 
-    def test_tubeFlowSwitchingReassembly(self):
+    def test_tubeDivertingReassembly(self):
         """
         The L{_Siphon} of a L{Tube} sends on reassembled data - the return
         value of L{Tube.reassemble} to a newly specified L{Drain}; it is only
@@ -389,9 +389,9 @@ class SeriesTest(TestCase):
         self.assertEqual(finalDrain.received, ["yet more data"])
 
 
-    def test_tubeFlowSwitchingControlsWhereOutputGoes(self):
+    def test_tubeDivertingControlsWhereOutputGoes(self):
         """
-        If a siphon A with a tube Ap is flowing to a siphon B with a switchable
+        If a siphon A with a tube Ap is flowing to a siphon B with a divertable
         tube Bp, Ap.received may switch B to a drain C, and C will receive any
         outputs produced by that received call; B (and Bp) will not.
         """
@@ -399,7 +399,7 @@ class SeriesTest(TestCase):
         class Switcher(object):
             def received(self, data):
                 if data == "switch":
-                    yield "switching"
+                    yield "diverting"
                     diverter.divert(series(Switchee(), fakeDrain))
                     yield "switched"
                 else:
@@ -422,7 +422,7 @@ class SeriesTest(TestCase):
         self.ff.drain.receive("switch")
         self.ff.drain.receive("after")
         self.assertEqual(self.fd.received,
-                         ["before", "switching",
+                         ["before", "diverting",
                           "switched(switched)",
                           "switched(after)"])
 
@@ -461,9 +461,9 @@ class SeriesTest(TestCase):
         siphonFount.flowTo(None)
 
 
-    def test_tubeFlowSwitching_ReEntrantResumeReceive(self):
+    def test_tubeDiverting_ReEntrantResumeReceive(self):
         """
-        Switching a tube that is receiving data from a fount which
+        Diverting a tube that is receiving data from a fount which
         synchronously produces some data to C{receive} will ... uh .. work.
         """
         @tube
@@ -498,16 +498,16 @@ class SeriesTest(TestCase):
         self.assertEquals(self.fd.received, ["before", "switched after"])
 
 
-    def test_tubeFlowSwitching_LotsOfStuffAtOnce(self):
+    def test_tubeDiverting_LotsOfStuffAtOnce(self):
         """
         If a tube returns a sequence of multiple things, great.
 
-        (This is a test for switching when a receive method has returned
+        (This is a test for diverting when a receive method has returned
         multiple things.)
         """
         # TODO: docstring.
         @implementer(IDivertable)
-        class SwitchablePassthruTube(PassthruTube):
+        class DivertablePassthruTube(PassthruTube):
             """
             Reassemble should not be called; don't implement it.
             """
@@ -532,7 +532,7 @@ class SeriesTest(TestCase):
                 yield "switched " + data
 
         fakeDrain = self.fd
-        diverter = Diverter(SwitchablePassthruTube())
+        diverter = Diverter(DivertablePassthruTube())
 
         firstDrain = series(Multiplier(), Switcher(), diverter)
 
