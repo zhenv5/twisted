@@ -26,9 +26,10 @@ from .._siphon import _Siphon
 
 
 @tube
+@implementer(IDivertable)
 class ReprTube(object):
     def __repr__(self):
-        return '<Tube For Testing>'
+        return '<Tube for Testing>'
 
 
 @implementer(IDivertable)
@@ -782,7 +783,7 @@ class SeriesTest(TestCase):
         """
 
         self.assertEqual(repr(series(ReprTube())),
-                         '<Drain for <Tube For Testing>>')
+                         '<Drain for <Tube for Testing>>')
 
 
     def test_siphonFountRepr(self):
@@ -793,7 +794,7 @@ class SeriesTest(TestCase):
         fount = FakeFount()
 
         self.assertEqual(repr(fount.flowTo(series(ReprTube()))),
-                         '<Fount for <Tube For Testing>>')
+                         '<Fount for <Tube for Testing>>')
 
 
     def test_siphonRepr(self):
@@ -804,7 +805,15 @@ class SeriesTest(TestCase):
         tube = ReprTube()
 
         self.assertEqual(repr(_Siphon(tube)),
-                         '<_Siphon for <Tube For Testing>>')
+                         '<_Siphon for <Tube for Testing>>')
+
+    def test_diverterRepr(self):
+        """
+        repr for L{Diverter} includes a reference to its tube.
+        """
+        diverter = Diverter(ReprTube())
+        self.assertEqual(repr(diverter),
+                         "<Diverter for <Tube for Testing>>")
 
 
     def test_stopFlow(self):

@@ -217,7 +217,7 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
         """
         
         """
-        return "<Diverter for {}>".format(self._drain)
+        return "<Diverter for {}>".format(self._divertable)
 
 
     def divert(self, drain):
