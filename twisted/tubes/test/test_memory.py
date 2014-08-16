@@ -27,3 +27,14 @@ class IteratorFountTests(SynchronousTestCase):
         self.assertIdentical(fd.fount, f)
         self.assertIdentical(f.drain, fd)
         self.assertIdentical(result, ff)
+
+
+    def test_flowToDeliversValues(self):
+        """
+        L{IteratorFount.flowTo} will deliver all of its values to the given
+        drain.
+        """
+        f = IteratorFount([1, 2, 3])
+        fd = FakeDrain()
+        f.flowTo(fd)
+        self.assertEqual(fd.received, [1, 2, 3])

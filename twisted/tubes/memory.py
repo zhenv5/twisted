@@ -11,9 +11,11 @@ class IteratorFount(object):
     """
 
     def __init__(self, iterable):
-        pass
+        self._iterator = iter(iterable)
 
 
     def flowTo(self, drain):
         self.drain = drain
+        for value in self._iterator:
+            drain.receive(value)
         return drain.flowingFrom(self)
