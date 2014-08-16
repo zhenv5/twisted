@@ -74,6 +74,10 @@ class FakeDrain(object):
 
 
     def receive(self, item):
+        if self.fount is None:
+            raise RuntimeError(
+                "Invalid state: can't call receive on a drain "
+                "when it's got no fount.")
         self.received.append(item)
 
 
