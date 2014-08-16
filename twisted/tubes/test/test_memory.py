@@ -38,3 +38,18 @@ class IteratorFountTests(SynchronousTestCase):
         fd = FakeDrain()
         f.flowTo(fd)
         self.assertEqual(fd.received, [1, 2, 3])
+
+
+    def test_pauseFlow(self):
+        """
+        L{IteratorFount.pauseFlow} will pause the delivery of items.
+        """
+        f = IteratorFount([1, 2, 3])
+        class DrainThatPauses(FakeDrain):
+            def receive(self, item):
+                super(DrainThatPauses, self).receive(item)
+                self.fount.pauseFlow()
+
+        fd = DrainThatPauses()
+        f.flowTo(fd)
+        self.assertEqual(fd.received, [1])
