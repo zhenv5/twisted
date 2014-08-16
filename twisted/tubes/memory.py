@@ -16,6 +16,7 @@ class IteratorFount(object):
 
     def flowTo(self, drain):
         self.drain = drain
+        result = drain.flowingFrom(self)
         for value in self._iterator:
             drain.receive(value)
-        return drain.flowingFrom(self)
+        return result
