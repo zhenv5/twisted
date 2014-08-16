@@ -1,8 +1,12 @@
 
 from twisted.trial.unittest import SynchronousTestCase
 
+from zope.interface.verify import verifyObject
+
 from ..memory import IteratorFount
 
+from twisted.tubes.itube import IFount
+from twisted.tubes.itube import StopFlowCalled
 from .util import FakeDrain, FakeFount
 
 class IteratorFountTests(SynchronousTestCase):
@@ -69,3 +73,28 @@ class IteratorFountTests(SynchronousTestCase):
         self.assertEqual(fd.received, [])
         pauses.pop().unpause()
         self.assertEqual(fd.received, [1, 2, 3])
+
+
+    def test_stopFlow(self):
+        """
+        L{IteratorFount.stopFlow} stops the flow, propagating a C{flowStopped}
+        call to its drain and ceasing delivery immediately.
+        """
+        f = IteratorFount([1, 2, 3])
+        class DrainThatStops(FakeDrain):
+            def receive(self, item):
+                super(DrainThatStops, self).receive(item)
+                self.fount.stopFlow()
+
+        fd = DrainThatStops()
+        f.flowTo(fd)
+        self.assertEqual(fd.received, [1])
+        self.assertEqual(fd.stopped[0].type, StopFlowCalled)
+
+
+
+    def test_provides(self):
+        """
+        An L{IteratorFount} provides L{IFount}.
+        """
+        verifyObject(IFount, IteratorFount([]))

@@ -11,8 +11,14 @@ from zope.interface import Interface, Attribute
 
 class AlreadyUnpaused(Exception):
     """
-    You ever say a word so many times it just loses meaning?  Pause pause pause
-    pause pause pause.
+    The L{IPause} has already been unpaused.
+    """
+
+
+
+class StopFlowCalled(Exception):
+    """
+    L{IFount.stopFlow} was called, and that's why the flow was stopped.
     """
 
 
