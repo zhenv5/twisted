@@ -15,7 +15,7 @@ class IteratorFount(object):
         self._iterator = iter(iterable)
         self._paused = False
         self._pauser = Pauser(self._actuallyPause,
-                              lambda: None)
+                              self._actuallyResume)
 
     def _actuallyPause(self):
         """
@@ -24,13 +24,26 @@ class IteratorFount(object):
         self._paused = True
 
 
+    def _actuallyResume(self):
+        """
+        Set the paused state of this L{IteratorFount} to True.
+        """
+        self._paused = False
+        self._deliver()
+
+
+    def _deliver(self):
+        if not self._paused:
+            for value in self._iterator:
+                self.drain.receive(value)
+                if self._paused:
+                    break
+
+
     def flowTo(self, drain):
         self.drain = drain
         result = drain.flowingFrom(self)
-        for value in self._iterator:
-            drain.receive(value)
-            if self._paused:
-                break
+        self._deliver()
         return result
 
 

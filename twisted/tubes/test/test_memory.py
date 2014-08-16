@@ -53,3 +53,19 @@ class IteratorFountTests(SynchronousTestCase):
         fd = DrainThatPauses()
         f.flowTo(fd)
         self.assertEqual(fd.received, [1])
+
+
+    def test_unpauseFlow(self):
+        """
+        When all pauses returned by L{IteratorFount.pauseFlow} have been
+        unpaused, the flow resumes.
+        """
+        f = IteratorFount([1, 2, 3])
+        fd = FakeDrain()
+        pauses = [f.pauseFlow(), f.pauseFlow()]
+        f.flowTo(fd)
+        self.assertEqual(fd.received, [])
+        pauses.pop().unpause()
+        self.assertEqual(fd.received, [])
+        pauses.pop().unpause()
+        self.assertEqual(fd.received, [1, 2, 3])
