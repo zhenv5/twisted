@@ -17,6 +17,7 @@ class IteratorFount(object):
         self._pauser = Pauser(self._actuallyPause,
                               self._actuallyResume)
 
+
     def _actuallyPause(self):
         """
         Set the paused state of this L{IteratorFount} to True.
