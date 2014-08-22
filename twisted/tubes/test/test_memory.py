@@ -92,6 +92,34 @@ class IteratorFountTests(SynchronousTestCase):
         self.assertEqual(fd.stopped[0].type, StopFlowCalled)
 
 
+    def test_stopIterationStopsIteration(self):
+        """
+        When the iterator passed to L{IteratorFount} is exhausted
+        L{IDrain.flowStopped} is called with L{StopIteration} as it's
+        reason.
+        """
+        f = IteratorFount([1, 2, 3])
+        fd = FakeDrain()
+        f.flowTo(fd)
+        self.assertEqual(fd.received, [1, 2, 3])
+        self.assertEqual(fd.stopped[0].type, StopIteration)
+
+
+    def test_stopFlowCalledAfterFlowStopped(self):
+        """
+        L{IteratorFount} will only call its C{drain}'s L{flowStopped} once when
+        C{stopFlow} is called after the flow has stopped due to iterator
+        exhaustion.
+        """
+        f = IteratorFount([1])
+        fd = FakeDrain()
+        f.flowTo(fd)
+        self.assertEqual(fd.received, [1])
+        self.assertEqual(len(fd.stopped), 1)
+        f.stopFlow()
+        self.assertEqual(len(fd.stopped), 1)
+        self.assertEqual(fd.stopped[0].type, StopIteration)
+
 
     def test_provides(self):
         """
