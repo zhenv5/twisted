@@ -57,3 +57,31 @@ Some of them should be replaced with real exceptions, because they're a result o
 The adapter registry in ``_siphon.py`` is probably silly.
 It used to contain a lot more entries, but as the code has evolved it has boiled down into 20 or 30 lines of code and docstrings that might be more easily expressed as a single providedBy check.
 Unless more entries show up, we want to delete it and fix ``series`` to just do ``ITube.providedBy`` and inline the implementation of ``tube2drain``.
+
+
+things that we might want to change
+===================================
+
+We might want to make ``flowTo`` into a function because almost any correct implementation of ``flowTo`` has the same half a dozen or so logical checks to be correct.
+
+    - If a fount has an old drain, it should call ``flowingFrom(None)`` on that drain in order to notify it that the old drain should no longer interact with the fount.  This is to prevent plan interference of various types where the old drain will cause its old fount to pause, stop, and so on.
+    - Open question: whether we make it an independent function or not, we may need to re-set the 'pause' state and discard all old pause tokens.  Consider: we have a fount, it's flowing to a drain, various consumers of that drain's information are holding pause tokens.  Now, we're no longer flowing to that drain, so as we just said, that drain (and its subsidiary components) should no longer pause that fount: it follows that they should no longer resume that fount, either.  (This also implies that a fount with no drain may not be paused.  Hmm.)
+    - Updating the ``drain`` attribute.
+    - ``flowingFrom`` may re-entrantly call ``flowTo`` (with itself or with a different drain), or it may call any other method on the same ``fount``: ``pauseFlow``, or ``stopFlow``.
+    - it needs to handle the special case of ``None`` and remember not to call any methods on ``None``.
+
+One possible alternate approach is that we have a ``flowTo`` function which:
+
+    - updates the fount attribute on the drain
+    - updates the drain attribute on the fount
+    - calls flowStarted on the drain
+    - calls startFlow on the fount
+    - returns the result of flowingFrom
+
+If implemented this way, the per-fount and per-drain code no longer need to handle the ``flowingFrom(None)`` notification because that can be generally handled by ``flowTo``.
+
+Currently the contract around flowStopped / stopFlow and then more calls to flowTo / flowingFrom is vague.  We might want to adjust this contract so that a fount that has been stopped or a drain that has received a flowStopped is simply "dead" and may not be re-used in any capacity.
+
+Rather than making flowTo a function, we might also want to make a concrete ``FountHelper`` class that we use for implementing all of our founts, and make the interface that real data sources implement be a lower-level thing that you have to wrap a ``FountHelper`` around.  This would mean that, for example, ``Pauser`` could go away, because the lower-level interface would simply have an ``actuallyPause`` and ``actuallyResume``.  (TBD: should ``FountHelper`` be public?)
+
+Assuming that ``IFount`` doesn't change, that inner interface would consist of ``actuallyPause``, ``actuallyResume``, ``flowedToSomething`` which would be executed only after ``flowTo`` processed a valid new drain (i.e. after possibly calling ``flowingFrom(None)`` and updating the drain attribute and earlying out if the new drain is ``None`` and calling ``flowingFrom`` and afterwards it would propagate the return value of ``flowingFrom).
