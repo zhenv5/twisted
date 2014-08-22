@@ -19,7 +19,7 @@ class DrainThatPauses(FakeDrain):
     # TODO: possibly promote to util
     def receive(self, item):
         super(DrainThatPauses, self).receive(item)
-        self.fount.pauseFlow()
+        self.pause = self.fount.pauseFlow()
 
 class IteratorFountTests(SynchronousTestCase):
     """
@@ -135,6 +135,19 @@ class IteratorFountTests(SynchronousTestCase):
         f.stopFlow()
         self.assertEqual(fd.received, [1])
         self.assertEqual(fd.stopped[0].type, StopFlowCalled)
+
+
+    def test_flowUnpausedAfterPausedFlowIsStopped(self):
+        """
+        When L{IteratorFount} is stopped after being paused, and subsequently
+        unpaused it should not start flowing again.
+        """
+        f = IteratorFount([1, 2])
+        fd = DrainThatPauses()
+        f.flowTo(fd)
+        f.stopFlow()
+        fd.pause.unpause()
+        self.assertEqual(fd.received, [1])
 
 
     def test_provides(self):

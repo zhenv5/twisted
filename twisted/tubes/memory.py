@@ -54,6 +54,7 @@ class IteratorFount(object):
 
 
     def flowTo(self, drain):
+        # TODO: oldDrain? flowingFrom(None)?
         self.drain = drain
         result = drain.flowingFrom(self)
         self._deliver()
