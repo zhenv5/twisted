@@ -9,6 +9,18 @@ from twisted.tubes.itube import IFount
 from twisted.tubes.itube import StopFlowCalled
 from .util import FakeDrain, FakeFount
 
+class DrainThatStops(FakeDrain):
+    # TODO: possibly promote to util
+    def receive(self, item):
+        super(DrainThatStops, self).receive(item)
+        self.fount.stopFlow()
+
+class DrainThatPauses(FakeDrain):
+    # TODO: possibly promote to util
+    def receive(self, item):
+        super(DrainThatPauses, self).receive(item)
+        self.fount.pauseFlow()
+
 class IteratorFountTests(SynchronousTestCase):
     """
     Tests for L{twisted.tubes.memory.IteratorFount}.
@@ -49,11 +61,6 @@ class IteratorFountTests(SynchronousTestCase):
         L{IteratorFount.pauseFlow} will pause the delivery of items.
         """
         f = IteratorFount([1, 2, 3])
-        class DrainThatPauses(FakeDrain):
-            def receive(self, item):
-                super(DrainThatPauses, self).receive(item)
-                self.fount.pauseFlow()
-
         fd = DrainThatPauses()
         f.flowTo(fd)
         self.assertEqual(fd.received, [1])
@@ -81,10 +88,6 @@ class IteratorFountTests(SynchronousTestCase):
         call to its drain and ceasing delivery immediately.
         """
         f = IteratorFount([1, 2, 3])
-        class DrainThatStops(FakeDrain):
-            def receive(self, item):
-                super(DrainThatStops, self).receive(item)
-                self.fount.stopFlow()
 
         fd = DrainThatStops()
         f.flowTo(fd)
@@ -119,6 +122,19 @@ class IteratorFountTests(SynchronousTestCase):
         f.stopFlow()
         self.assertEqual(len(fd.stopped), 1)
         self.assertEqual(fd.stopped[0].type, StopIteration)
+
+
+    def test_stopPausedFlow(self):
+        """
+        When L{IteratorFount} is stopped after being paused, the drain will
+        receive a C{flowStopped}.
+        """
+        f = IteratorFount([1, 2])
+        fd = DrainThatPauses()
+        f.flowTo(fd)
+        f.stopFlow()
+        self.assertEqual(fd.received, [1])
+        self.assertEqual(fd.stopped[0].type, StopFlowCalled)
 
 
     def test_provides(self):

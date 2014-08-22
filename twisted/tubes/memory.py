@@ -48,9 +48,9 @@ class IteratorFount(object):
                 self.drain.receive(value)
                 if self._paused:
                     break
-
-            self._stopped = True
-            self.drain.flowStopped(Failure(StopIteration()))
+            else:
+                self._stopped = True
+                self.drain.flowStopped(Failure(StopIteration()))
 
 
     def flowTo(self, drain):
