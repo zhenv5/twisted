@@ -145,9 +145,12 @@ Drain
 
 ::
 
-    INITIAL -flowingFrom()-> FLOWING;
+    INITIAL -flowingFrom()-> FLOWING,
+            -flowingFrom(None)-> INITIAL;
 
     FLOWING -receive()->     FLOWING,
+            -flowingFrom(None)-> INITIAL,
+            -flowingFrom(other)-> FLOWING,
             -flowStopped()-> STOPPED;
 
     STOPPED.
