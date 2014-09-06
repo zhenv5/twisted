@@ -106,9 +106,15 @@ class _DataToStrings(object):
 
     def reassemble(self, datas):
         """
-        convert these outputs into one of my inputs XXX describe better
+        convert these outputs into one of my inputs
+
+        TODO: describe better
         """
         delimiter = self._stringReceiver.delimiter
+        # TODO: we don't clear the buffer here (and requiring that we do so is
+        # just a bug magnet) so Diverter needs to be changed to have only one
+        # input and only one output, and be able to discard the flow in
+        # between.
         return delimiter.join(list(datas) + [self._stringReceiver._buffer])
 
 
