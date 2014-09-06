@@ -34,11 +34,6 @@ can become this:
 
 exactly how to map the name Foo or foo or whatever is left as an exercise for the reader, but defining things with just receive seems to be a thing to do all over the place.
 
-Also subclassing Tube is dumb, it has the danger of becoming the new subclassing Protocol.
-Also when we get new-new-style classes in Python it will be a problem.
-Perhaps the decorator should just be @tube and it can detect whether it was given a class or a function.
-It could also make sure you overrode at least one method, and that you named things right.
-
 We need a QueueFount, something where you construct it with a maximum size, and then can push in a value and have it delivered onwards to its drain, or buffered if it is currently paused.
 "push" is not the same as "receive" because QueueFount's contract should be to raise an exception if too many values are provided before the drain can consume them all, something that ``receive`` should never do because ``receive`` will pause the fount if there's too much traffic.
 Raising an exception like this is a way of applying backpressure to a python program that is producing too much data rather than to a "real" data source.
@@ -85,3 +80,113 @@ Currently the contract around flowStopped / stopFlow and then more calls to flow
 Rather than making flowTo a function, we might also want to make a concrete ``FountHelper`` class that we use for implementing all of our founts, and make the interface that real data sources implement be a lower-level thing that you have to wrap a ``FountHelper`` around.  This would mean that, for example, ``Pauser`` could go away, because the lower-level interface would simply have an ``actuallyPause`` and ``actuallyResume``.  (TBD: should ``FountHelper`` be public?)
 
 Assuming that ``IFount`` doesn't change, that inner interface would consist of ``actuallyPause``, ``actuallyResume``, ``flowedToSomething`` which would be executed only after ``flowTo`` processed a valid new drain (i.e. after possibly calling ``flowingFrom(None)`` and updating the drain attribute and earlying out if the new drain is ``None`` and calling ``flowingFrom`` and afterwards it would propagate the return value of ``flowingFrom).
+
+
+things you have to know (in ``flowingFrom``)
+
+you have to know if you're flowing from no fount
+you have to know if you're flowing to a different fount
+
+in both of those cases you have to flowTo(None) your old fount, so that the old fount knows that it can't deliver data to you any more.
+
+you have to do this _BEFORE_ you unpause it.
+
+you have to know if you're flowing to the same fount
+
+
+what if, instead of re-flowing in order to divert a flow, you got a new fount from an object whose entire job was producing a new fount
+
+flowTo() is now linear, can only be called once.
+
+
+
+STATK MAECHINES
+---------------
+
+With flowTo in FLOWING (current state, sort of, it's not really implemented all
+the way):
+
+
+Fount
+~~~~~
+
+::
+
+    INITIAL -flowTo(None)->    INITIAL,
+            -flowTo()->        FLOWING,
+            -actuallyPause()-> PAUSED_INITIAL,
+            -stopFlow()->      STOPPED;
+
+    PAUSED_INITIAL -actuallyUnpause()-> INITIAL,
+                   -actuallyPause()->   PAUSED_INITIAL,
+                   -stopFlow()->        STOPPED;
+
+    FLOWING -flowTo(other)->   FLOWING,
+            -flowTo(None)->    INITIAL,
+            -actuallyPause()-> PAUSED,
+            -stopFlow()->      STOPPED;
+
+    PAUSED  -flowTo(other)->    FLOWING,
+            -flowTo(None)->     INITIAL,
+
+            ^ note that these are problematic, because you have to re-set the
+            pause state, which means you have to discard previous pause tokens,
+            which we don't currently do
+
+            -actuallyResume()-> FLOWING,
+            -actuallyPause()->  PAUSED,
+            -stopFlow()->       STOPPED;
+
+    STOPPED.
+
+
+Drain
+~~~~~
+
+::
+
+    INITIAL -flowingFrom()-> FLOWING;
+
+    FLOWING -receive()->     FLOWING,
+            -flowStopped()-> STOPPED;
+
+    STOPPED.
+
+
+Without flowTo in FLOWING (desired state):
+
+
+Fount
+~~~~~
+
+::
+
+    INITIAL -flowTo()->        FLOWING,
+            -actuallyPause()-> PAUSED_INITIAL,
+            -stopFlow()->      STOPPED;
+
+    PAUSED_INITIAL -actuallyUnpause()-> INITIAL,
+                   -actuallyPause()->   PAUSED_INITIAL,
+                   -stopFlow()->        STOPPED;
+
+    FLOWING -actuallyPause()-> PAUSED,
+            -stopFlow()->      STOPPED;
+
+    PAUSED  -actuallyResume()-> FLOWING,
+            -actuallyPause()->  PAUSED,
+            -stopFlow()->       STOPPED;
+
+    STOPPED.
+
+
+Drain
+~~~~~
+
+::
+
+    INITIAL -flowingFrom()-> FLOWING;
+
+    FLOWING -receive()->     FLOWING,
+            -flowStopped()-> STOPPED;
+
+    STOPPED.
