@@ -5,13 +5,14 @@
 Tests for L{twisted.tubes.protocol}.
 """
 
-from twisted.tubes.test.util import StringEndpoint
-from twisted.trial.unittest import TestCase
-from twisted.tubes.protocol import factoryFromFlow
-from twisted.tubes.tube import tube, series
+from twisted.trial.unittest import SynchronousTestCase as TestCase
+
 from twisted.python.failure import Failure
-from twisted.tubes.test.util import FakeDrain
-from twisted.tubes.test.util import FakeFount
+
+from ..protocol import factoryFromFlow
+from ..tube import tube, series
+
+from ..test.util import StringEndpoint, FakeDrain, FakeFount
 
 @tube
 class RememberingTube(object):

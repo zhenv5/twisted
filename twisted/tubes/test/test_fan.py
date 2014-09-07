@@ -3,10 +3,10 @@ from zope.interface.verify import verifyObject
 
 from twisted.trial.unittest import SynchronousTestCase
 
-from twisted.tubes.itube import IFount, IDrain
+from ..itube import IFount, IDrain
 
-from twisted.tubes.test.util import FakeFount, FakeDrain
-from twisted.tubes.fan import Out
+from ..test.util import FakeFount, FakeDrain
+from ..fan import Out
 
 
 class FakeIntermediateDrain(FakeDrain):

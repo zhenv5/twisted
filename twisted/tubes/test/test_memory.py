@@ -5,8 +5,8 @@ from zope.interface.verify import verifyObject
 
 from ..memory import IteratorFount
 
-from twisted.tubes.itube import IFount
-from twisted.tubes.itube import StopFlowCalled
+from ..itube import IFount, StopFlowCalled
+
 from .util import FakeDrain, FakeFount
 
 class DrainThatStops(FakeDrain):

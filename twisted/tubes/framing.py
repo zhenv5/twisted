@@ -5,8 +5,8 @@ Tubes that can convert streams of data into discrete chunks and back again.
 
 from zope.interface import implementer
 
-from twisted.tubes.itube import IDivertable
-from twisted.tubes.tube import tube, series, Diverter
+from .itube import IDivertable
+from .tube import tube, series, Diverter
 from twisted.protocols.basic import (
     LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
     Int16StringReceiver, Int32StringReceiver

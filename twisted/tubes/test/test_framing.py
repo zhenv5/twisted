@@ -1,20 +1,16 @@
-
 """
 Tests for framing protocols.
 """
-from twisted.tubes.framing import stringsToNetstrings
 
-from twisted.tubes.test.util import FakeFount
-from twisted.tubes.test.util import FakeDrain
-from twisted.tubes.tube import tube, series
+from unittest import TestCase
 
-from twisted.tubes.framing import netstringsToStrings
-from twisted.tubes.framing import bytesToLines
-from twisted.tubes.framing import linesToBytes
+from ..framing import stringsToNetstrings
 
-from twisted.tubes.framing import packedPrefixToStrings
-from twisted.tubes.framing import stringsToPackedPrefix
-from twisted.trial.unittest import TestCase
+from ..test.util import FakeFount, FakeDrain
+from ..tube import tube, series
+
+from ..framing import (netstringsToStrings, bytesToLines, linesToBytes,
+                       packedPrefixToStrings, stringsToPackedPrefix)
 
 class NetstringTests(TestCase):
     """
