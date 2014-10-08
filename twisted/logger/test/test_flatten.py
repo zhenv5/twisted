@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Test cases for L{twisted.python.logger._format}.
+Test cases for L{twisted.logger._format}.
 """
 
 import sys

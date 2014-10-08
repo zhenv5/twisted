@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Test cases for L{twisted.python.logger._legacy}.
+Test cases for L{twisted.logger._legacy}.
 """
 
 import logging as py_logging

@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test.test_legacy -*-
+# -*- test-case-name: twisted.logger.test.test_legacy -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -31,7 +31,7 @@ class LegacyLogger(object):
 
     This allows existing code to use this module without changes::
 
-        from twisted.python.logger import LegacyLogger
+        from twisted.logger import LegacyLogger
         log = LegacyLogger()
 
         log.msg("blah")
@@ -196,7 +196,7 @@ class LegacyLogObserverWrapper(object):
 def publishToNewObserver(observer, eventDict, textFromEventDict):
     """
     Publish an old-style (L{twisted.python.log}) event to a new-style
-    (L{twisted.python.logger}) observer.
+    (L{twisted.logger}) observer.
 
     @note: It's possible that a new-style event was sent to a
         L{LegacyLogObserverWrapper}, and may now be getting sent back to a

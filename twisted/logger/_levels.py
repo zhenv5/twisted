@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test.test_levels -*-
+# -*- test-case-name: twisted.logger.test.test_levels -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 

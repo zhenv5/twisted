@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test.test_buffer -*-
+# -*- test-case-name: twisted.logger.test.test_buffer -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -22,7 +22,7 @@ class LimitedHistoryLogObserver(object):
     """
     L{ILogObserver} that stores events in a buffer of a fixed size::
 
-        >>> from twisted.python.logger import LimitedHistoryLogObserver
+        >>> from twisted.logger import LimitedHistoryLogObserver
         >>> history = LimitedHistoryLogObserver(5)
         >>> for n in range(10): history({'n': n})
         ...

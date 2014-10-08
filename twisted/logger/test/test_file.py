@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Test cases for L{twisted.python.logger._file}.
+Test cases for L{twisted.logger._file}.
 """
 
 from io import StringIO

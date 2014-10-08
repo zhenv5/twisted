@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test.test_format -*-
+# -*- test-case-name: twisted.logger.test.test_format -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -103,7 +103,7 @@ def formatTime(when, timeFormat=timeFormatRFC3339, default=u"-"):
     Example::
 
         >>> from time import time
-        >>> from twisted.python.logger import formatTime
+        >>> from twisted.logger import formatTime
         >>>
         >>> t = time()
         >>> formatTime(t)
@@ -153,8 +153,8 @@ def formatEventAsClassicLogText(event, formatTime=formatTime):
 
         >>> from __future__ import print_function
         >>> from time import time
-        >>> from twisted.python.logger import formatEventAsClassicLogText
-        >>> from twisted.python.logger import LogLevel
+        >>> from twisted.logger import formatEventAsClassicLogText
+        >>> from twisted.logger import LogLevel
         >>>
         >>> formatEventAsClassicLogText(dict())  # No format, returns None
         >>> formatEventAsClassicLogText(dict(log_format=u"Hello!"))

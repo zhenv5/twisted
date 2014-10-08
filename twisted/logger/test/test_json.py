@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Tests for L{twisted.python.logger._json}.
+Tests for L{twisted.logger._json}.
 """
 
 from io import StringIO

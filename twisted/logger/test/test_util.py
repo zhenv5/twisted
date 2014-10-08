@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Test cases for L{twisted.python.logger._util}.
+Test cases for L{twisted.logger._util}.
 """
 
 from twisted.trial import unittest

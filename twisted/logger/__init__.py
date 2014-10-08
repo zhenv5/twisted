@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test -*-
+# -*- test-case-name: twisted.logger.test -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -7,7 +7,7 @@ Classes and functions to do granular logging.
 
 Example usage in a module C{some.module}::
 
-    from twisted.python.logger import Logger
+    from twisted.logger import Logger
     log = Logger()
 
     def handleData(data):
@@ -15,7 +15,7 @@ Example usage in a module C{some.module}::
 
 Or in a class::
 
-    from twisted.python.logger import Logger
+    from twisted.logger import Logger
 
     class Foo(object):
         log = Logger()

@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test.test_logger -*-
+# -*- test-case-name: twisted.logger.test.test_logger -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -18,7 +18,7 @@ class Logger(object):
     """
     A L{Logger} emits log messages to an observer.  You should instantiate it
     as a class or module attribute, as documented in L{this module's
-    documentation <twisted.python.logger>}.
+    documentation <twisted.logger>}.
     """
 
     @staticmethod

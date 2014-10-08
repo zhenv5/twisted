@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Test cases for L{twisted.python.logger._global}.
+Test cases for L{twisted.logger._global}.
 """
 
 from __future__ import print_function

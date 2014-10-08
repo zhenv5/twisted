@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Test cases for L{twisted.python.logger._filter}.
+Test cases for L{twisted.logger._filter}.
 """
 
 from zope.interface.verify import verifyObject, BrokenMethodImplementation

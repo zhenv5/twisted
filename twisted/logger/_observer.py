@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test.test_observer -*-
+# -*- test-case-name: twisted.logger.test.test_observer -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -49,14 +49,14 @@ class ILogObserver(Interface):
                   the names and format values used in the C{"log_format"}
                   string to their values.  This is used to preserve some
                   structured information for use with
-                  L{twisted.python.logger.extractField}.
+                  L{twisted.logger.extractField}.
 
                 - C{"log_trace"}: A L{list} designed to capture information
                   about which L{LogPublisher}s have observed the event.
 
-                - C{"log_level"}: a L{log level
-                  <twisted.python.logger.LogLevel>} constant, indicating the
-                  importance of and audience for this event.
+                - C{"log_level"}: a L{log level <twisted.logger.LogLevel>}
+                  constant, indicating the importance of and audience for this
+                  event.
 
                 - C{"log_namespace"}: a namespace for the emitter of the event,
                   given as a unicode string.

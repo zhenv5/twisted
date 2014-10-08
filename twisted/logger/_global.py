@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.python.logger.test.test_global -*-
+# -*- test-case-name: twisted.logger.test.test_global -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -42,8 +42,7 @@ class LogBeginner(object):
     Applications will not typically need to instantiate this class, except
     those which intend to initialize the global logging system themselves,
     which may wish to instantiate this for testing.  The global instance for
-    the current process is exposed as
-    L{twisted.python.logger.globalLogBeginner}.
+    the current process is exposed as L{twisted.logger.globalLogBeginner}.
 
     Before logging has begun, a L{LogBeginner} will:
 

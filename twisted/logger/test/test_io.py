@@ -2,7 +2,7 @@
 # See LICENSE for details.
 
 """
-Test cases for L{twisted.python.logger._io}.
+Test cases for L{twisted.logger._io}.
 """
 
 from __future__ import print_function
@@ -112,7 +112,7 @@ class LoggingFileTests(unittest.TestCase):
         f = LoggingFile(self.logger)
         self.assertEquals(
             f.name,
-            "<LoggingFile twisted.python.logger.test.test_io#info>"
+            "<LoggingFile twisted.logger.test.test_io#info>"
         )
 
 
