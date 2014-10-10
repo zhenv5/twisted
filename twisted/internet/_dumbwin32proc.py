@@ -51,7 +51,8 @@ class _Reaper(_pollingfile._PollableResource):
         # Last ditch attempt before things go dark...
         for p in [self.proc.stdin, self.proc.stdout, self.proc.stderr]:
             try:
-                p.checkWork()
+                if p.active:
+                    p.checkWork()
             except:
                 err()
 
