@@ -334,7 +334,8 @@ class SignalProtocol(protocol.ProcessProtocol):
 
 
 class TestManyProcessProtocol(TestProcessProtocol):
-    def __init__(self):
+    def __init__(self, i="many"):
+        TestProcessProtocol.__init__(self, i)
         self.deferred = defer.Deferred()
 
     def processEnded(self, reason):
