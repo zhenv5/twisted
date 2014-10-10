@@ -122,7 +122,10 @@ class _PollableReadPipe(_PollableResource):
                 buffer, bytesToRead, result = win32pipe.PeekNamedPipe(self.pipe, 1)
                 # finished = (result == -1)
                 if not bytesToRead:
+                    print("NO BYTES TO READ, BUT", buffer, result)
                     break
+                else:
+                    print("BYTES TO READ:", buffer, bytesToRead, result)
                 hr, data = win32file.ReadFile(self.pipe, bytesToRead, None)
                 fullDataRead.append(data)
             except win32api.error:
