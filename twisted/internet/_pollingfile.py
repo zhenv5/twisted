@@ -7,6 +7,7 @@ Implements a simple polling interface for file descriptors that don't work with
 select() - this is pretty much only useful on Windows.
 """
 
+from __future__ import print_function
 from zope.interface import implements
 
 from twisted.internet.interfaces import IConsumer, IPushProducer
@@ -102,6 +103,11 @@ import win32pipe
 import win32file
 import win32api
 import pywintypes
+import sys
+
+def dbg(*x):
+    print(*x)
+    sys.stdout.flush()
 
 class _PollableReadPipe(_PollableResource):
 
@@ -123,13 +129,11 @@ class _PollableReadPipe(_PollableResource):
                 # finished = (result == -1)
                 if not bytesToRead:
                     if buffer or result:
-                        print("NO BYTES TO READ, BUT", buffer, result)
+                        dbg("NO BYTES TO READ, BUT", repr(buffer), result)
                     break
-                else:
-                    print("BYTES TO READ:", buffer, bytesToRead, result)
                 hr, data = win32file.ReadFile(self.pipe, bytesToRead, None)
                 if len(data) != bytesToRead:
-                    print("SHORT READ?", hr, bytesToRead, data)
+                    dbg("SHORT READ?", hr, bytesToRead, data)
                 fullDataRead.append(data)
             except win32api.error:
                 finished = 1

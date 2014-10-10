@@ -173,6 +173,9 @@ class TrivialProcessProtocol(protocol.ProcessProtocol):
 
 class TestProcessProtocol(protocol.ProcessProtocol):
 
+    def __init__(self, i="none"):
+        self.i = i
+
     def connectionMade(self):
         self.stages = [1]
         self.data = ''
@@ -201,13 +204,15 @@ class TestProcessProtocol(protocol.ProcessProtocol):
             self.stages.append(2)
             if self.data != "abcd":
                 raise RuntimeError(
-                    "Data was %r instead of 'abcd'" % (self.data,))
+                    "Data for %r was %r instead of 'abcd'" %
+                    (self.i, self.data,))
             self.transport.write("1234")
         elif childFD == 2:
             self.stages.append(3)
             if self.err != "1234":
                 raise RuntimeError(
-                    "Err was %r instead of '1234'" % (self.err,))
+                    "Err for %r was %r instead of '1234'" %
+                    (self.i, self.err,))
             self.transport.write("abcd")
             self.stages.append(4)
         elif childFD == 0:
@@ -568,7 +573,7 @@ class ProcessTestCase(unittest.TestCase):
         deferreds = []
 
         for i in xrange(50):
-            p = TestManyProcessProtocol()
+            p = TestManyProcessProtocol(i)
             protocols.append(p)
             reactor.spawnProcess(p, exe, args, env=None)
             deferreds.append(p.deferred)
