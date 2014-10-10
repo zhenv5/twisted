@@ -27,6 +27,7 @@ from zope.interface import implements
 from twisted.internet.interfaces import IProcessTransport, IConsumer, IProducer
 
 from twisted.python.win32 import quoteArguments
+from twisted.python.log import err
 
 from twisted.internet import error
 
@@ -48,9 +49,11 @@ class _Reaper(_pollingfile._PollableResource):
             return 0
 
         # Last ditch attempt before things go dark...
-        self.proc.stdin.checkWork()
-        self.proc.stdout.checkWork()
-        self.proc.stderr.checkWork()
+        for p in [self.proc.stdin, self.proc.stdout, self.proc.stderr]:
+            try:
+                p.checkWork()
+            except:
+                err()
 
         exitCode = win32process.GetExitCodeProcess(self.proc.hProcess)
         self.deactivate()
