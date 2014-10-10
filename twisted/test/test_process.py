@@ -794,18 +794,21 @@ class TestTwoProcessesBase:
             self.processes[num] = p
 
     def close(self, num):
-        if self.verbose: print "closing stdin [%d]" % num
+        if self.verbose:
+            print("closing stdin [%d]" % num)
         p = self.processes[num]
         pp = self.pp[num]
         self.failIf(pp.finished, "Process finished too early")
         p.loseConnection()
-        if self.verbose: print self.pp[0].finished, self.pp[1].finished
+        if self.verbose:
+            print(self.pp[0].finished, self.pp[1].finished)
 
     def _onClose(self):
         return defer.gatherResults([ p.deferred for p in self.pp ])
 
     def testClose(self):
-        if self.verbose: print "starting processes"
+        if self.verbose:
+            print("starting processes")
         self.createProcesses()
         reactor.callLater(1, self.close, 0)
         reactor.callLater(2, self.close, 1)
@@ -827,29 +830,34 @@ class TestTwoProcessesPosix(TestTwoProcessesBase, unittest.TestCase):
         return self._onClose()
 
     def kill(self, num):
-        if self.verbose: print "kill [%d] with SIGTERM" % num
+        if self.verbose:
+            print("kill [%d] with SIGTERM" % num)
         p = self.processes[num]
         pp = self.pp[num]
         self.failIf(pp.finished, "Process finished too early")
         os.kill(p.pid, signal.SIGTERM)
-        if self.verbose: print self.pp[0].finished, self.pp[1].finished
+        if self.verbose:
+            print(self.pp[0].finished, self.pp[1].finished)
 
     def testKill(self):
-        if self.verbose: print "starting processes"
+        if self.verbose:
+            print("starting processes")
         self.createProcesses(usePTY=0)
         reactor.callLater(1, self.kill, 0)
         reactor.callLater(2, self.kill, 1)
         return self._onClose()
 
     def testClosePty(self):
-        if self.verbose: print "starting processes"
+        if self.verbose:
+            print("starting processes")
         self.createProcesses(usePTY=1)
         reactor.callLater(1, self.close, 0)
         reactor.callLater(2, self.close, 1)
         return self._onClose()
 
     def testKillPty(self):
-        if self.verbose: print "starting processes"
+        if self.verbose:
+            print("starting processes")
         self.createProcesses(usePTY=1)
         reactor.callLater(1, self.kill, 0)
         reactor.callLater(2, self.kill, 1)
