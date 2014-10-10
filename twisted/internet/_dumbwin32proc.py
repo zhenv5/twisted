@@ -366,11 +366,15 @@ class Process(_pollingfile._PollingTimer, BaseProcess):
 
     def maybeCallProcessEnded(self):
         if self.closedNotifies == 3 and self.lostProcess:
+            print("calling process ended...")
             win32file.CloseHandle(self.hProcess)
             win32file.CloseHandle(self.hThread)
             self.hProcess = None
             self.hThread = None
             BaseProcess.maybeCallProcessEnded(self)
+        else:
+            print("closedNotifies", self.closedNotifies,
+                  "lostProcess", self.lostProcess)
 
 
     # IConsumer
