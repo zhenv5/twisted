@@ -46,6 +46,12 @@ class _Reaper(_pollingfile._PollableResource):
     def checkWork(self):
         if win32event.WaitForSingleObject(self.proc.hProcess, 0) != win32event.WAIT_OBJECT_0:
             return 0
+
+        # Last ditch attempt before things go dark...
+        self.proc.stdin.checkWork()
+        self.proc.stdout.checkWork()
+        self.proc.stderr.checkWork()
+
         exitCode = win32process.GetExitCodeProcess(self.proc.hProcess)
         self.deactivate()
         self.proc.processEnded(exitCode)
