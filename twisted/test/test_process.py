@@ -5,6 +5,8 @@
 Test running processes.
 """
 
+from __future__ import print_function
+
 import gzip
 import os
 import sys
@@ -339,6 +341,8 @@ class TestManyProcessProtocol(TestProcessProtocol):
         self.deferred = defer.Deferred()
 
     def processEnded(self, reason):
+        print("terminated", self.i)
+        sys.stdout.flush()
         self.reason = reason
         if reason.check(error.ProcessDone):
             self.deferred.callback(None)
