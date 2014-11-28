@@ -11,15 +11,17 @@ from zope.interface.verify import verifyClass
 
 from twisted.test.proto_helpers import StringTransport
 from twisted.internet.defer import succeed
+from twisted.internet.interfaces import IStreamClientEndpoint
 
 from ..itube import IDrain, IFount, IDivertable
 from ..tube import tube
 from ..pauser import Pauser
 
 
+@implementer(IStreamClientEndpoint)
 class StringEndpoint(object):
     """
-    An endpoint which connects to a L{StringTransport}
+    A client endpoint which connects to a L{StringTransport}.
     """
     def __init__(self):
         """
@@ -32,6 +34,10 @@ class StringEndpoint(object):
         """
         Connect the given L{IProtocolFactory} to a L{StringTransport} and
         return a fired L{Deferred}.
+
+        @param factory: see L{IStreamClientEndpoint}
+
+        @return: see L{IStreamClientEndpoint}
         """
         protocol = factory.buildProtocol(None)
         transport = StringTransport()
@@ -43,21 +49,30 @@ class StringEndpoint(object):
 
 
 class IFakeOutput(Interface):
-    ""
+    """
+    A sample interface to be used as an output marker for a fount.
+    """
 
 
 
 class IFakeInput(Interface):
-    ""
+    """
+    A sample interface to be used as an input marker for a drain.
+    """
 
 
 
+@implementer(IDrain)
 class FakeDrain(object):
     """
     Implements a fake IDrain for testing.
-    """
 
-    implements(IDrain)
+    @ivar received: All items that have thus far been received.
+    @type received: L{list}
+
+    @ivar stopped: All reasons that C{flowStopped} has been called with.
+    @type stopped: L{list}
+    """
 
     inputType = IFakeInput
 
@@ -66,14 +81,23 @@ class FakeDrain(object):
     def __init__(self):
         self.received = []
         self.stopped = []
-        self.progressed = []
 
 
     def flowingFrom(self, fount):
+        """
+        Set the C{fount} attribute.
+
+        @param fount: see L{IDrain}
+        """
         self.fount = fount
 
 
     def receive(self, item):
+        """
+        Append an item to L{FakeDrain.received}.
+
+        @param item: see L{IDrain}
+        """
         if self.fount is None:
             raise RuntimeError(
                 "Invalid state: can't call receive on a drain "
@@ -82,6 +106,11 @@ class FakeDrain(object):
 
 
     def flowStopped(self, reason):
+        """
+        The flow was stopped, record C{reason} in L{FakeDrain.stopped}.
+
+        @param reason: see L{IDrain}
+        """
         self.stopped.append(reason)
 
 
@@ -89,38 +118,52 @@ verifyClass(IDrain, FakeDrain)
 
 
 
+@implementer(IFount)
 class FakeFount(object):
     """
     Fake fount implementation for testing.
     """
-    implements(IFount)
 
     outputType = IFakeOutput
 
     flowIsPaused = 0
     flowIsStopped = False
     def __init__(self):
+        def _actuallyPause():
+            self.flowIsPaused += 1
+        def _actuallyResume():
+            self.flowIsPaused -= 1
+
         self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
 
 
     def flowTo(self, drain):
+        """
+        Record C{self.drain} and return its L{IDrain.flowingFrom} result.
+
+        @param drain: see L{IFount}
+
+        @return: see L{IFount}
+        """
         self.drain = drain
         return self.drain.flowingFrom(self)
 
 
     def pauseFlow(self):
+        """
+        Record C{self.drain} and return its L{IDrain.flowingFrom} result.
+
+        @param drain: see L{IFount}
+
+        @return: see L{IFount}
+        """
         return self._pauser.pause()
 
 
-    def _actuallyPause(self):
-        self.flowIsPaused += 1
-
-
-    def _actuallyResume(self):
-        self.flowIsPaused -= 1
-
-
     def stopFlow(self):
+        """
+        Record that the flow was stopped by setting C{flowIsStopped}.
+        """
         self.flowIsStopped = True
 
 verifyClass(IFount, FakeFount)
@@ -143,6 +186,8 @@ class TesterTube(object):
     def received(self, item):
         """
         Recieved an item, remember it.
+
+        @param item: see L{ITube}
         """
         self.allReceivedItems.append(item)
 
