@@ -285,7 +285,7 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
 
         pendingPending = self._divertable.reassemble(unpending) or []
         upstream = self._friendSiphon._tdrain.fount
-        f = _FakestFount()
+        nullFount = _NullFount()
         dt = series(_DrainingTube(pendingPending, upstream, drain))
-        again = f.flowTo(dt)
+        again = nullFount.flowTo(dt)
         again.flowTo(drain)
