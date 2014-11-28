@@ -6,7 +6,7 @@
 Utilities for testing L{twisted.tubes}.
 """
 
-from zope.interface import Interface, implements, implementer
+from zope.interface import Interface, implementer
 from zope.interface.verify import verifyClass
 
 from twisted.test.proto_helpers import StringTransport
@@ -199,3 +199,95 @@ class JustProvidesSwitchable(TesterTube):
     A L{TesterTube} that just provides L{IDivertable} for tests that want
     to assert about interfaces (no implementation actually provided).
     """
+
+
+@tube
+@implementer(IDivertable)
+class ReprTube(object):
+    """
+    A L{tube} with a deterministic C{repr} for testing.
+    """
+    def __repr__(self):
+        return '<Tube for Testing>'
+
+
+
+@implementer(IDivertable)
+@tube
+class PassthruTube(object):
+    """
+    A L{tube} which yields all of its input.
+    """
+    def received(self, data):
+        """
+        Produce all inputs as outputs.
+
+        @param data: see L{IDivertable}
+        """
+        yield data
+
+
+    def reassemble(self, data):
+        """
+        Reassemble any buffered outputs as inputs by simply returning them;
+        valid since this tube takes the same input and output.
+
+        @param data: see L{IDivertable}
+
+        @return: C{data}
+        """
+        return data
+
+
+
+class FakeFountWithBuffer(FakeFount):
+    """
+    Probably this should be replaced with a C{MemoryFount}.
+    """
+    def __init__(self):
+        super(FakeFountWithBuffer, self).__init__()
+        self.buffer = []
+
+
+    def bufferUp(self, item):
+        """
+        Buffer items for delivery on the next resume or flowTo.
+
+        @param item: see L{IFount}
+        """
+        self.buffer.append(item)
+
+
+    def flowTo(self, drain):
+        """
+        Flush buffered items to the given drain as long as we're not paused.
+        """
+        result = super(FakeFountWithBuffer, self).flowTo(drain)
+        self._go()
+        return result
+
+
+    def _actuallyResume(self):
+        """
+        Resume and unbuffer any items as long as we're not paused.
+        """
+        super(FakeFountWithBuffer, self)._actuallyResume()
+        self._go()
+
+
+    def _go(self):
+        """
+        Unbuffer any items as long as we're not paused.
+        """
+        while not self.flowIsPaused and self.buffer:
+            item = self.buffer.pop(0)
+            self.drain.receive(item)
+
+
+
+@tube
+class NullTube(object):
+    ""
+
+
+
