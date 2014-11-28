@@ -1,5 +1,5 @@
 # -*- test-case-name: twisted.tubes.test.test_tube -*-
-# -*- test-case-name: twisted.tubes.test.test_tube.SeriesTest.test_diverterInYourDiverterSoYouCanDivertWhileYouDivert -*-
+# -*- test-case-name: twisted.tubes.test.test_tube -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -70,16 +70,26 @@ def tube(cls):
     def started(self):
         """
         A null implementation of started.
+
+        @param self: An instance of the C{tube} being defined.
         """
 
     def stopped(self, reason):
         """
         A null implementation of stopped.
+
+        @param self: An instance of the C{tube} being defined.
+
+        @param reason: see L{ITube}
         """
 
     def received(self, item):
         """
-        A null implementation of received
+        A null implementation of received.
+
+        @param self: An instance of the C{tube} being defined.
+
+        @param item: see L{ITube}
         """
 
     fillers = [('started', started),
@@ -153,7 +163,20 @@ class _DrainingTube(object):
 
     def __init__(self, items, eventualUpstream, eventualDownstream):
         """
-        
+        Create a L{_DrainingTube} with some C{items} to drain, a L{drain
+        <IDrain>} to drain them to, and a L{fount <IFount>} to flow to that
+        C{drain} once the items are flowed.
+
+        @param items: An iterable of items to drain.
+        @type items: iterable
+
+        @param eventualUpstream: a L{fount <IFount>} which should flow to
+            C{eventualDownstream} once the last item in C{items} has been
+            passed on.
+
+        @param eventualDownstream: a L{drain <IDrain>} which should receive
+            each item in C{items} and then accept the flow from
+            C{eventualUpstream}.
         """
         self._items = list(items)
         self._eventualUpstream = eventualUpstream
@@ -162,14 +185,15 @@ class _DrainingTube(object):
 
     def __repr__(self):
         """
-        
+        Display the remaining items to be drained.
         """
         return ("<Draining Tube {}>".format(repr(self._items)))
 
 
     def started(self):
         """
-        
+        Yield each item from the C{items} passed to the constructor, then
+        switch flow to C{_eventualUpstream}.
         """
         while self._items:
             item = self._items.pop(0)
@@ -179,34 +203,60 @@ class _DrainingTube(object):
 
 
 @implementer(IFount)
-class _FakestFount(object):
+class _NullFount(object):
+    """
+    An I{almost} no-op implementation of fount which does nothing but update
+    its C{drain} to point at itself.
+    """
+
     outputType = None
     drain = None
 
     def flowTo(self, drain):
+        """
+        Update the C{drain} attribute of this L{_NullFount} and call
+        C{flowingFrom} on the given C{drain}.
+
+        @param drain: see L{IFount}
+
+        @return: see L{IFount}
+        """
         self.drain = drain
         return drain.flowingFrom(self)
 
 
     def pauseFlow(self):
+        """
+        Return an L{IPause} which does nothing, and then does nothing when
+        resumed.
+
+        @return: see L{IFount}
+        """
         return _PlaceholderPause()
 
 
     def stopFlow(self):
-        pass
+        """
+        Do nothing.
+        """
 
 
 
 class Diverter(proxyForInterface(IDrain, "_drain")):
     """
-    
+    A L{Diverter} is a L{drain <IDrain>} which maintains a buffer of items not
+    yet received by its L{IDivertable} down-stream drain.
     """
 
     def __init__(self, divertable):
         """
-        
+        Create a L{Diverter}.
+
+        @param divertable: Divert a divertable.
+        @type divertable: L{IDivertable} provider
         """
-        assert IDivertable.providedBy(divertable)
+        if not IDivertable.providedBy(divertable):
+            raise TypeError("Diverter can only wrap IDivertable providers.")
         self._divertable = divertable
         self._friendSiphon = _Siphon(divertable)
         self._drain = self._friendSiphon._tdrain
@@ -222,9 +272,14 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
 
     def divert(self, drain):
         """
-        Divert the flow from the fount which is flowing into this siphon's
-        drain to the given drain, reassembling any buffered output from this
-        siphon's tube first.
+        Divert the flow from the fount which is flowing I{into this diverter}
+        to instead flow into I{the given drain}, reassembling any buffered
+        output from this siphon's tube first.
+
+        @param drain: The L{drain <IDrain>} to divert the flow I{to}.
+        @type drain: L{IDrain}
+
+        @return: L{None}
         """
         unpending = self._friendSiphon._pendingIterator
 
