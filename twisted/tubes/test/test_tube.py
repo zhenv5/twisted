@@ -1,3 +1,4 @@
+# -*- test-case-name: twisted.tube.test.test_tube -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -34,17 +35,36 @@ from ..test.util import (TesterTube, FakeFount, FakeDrain, IFakeInput,
 @tube
 @implementer(IDivertable)
 class ReprTube(object):
+    """
+    A L{tube} with a deterministic C{repr} for testing.
+    """
     def __repr__(self):
         return '<Tube for Testing>'
+
 
 
 @implementer(IDivertable)
 @tube
 class PassthruTube(object):
+    """
+    A L{tube} which yields all of its input.
+    """
     def received(self, data):
+        """
+        Produce all inputs as outputs.
+
+        @param data: see L{IDivertable}
+        """
         yield data
 
+
     def reassemble(self, data):
+        """
+        Reassemble any buffered outputs as inputs by simply returning them;
+        valid since this tube takes the same input and output.
+
+        @param data: see L{IDivertable}
+        """
         return data
 
 
@@ -59,21 +79,33 @@ class FakeFountWithBuffer(FakeFount):
 
 
     def bufferUp(self, item):
+        """
+        Buffer items for delivery on the next resume or flowTo.
+        """
         self.buffer.append(item)
 
 
     def flowTo(self, drain):
+        """
+        Flush buffered items to the given drain as long as we're not paused.
+        """
         result = super(FakeFountWithBuffer, self).flowTo(drain)
         self._go()
         return result
 
 
     def _actuallyResume(self):
+        """
+        Resume and unbuffer any items as long as we're not paused.
+        """
         super(FakeFountWithBuffer, self)._actuallyResume()
         self._go()
 
 
     def _go(self):
+        """
+        Unbuffer any items as long as we're not paused.
+        """
         while not self.flowIsPaused and self.buffer:
             item = self.buffer.pop(0)
             self.drain.receive(item)
@@ -418,7 +450,7 @@ class SeriesTest(TestCase):
 
         fakeDrain = self.fd
         destinationTube = PassthruTube()
-        # reassemble should not be called, so don't implement it
+        # `reassemble` should not be called, so don't implement it
         directlyProvides(destinationTube, IDivertable)
         diverter = Diverter(PassthruTube())
 
@@ -449,7 +481,7 @@ class SeriesTest(TestCase):
         self.assertEqual(ff.flowIsPaused, False)
         newFount = ff.flowTo(newDrain)
         self.assertEqual(ff.flowIsPaused, True)
-        # "something" should have been un-buffered at this point.
+        # `something` should have been un-buffered at this point.
         self.assertEqual(ff.buffer, ["else"])
         newFount.flowTo(self.fd)
         self.assertEqual(ff.buffer, [])
@@ -488,7 +520,7 @@ class SeriesTest(TestCase):
 
         fakeDrain = self.fd
         destinationTube = PassthruTube()
-        # reassemble should not be called, so don't implement it
+        # `reassemble` should not be called, so don't implement it
         directlyProvides(destinationTube, IDivertable)
 
         diverter = Diverter(destinationTube)
@@ -813,6 +845,7 @@ class SeriesTest(TestCase):
         self.assertEqual(repr(_Siphon(tube)),
                          '<_Siphon for <Tube for Testing>>')
 
+
     def test_diverterRepr(self):
         """
         repr for L{Diverter} includes a reference to its tube.
@@ -921,6 +954,7 @@ class Reminders(TestCase):
         self.assertEquals(ff.flowIsStopped, True)
 
 
+
 class Todo(TestCase):
     todo = "not just yet"
 
@@ -966,7 +1000,7 @@ class Todo(TestCase):
 
     def test_reassembleRaises(self):
         """
-        
+        If L{IDivertable.reassemble} raises an exception, then...
         """
         self.fail()
 
