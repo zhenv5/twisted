@@ -32,6 +32,7 @@ class LinesToNumbersOrOperators(object):
             elif line == '*':
                 yield mul
 
+@tube
 class CalculatingTube(object):
     def __init__(self, calculator):
         self.calculator = calculator
