@@ -134,7 +134,7 @@ class FakeFount(object):
         def _actuallyResume():
             self.flowIsPaused -= 1
 
-        self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
+        self._pauser = Pauser(_actuallyPause, _actuallyResume)
 
 
     def flowTo(self, drain):
