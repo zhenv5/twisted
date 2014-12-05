@@ -1,3 +1,7 @@
+# -*- test-case-name: twisted.tube.test.test_pauser -*-
+# Copyright (c) Twisted Matrix Laboratories.
+# See LICENSE for details.
+
 """
 Tests for L{twisted.tubes.pauser}.
 """
