@@ -1,3 +1,4 @@
+# -*- test-case-name: twisted.tube.test.test_protocol -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
