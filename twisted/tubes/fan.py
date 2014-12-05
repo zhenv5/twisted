@@ -21,21 +21,30 @@ class _InDrain(object):
         
         """
         self._in = fanIn
+        self._pauseBecausePauseCalled = None
+        self._pauseBecauseNoDrain = None
 
 
     def flowingFrom(self, fount):
         """
         
         """
+        if self._pauseBecauseNoDrain is not None:
+            self._pauseBecauseNoDrain.unpause()
+            self._pauseBecauseNoDrain = None
         self.fount = fount
-        return self._in.fount.drain.flowingFrom(fount)
 
 
     def receive(self, item):
         """
         
         """
-        return self._in.fount.drain.receive(item)
+        drain = self._in.fount.drain
+        if drain is not None:
+            return drain.receive(item)
+        else:
+            self._pauseBecauseNoDrain = self.fount.pauseFlow()
+            return 1.0
 
 
     def flowStopped(self, reason):
@@ -67,8 +76,8 @@ class _InFount(object):
         """
         
         """
-        self._in._drain = drain
-        return None
+        self.drain = drain
+        return drain.flowingFrom(self)
 
 
     def pauseFlow(self):
@@ -88,11 +97,13 @@ class _AggregatePause(object):
     """
     
     """
+
     def __init__(self, subPauses):
         """
         
         """
         self._subPauses = subPauses
+
 
     def unpause(self):
         """
@@ -100,6 +111,7 @@ class _AggregatePause(object):
         """
         for subPause in self._subPauses:
             subPause.unpause()
+
 
 
 class In(object):
@@ -155,7 +167,8 @@ class _OutFount(object):
         
         """
         self.drain = drain
-        return drain.flowingFrom(self)
+        nextFount = drain.flowingFrom(self)
+        return nextFount
 
 
     def pauseFlow(self):
@@ -186,6 +199,9 @@ class _OutDrain(object):
         
         """
         self._founts = founts
+        self._paused = None
+        self._pauser = Pauser(self._actuallyPause,
+                              self._actuallyResume)
 
 
     def flowingFrom(self, fount):
@@ -208,6 +224,8 @@ class _OutDrain(object):
         """
         
         """
+        if self._paused is not None:
+            raise NotImplementedError()
         self._paused = self.fount.pauseFlow()
 
 
@@ -216,6 +234,7 @@ class _OutDrain(object):
         
         """
         self._paused.unpause()
+        self._paused = None
 
 
     def flowStopped(self, reason):
@@ -239,8 +258,6 @@ class Out(object):
         """
         self._founts = []
         self._drain = _OutDrain(self._founts)
-        self._pauser = Pauser(self._drain._actuallyPause,
-                              self._drain._actuallyResume)
 
 
     @property
@@ -255,7 +272,7 @@ class Out(object):
         """
         
         """
-        f = _OutFount(self._pauser, self._founts.remove)
+        f = _OutFount(self._drain._pauser, self._founts.remove)
         self._founts.append(f)
         return f
 
@@ -282,5 +299,8 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
         """
         super(Thru, self).flowingFrom(fount)
         for drain in self._drains:
-            self._out.newFount().flowTo(drain).flowTo(self._in.newDrain())
+            newFount = self._out.newFount()
+            nextFount = newFount.flowTo(drain)
+            if nextFount is not None:
+                nextFount.flowTo(self._in.newDrain())
         return self._in.fount

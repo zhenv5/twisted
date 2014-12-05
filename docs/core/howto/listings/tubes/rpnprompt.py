@@ -65,26 +65,24 @@ def calculatorSeries():
     from twisted.tubes.tube import series
     from twisted.tubes.framing import bytesToLines, linesToBytes
 
-    return series(
-        bytesToLines(),
-        Thru([
+    thru = Thru([
             series(LinesToNumbersOrOperators(),
                    CalculatingTube(Calculator()),
                    NumbersToLines()),
             series(Prompter())
-        ]),
-        linesToBytes()
-    )
+    ])
+    full = series(bytesToLines(), thru, linesToBytes())
+    return full
 
 def mathFlow(fount, drain):
     processor = calculatorSeries()
-    nextDrain = fount.flowTo(processor)
-    nextDrain.flowTo(drain)
+    nextFount = fount.flowTo(processor)
+    nextFount.flowTo(drain)
 
 def main(reactor, port="stdio:"):
-    import sys
-    from twisted.python.log import startLogging
-    startLogging(sys.stdout)
+    # import sys
+    # from twisted.python.log import startLogging
+    # startLogging(sys.stdout)
     endpoint = serverFromString(reactor, port)
     endpoint.listen(factoryFromFlow(mathFlow))
     return Deferred()
