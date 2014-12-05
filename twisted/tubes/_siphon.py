@@ -1,4 +1,6 @@
 # -*- test-case-name: twisted.tubes.test.test_tube -*-
+# Copyright (c) Twisted Matrix Laboratories.
+# See LICENSE for details.
 
 """
 Adapters for converting L{ITube} to L{IDrain} and L{IFount}.
@@ -27,6 +29,12 @@ class _SiphonPiece(object):
 
     @property
     def _tube(self):
+        """
+        Expose the siphon's C{_tube} directly since many things will want to
+        manipulate it.
+
+        @return: L{ITube}
+        """
         return self._siphon._tube
 
 
@@ -48,7 +56,30 @@ class _SiphonFount(_SiphonPiece):
 
     def __init__(self, siphon):
         super(_SiphonFount, self).__init__(siphon)
-        self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
+
+        def _actuallyPause():
+            fount = self._siphon._tdrain.fount
+            self._siphon._currentlyPaused = True
+            if fount is None:
+                return
+            if self._siphon._pauseBecausePauseCalled is None:
+                self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
+
+        def _actuallyResume():
+            self._siphon._currentlyPaused = False
+
+            self._siphon._unbufferIterator()
+            if self._siphon._currentlyPaused:
+                return
+
+            if self._siphon._pauseBecausePauseCalled:
+                # TODO: validate that the siphon's fount is always set
+                # consisetntly with _pauseBecausePauseCalled.
+                fp = self._siphon._pauseBecausePauseCalled
+                self._siphon._pauseBecausePauseCalled = None
+                fp.unpause()
+
+        self._pauser = Pauser(_actuallyPause, _actuallyResume)
 
 
     def __repr__(self):
@@ -60,12 +91,22 @@ class _SiphonFount(_SiphonPiece):
 
     @property
     def outputType(self):
+        """
+        Relay the C{outputType} declared by the tube.
+
+        @return: see L{IFount.outputType}
+        """
         return self._tube.outputType
 
 
     def flowTo(self, drain):
         """
         Flow data from this L{_Siphon} to the given drain.
+
+        @param drain: see L{IFount.flowTo}
+
+        @return: an L{IFount} that emits items of the output-type of this
+            siphon's tube.
         """
         if self.drain:
             # FIXME: direct test for this.  The behavior here ought to be that
@@ -90,35 +131,12 @@ class _SiphonFount(_SiphonPiece):
 
     def pauseFlow(self):
         """
-        Pause the flow from the fount, or remember to do that when the
-        fount is attached, if it isn't yet.
+        Pause the flow from the fount, or remember to do that when the fount is
+        attached, if it isn't yet.
+
+        @return: L{IPause}
         """
         return self._pauser.pause()
-
-
-    def _actuallyPause(self):
-        fount = self._siphon._tdrain.fount
-        self._siphon._currentlyPaused = True
-        if fount is not None and self._siphon._pauseBecausePauseCalled is None:
-            self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
-
-
-    def _actuallyResume(self):
-        """
-        Resume the flow from the fount to this L{_Siphon}.
-        """
-        self._siphon._currentlyPaused = False
-
-        self._siphon._unbufferIterator()
-        if self._siphon._currentlyPaused:
-            return
-
-        if self._siphon._pauseBecausePauseCalled:
-            # TODO: validate that the siphon's fount is always set consisetntly
-            # with _pauseBecausePauseCalled.
-            fp = self._siphon._pauseBecausePauseCalled
-            self._siphon._pauseBecausePauseCalled = None
-            fp.unpause()
 
 
     def stopFlow(self):
@@ -135,6 +153,9 @@ class _SiphonFount(_SiphonPiece):
 
 @implementer(IPause)
 class _PlaceholderPause(object):
+    """
+    L{IPause} provider that does nothing.
+    """
 
     def unpause(self):
         """
@@ -159,18 +180,27 @@ class _SiphonDrain(_SiphonPiece):
 
     @property
     def inputType(self):
+        """
+        Relay the tube's declared inputType.
+
+        @return: see L{IDrain.inputType}
+        """
         return self._tube.inputType
 
 
     def flowingFrom(self, fount):
         """
-        This siphon will now have 'receive' called.
+        This siphon will now have 'receive' called on it by the given fount.
+
+        @param fount: see L{IDrain.flowingFrom}
+
+        @return: see L{IDrain.flowingFrom}
         """
         if fount is not None:
-            out = fount.outputType
-            in_ = self.inputType
-            if out is not None and in_ is not None:
-                if not in_.isOrExtends(out):
+            outType = fount.outputType
+            inType = self.inputType
+            if outType is not None and inType is not None:
+                if not inType.isOrExtends(outType):
                     raise TypeError()
         self.fount = fount
         if self._siphon._pauseBecausePauseCalled:
@@ -200,6 +230,8 @@ class _SiphonDrain(_SiphonPiece):
     def receive(self, item):
         """
         An item was received.  Pass it on to the tube for processing.
+
+        @param item: an item to deliver to the tube.
         """
         def thingToDeliverFrom():
             return self._tube.received(item)
@@ -209,6 +241,8 @@ class _SiphonDrain(_SiphonPiece):
     def flowStopped(self, reason):
         """
         This siphon has now stopped.
+
+        @param reason: the reason why our fount stopped the flow.
         """
         self._siphon._flowStoppingReason = reason
         self._siphon._deliverFrom(lambda: self._tube.stopped(reason))
@@ -270,6 +304,12 @@ class _Siphon(object):
 
 
     def _deliverFrom(self, deliverySource):
+        """
+        Deliver some items from a callable that will produce an iterator.
+
+        @param deliverySource: a 0-argument callable that will return an
+            iterable.
+        """
         assert self._pendingIterator is None, \
             repr(list(self._pendingIterator)) + " " + \
             repr(deliverySource) + " " + \
@@ -286,7 +326,7 @@ class _Siphon(object):
                 downstream.flowStopped(f)
             return
         if iterableOrNot is None:
-            return 0
+            return
         self._pendingIterator = iter(iterableOrNot)
         if self._tfount.drain is None:
             if self._pauseBecauseNoDrain is None:
@@ -296,12 +336,20 @@ class _Siphon(object):
 
 
     def _unbufferIterator(self):
+        """
+        Un-buffer some items buffered in C{self._pendingIterator} and actually
+        deliver them, as long as we're not paused.
+        """
         if self._unbuffering:
             return
         if self._pendingIterator is None:
             return
         whatever = object()
         self._unbuffering = True
+        def whenUnclogged(result, somePause):
+            pending = self._pendingIterator
+            self._pendingIterator = itertools.chain(iter([result]), pending)
+            somePause.unpause()
         while not self._currentlyPaused:
             value = next(self._pendingIterator, whatever)
             if value is whatever:
@@ -311,13 +359,8 @@ class _Siphon(object):
                 break
             if isinstance(value, Deferred):
                 anPause = self._tfount.pauseFlow()
-
-                def whenUnclogged(result):
-                    pending = self._pendingIterator
-                    self._pendingIterator = itertools.chain(iter([result]),
-                                                            pending)
-                    anPause.unpause()
-                value.addCallback(whenUnclogged).addErrback(log.err, "WHAT")
+                (value.addCallback(whenUnclogged, somePause=anPause)
+                 .addErrback(log.err, "WHAT"))
             else:
                 self._tfount.drain.receive(value)
         self._unbuffering = False
@@ -325,6 +368,14 @@ class _Siphon(object):
 
 
 def _tube2drain(tube):
+    """
+    An adapter that can convert an L{ITube} to an L{IDrain} by wrapping it in a
+    L{_Siphon}.
+
+    @param tube: L{ITube}
+
+    @return: L{IDrain}
+    """
     return _Siphon(tube)._tdrain
 
 
