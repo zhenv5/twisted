@@ -399,9 +399,9 @@ class SeriesTest(TestCase):
         # `something` should have been un-buffered at this point.
         self.assertEqual(ff.buffer, ["else"])
         newFount.flowTo(self.fd)
+        self.assertEqual(self.fd.received, ["something", "else"])
         self.assertEqual(ff.buffer, [])
         self.assertEqual(ff.flowIsPaused, False)
-        self.assertEqual(self.fd.received, ["something", "else"])
 
 
     def test_flowToNoneInitialNoOp(self):

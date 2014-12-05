@@ -129,12 +129,7 @@ class FakeFount(object):
     flowIsPaused = 0
     flowIsStopped = False
     def __init__(self):
-        def _actuallyPause():
-            self.flowIsPaused += 1
-        def _actuallyResume():
-            self.flowIsPaused -= 1
-
-        self._pauser = Pauser(_actuallyPause, _actuallyResume)
+        self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
 
 
     def flowTo(self, drain):
@@ -165,6 +160,25 @@ class FakeFount(object):
         Record that the flow was stopped by setting C{flowIsStopped}.
         """
         self.flowIsStopped = True
+
+
+    def _actuallyPause(self):
+        """
+        Pause the flow (incrementing flowIsPaused).
+
+        @note: this is overridden in subclasses to modify behavior.
+        """
+        self.flowIsPaused += 1
+
+
+    def _actuallyResume(self):
+        """
+        Resume the flow (decrementing flowIsPaused).
+
+        @note: this is overridden in subclasses to modify behavior.
+        """
+        self.flowIsPaused -= 1
+
 
 verifyClass(IFount, FakeFount)
 
