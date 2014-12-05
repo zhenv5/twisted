@@ -201,6 +201,7 @@ class JustProvidesSwitchable(TesterTube):
     """
 
 
+
 @tube
 @implementer(IDivertable)
 class ReprTube(object):
@@ -287,7 +288,9 @@ class FakeFountWithBuffer(FakeFount):
 
 @tube
 class NullTube(object):
-    ""
+    """
+    An L{ITube} that does nothing when inputs are received.
+    """
 
 
 
