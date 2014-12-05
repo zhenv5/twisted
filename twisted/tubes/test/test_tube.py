@@ -28,7 +28,8 @@ from ..tube import tube, series, Diverter
 from .._siphon import _Siphon
 
 from ..test.util import (TesterTube, FakeFount, FakeDrain, IFakeInput,
-                         IFakeOutput, NullTube, PassthruTube)
+                         IFakeOutput, NullTube, PassthruTube, ReprTube,
+                         FakeFountWithBuffer)
 
 
 
