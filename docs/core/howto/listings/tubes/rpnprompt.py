@@ -71,7 +71,7 @@ def calculatorSeries():
             series(LinesToNumbersOrOperators(),
                    CalculatingTube(Calculator()),
                    NumbersToLines()),
-            Prompter()
+            series(Prompter())
         ]),
         linesToBytes()
     )
