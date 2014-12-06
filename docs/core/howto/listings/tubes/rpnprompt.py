@@ -67,10 +67,11 @@ def calculatorSeries():
 
     full = series(bytesToLines(),
                   Thru([
+                      series(Prompter()),
                       series(LinesToNumbersOrOperators(),
                              CalculatingTube(Calculator()),
-                             NumbersToLines()),
-                      series(Prompter())
+                             NumbersToLines(),
+                             ),
                   ]),
                   linesToBytes())
     print("created full", full)

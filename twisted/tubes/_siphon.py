@@ -17,6 +17,8 @@ from ._components import _registryAdapting
 from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred
 
+from twisted.tubes.begin import beginFlowingTo
+from twisted.tubes.begin import beginFlowingFrom
 from twisted.python import log
 
 class _SiphonPiece(object):
@@ -108,19 +110,7 @@ class _SiphonFount(_SiphonPiece):
         @return: an L{IFount} that emits items of the output-type of this
             siphon's tube.
         """
-        if self.drain:
-            # FIXME: direct test for this.  The behavior here ought to be that
-            # when we make it so that our drain is no longer actually our
-            # drain, it stops telling us to pause/stop/etc.  Open question:
-            # what if it had already paused us?  Can we simply discard that
-            # now?  Note that this flowingFrom may re-entrantly call this
-            # flowTo again, which is probably nonsense, but ugh, what should
-            # even happen then...
-            self.drain.flowingFrom(None)
-        self.drain = drain
-        if drain is None:
-            return
-        result = self.drain.flowingFrom(self)
+        result = beginFlowingTo(self, drain)
         if self._siphon._pauseBecauseNoDrain:
             pbnd = self._siphon._pauseBecauseNoDrain
             self._siphon._pauseBecauseNoDrain = None
@@ -196,13 +186,7 @@ class _SiphonDrain(_SiphonPiece):
 
         @return: see L{IDrain.flowingFrom}
         """
-        if fount is not None:
-            outType = fount.outputType
-            inType = self.inputType
-            if outType is not None and inType is not None:
-                if not inType.isOrExtends(outType):
-                    raise TypeError()
-        self.fount = fount
+        beginFlowingFrom(self, fount)
         if self._siphon._pauseBecausePauseCalled:
             pbpc = self._siphon._pauseBecausePauseCalled
             self._siphon._pauseBecausePauseCalled = None

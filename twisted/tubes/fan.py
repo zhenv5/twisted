@@ -6,6 +6,8 @@ from zope.interface import implementer
 from .pauser import Pauser
 from .itube import IDrain, IFount, IPause
 from twisted.python.components import proxyForInterface
+from twisted.tubes.begin import beginFlowingTo
+from twisted.tubes.begin import beginFlowingFrom
 
 
 @implementer(IDrain)
@@ -30,15 +32,7 @@ class _InDrain(object):
         """
         
         """
-        # if our previous fount is paused because *we* didn't have a drain, we
-        # need to unpause it so it can be happy with a potential new drain.
-        # but we can't do that because our previous fount is still pointed at
-        # us.  so we need to be sure our previous fount is pointed away from us
-        # now.  except the previous fount... might also be *this* fount.
-
-        # if fount is not self.fount and self.fount is not None:
-        #     self.fount.flowTo(None)
-
+        beginFlowingFrom(self, fount)
         # except the fount is having similar thoughts about us as a drain, and
         # this can only happen in one order or the other. right now siphon
         # takes care of it.
@@ -54,7 +48,7 @@ class _InDrain(object):
         if pbnd is not None:
             print("FAN:UN_PAUSE", pbnd)
             pbnd.unpause()
-        self.fount = fount
+        return None
 
 
     def receive(self, item):
@@ -93,11 +87,7 @@ class _InFount(object):
         """
         
         """
-        print("inFountTo", drain)
-        self.drain = drain
-        nextFount = drain.flowingFrom(self)
-        print("inFountNextFount", nextFount)
-        return nextFount
+        return beginFlowingTo(self, drain)
 
 
     def pauseFlow(self):
@@ -196,7 +186,13 @@ class _OutFount(object):
         """
         
         """
+        oldDrain = self.drain
         self.drain = drain
+        if ( (oldDrain is not None) and (oldDrain is not drain) and
+             (oldDrain.fount is self) ):
+            oldDrain.flowingFrom(None)
+        if drain is None:
+            return
         nextFount = drain.flowingFrom(self)
         return nextFount
 

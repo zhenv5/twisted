@@ -65,6 +65,13 @@ class TubeTest(TestCase):
 
 
 
+@tube
+class Starter(object):
+    def started(self):
+        yield "greeting"
+
+
+
 class SeriesTest(TestCase):
     """
     Tests for L{series}.
@@ -84,13 +91,37 @@ class SeriesTest(TestCase):
         """
         The L{_Siphon} starts its L{Tube} upon C{flowingFrom}.
         """
-        @tube
-        class Starter(object):
-            def started(self):
-                yield "greeting"
 
         self.ff.flowTo(series(Starter(), self.fd))
         self.assertEquals(self.fd.received, ["greeting"])
+
+
+    def test_startedFlowingToAnother(self):
+        """
+        
+        """
+        self.ff.flowTo(
+            series(PassthruTube(), Starter(), PassthruTube())
+        ).flowTo(self.fd)
+        self.assertEqual(self.fd.received, ["greeting"])
+
+
+    def test_noDrainThenLoseFount(self):
+        """
+        If a fount is flowed to a tube which does not yet have a drain, then
+        flowed to another place, it will not be paused.
+        """
+        drainless = series(PassthruTube())
+        self.ff.flowTo(drainless)
+        self.ff.drain.receive(object())
+        self.assertEqual(self.ff.flowIsPaused, True)
+        ff2 = FakeFount()
+        ff2.flowTo(drainless)
+        self.assertIs(ff2.drain, drainless)
+        self.assertEqual(ff2.flowIsPaused, True)
+        self.assertEqual(self.ff.drain, None)
+        self.assertEqual(self.ff.flowIsPaused, False)
+        self.assertEqual(ff2.flowIsPaused, True)
 
 
     def test_siphonFlowingFromReturnsSelfFount(self):

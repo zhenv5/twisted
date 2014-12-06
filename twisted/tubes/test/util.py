@@ -15,6 +15,8 @@ from twisted.internet.interfaces import IStreamClientEndpoint
 
 from ..itube import IDrain, IFount, IDivertable
 from ..tube import tube
+from twisted.tubes.begin import beginFlowingFrom
+from twisted.tubes.begin import beginFlowingTo
 from ..pauser import Pauser
 
 
@@ -74,7 +76,7 @@ class FakeDrain(object):
     @type stopped: L{list}
     """
 
-    inputType = IFakeInput
+    inputType = None
 
     fount = None
 
@@ -89,7 +91,7 @@ class FakeDrain(object):
 
         @param fount: see L{IDrain}
         """
-        self.fount = fount
+        beginFlowingFrom(self, fount)
 
 
     def receive(self, item):
@@ -126,6 +128,8 @@ class FakeFount(object):
 
     outputType = IFakeOutput
 
+    drain = None
+
     flowIsPaused = 0
     flowIsStopped = False
     def __init__(self):
@@ -140,8 +144,11 @@ class FakeFount(object):
 
         @return: see L{IFount}
         """
-        self.drain = drain
-        return self.drain.flowingFrom(self)
+        # Either fount or drain may break the cycle, but it must inform its
+        # peer by calling flowingFrom() or flowTo() with None so that they can
+        # give up any resources associated with its peer, most especially the
+        # drain letting go of pauses.
+        return beginFlowingTo(self, drain)
 
 
     def pauseFlow(self):
