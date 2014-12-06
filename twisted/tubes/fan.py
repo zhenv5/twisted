@@ -1,4 +1,11 @@
 # -*- test-case-name: twisted.tubes.test.test_fan -*-
+# Copyright (c) Twisted Matrix Laboratories.
+# See LICENSE for details.
+
+"""
+
+"""
+
 from itertools import count
 
 from zope.interface import implementer
@@ -33,7 +40,7 @@ class _InDrain(object):
         
         """
         beginFlowingFrom(self, fount)
-        # except the fount is having similar thoughts about us as a drain, and
+        # Except the fount is having similar thoughts about us as a drain, and
         # this can only happen in one order or the other. right now siphon
         # takes care of it.
         self._checkNoDrainPause()
@@ -46,7 +53,7 @@ class _InDrain(object):
         """
         pbnd = self._pauseBecauseNoDrain
         self._pauseBecauseNoDrain = None
-        # do this _before_ unpausing the old one; if it's a new fount, the
+        # Do this _before_ unpausing the old one; if it's a new fount, the
         # order doesn't matter, but if it's the old fount, then doing it in
         # this order ensures it never actually unpauses, we just hand off one
         # pause for the other.
@@ -286,7 +293,6 @@ class _OutDrain(object):
 
 
 
-
 class Out(object):
     """
     
@@ -351,7 +357,7 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
             appFount.flowTo(inDrain)
         nextFount = self._in.fount
 
-        # literally copy/pasted from _SiphonDrain.flowingFrom.  Hmm.
+        # Literally copy/pasted from _SiphonDrain.flowingFrom.  Hmm.
         nextDrain = nextFount.drain
         if nextDrain is None:
             return nextFount
