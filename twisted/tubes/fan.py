@@ -186,15 +186,7 @@ class _OutFount(object):
         """
         
         """
-        oldDrain = self.drain
-        self.drain = drain
-        if ( (oldDrain is not None) and (oldDrain is not drain) and
-             (oldDrain.fount is self) ):
-            oldDrain.flowingFrom(None)
-        if drain is None:
-            return
-        nextFount = drain.flowingFrom(self)
-        return nextFount
+        return beginFlowingTo(self, drain)
 
 
     def pauseFlow(self):
