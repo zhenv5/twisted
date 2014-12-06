@@ -46,7 +46,7 @@ class CalculatingTube(object):
 @tube
 class NumbersToLines(object):
     def received(self, value):
-        yield str(value).encode("ascii")
+        yield b"= " + str(value).encode("ascii")
 
 
 @tube
@@ -67,19 +67,18 @@ def calculatorSeries():
 
     full = series(bytesToLines(),
                   Thru([
-                      series(Prompter()),
                       series(LinesToNumbersOrOperators(),
                              CalculatingTube(Calculator()),
-                             NumbersToLines()),
+                             NumbersToLines(),
+                             linesToBytes()),
+                      series(Prompter()),
                   ]),
-                  linesToBytes())
-    print("created full", full)
+                  )
     return full
 
 def mathFlow(fount, drain):
     processor = calculatorSeries()
     nextFount = fount.flowTo(processor)
-    print("nextFount?", nextFount)
     nextFount.flowTo(drain)
 
 def main(reactor, port="stdio:"):
