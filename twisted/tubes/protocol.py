@@ -15,6 +15,8 @@ __all__ = [
 
 from zope.interface import implementer
 
+from twisted.tubes.begin import beginFlowingTo
+from twisted.tubes.begin import beginFlowingFrom
 from twisted.internet.interfaces import IPushProducer
 from twisted.internet.protocol import Protocol as _Protocol
 
@@ -84,8 +86,8 @@ class _TransportDrain(object):
         Data is flowing to this transport from the given fount.  Register that
         fount as the transport's producer.
         """
+        beginFlowingFrom(self, fount)
         self._transport.registerProducer(_FountProducer(fount), True)
-        self.fount = fount
 
 
     def receive(self, item):
@@ -147,12 +149,7 @@ class _TransportFount(object):
         """
         Start delivering data from the transport to the given drain.
         """
-        if self.drain is not None:
-            self.drain.flowingFrom(None)
-        self.drain = drain
-        if drain is None:
-            return
-        result = self.drain.flowingFrom(self)
+        result = beginFlowingTo(self, drain)
         if self._preReceivePause is not None:
             self._preReceivePause.unpause()
             self.drain.receive(self._preReceiveBuffer)
