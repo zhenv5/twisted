@@ -233,9 +233,9 @@ class _SiphonDrain(_SiphonPiece):
 
         @param item: an item to deliver to the tube.
         """
-        def thingToDeliverFrom():
+        def tubeReceivedItem():
             return self._tube.received(item)
-        self._siphon._deliverFrom(thingToDeliverFrom)
+        self._siphon._deliverFrom(tubeReceivedItem)
 
 
     def flowStopped(self, reason):
