@@ -161,13 +161,15 @@ class SeriesTest(TestCase):
                 self.startedCount += 1
                 yield ("re" * count) + "greeting"
 
-        srs = series(PassthruTube(), ReStarter(),
+        aStarter = ReStarter()
+        srs = series(PassthruTube(), aStarter,
                      PassthruTube())
         nextFount = self.ff.flowTo(srs)
         self.assertEqual(self.ff.flowIsPaused, 1)
         nextFount.flowTo(self.fd)
         self.assertEqual(self.ff.flowIsPaused, 0)
-        self.assertEquals(self.fd.received, ["greeting"])
+        self.assertEqual(self.fd.received, ["greeting"])
+        self.assertEqual(aStarter.startedCount, 1)
 
 
     def test_tubeStopped(self):
