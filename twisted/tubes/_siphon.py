@@ -190,12 +190,12 @@ class _SiphonDrain(_SiphonPiece):
         if self._siphon._pauseBecausePauseCalled:
             pbpc = self._siphon._pauseBecausePauseCalled
             self._siphon._pauseBecausePauseCalled = None
-            pbpc.unpause()
             if fount is None:
                 pauseFlow = _PlaceholderPause
             else:
                 pauseFlow = fount.pauseFlow
             self._siphon._pauseBecausePauseCalled = pauseFlow()
+            pbpc.unpause()
         if fount is not None:
             if self._siphon._flowWasStopped:
                 fount.stopFlow()
