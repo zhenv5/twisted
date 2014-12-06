@@ -245,7 +245,9 @@ class _SiphonDrain(_SiphonPiece):
         @param reason: the reason why our fount stopped the flow.
         """
         self._siphon._flowStoppingReason = reason
-        self._siphon._deliverFrom(lambda: self._tube.stopped(reason))
+        def tubeStopped():
+            return self._tube.stopped(reason)
+        self._siphon._deliverFrom(tubeStopped)
 
 
 
