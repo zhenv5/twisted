@@ -36,19 +36,24 @@ class _InDrain(object):
         # except the fount is having similar thoughts about us as a drain, and
         # this can only happen in one order or the other. right now siphon
         # takes care of it.
+        self._checkNoDrainPause()
+        return None
+
+
+    def _checkNoDrainPause(self):
+        """
+        
+        """
         pbnd = self._pauseBecauseNoDrain
         self._pauseBecauseNoDrain = None
         # do this _before_ unpausing the old one; if it's a new fount, the
         # order doesn't matter, but if it's the old fount, then doing it in
         # this order ensures it never actually unpauses, we just hand off one
         # pause for the other.
-        if fount is not None and self._in.fount.drain is None:
-            self._pauseBecauseNoDrain = fount.pauseFlow()
-            print("FAN:PBND", self._pauseBecauseNoDrain)
+        if self.fount is not None and self._in.fount.drain is None:
+            self._pauseBecauseNoDrain = self.fount.pauseFlow()
         if pbnd is not None:
-            print("FAN:UN_PAUSE", pbnd)
             pbnd.unpause()
-        return None
 
 
     def receive(self, item):
