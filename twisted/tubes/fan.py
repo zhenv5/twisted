@@ -92,7 +92,10 @@ class _InFount(object):
         """
         
         """
-        return beginFlowingTo(self, drain)
+        result = beginFlowingTo(self, drain)
+        for drain in self._in._drains:
+            drain._checkNoDrainPause()
+        return result
 
 
     def pauseFlow(self):
