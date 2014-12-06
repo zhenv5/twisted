@@ -70,8 +70,7 @@ def calculatorSeries():
                       series(Prompter()),
                       series(LinesToNumbersOrOperators(),
                              CalculatingTube(Calculator()),
-                             NumbersToLines(),
-                             ),
+                             NumbersToLines()),
                   ]),
                   linesToBytes())
     print("created full", full)
