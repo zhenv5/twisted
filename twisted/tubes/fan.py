@@ -93,8 +93,11 @@ class _InFount(object):
         """
         
         """
+        print("inFountTo", drain)
         self.drain = drain
-        return drain.flowingFrom(self)
+        nextFount = drain.flowingFrom(self)
+        print("inFountNextFount", nextFount)
+        return nextFount
 
 
     def pauseFlow(self):
@@ -357,4 +360,11 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
                 self._founts[idx] = appFount
             appFount.flowTo(inDrain)
             # print("reflow:", outFount, appDrain, appFount, inDrain)
-        return self._in.fount
+        nextFount = self._in.fount
+
+        # literally copy/pasted from _SiphonDrain.flowingFrom.  Hmm.
+        nextDrain = nextFount.drain
+        if nextDrain is None:
+            return nextFount
+        return nextFount.flowTo(nextDrain)
+
