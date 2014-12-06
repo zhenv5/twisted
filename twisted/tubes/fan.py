@@ -106,7 +106,6 @@ class _InFount(object):
         for drain in self._in._drains:
             # XXX wrong because drains could be added and removed
             subPauses.append(drain.fount.pauseFlow())
-        print("aggregate pause", subPauses)
         return _AggregatePause(subPauses)
 
 
@@ -136,7 +135,6 @@ class _AggregatePause(object):
         """
         
         """
-        print("aggregate unpause")
         for subPause in self._subPauses:
             subPause.unpause()
 
@@ -260,7 +258,6 @@ class _OutDrain(object):
         """
         
         """
-        print("actually pausing fanout")
         if self._paused:
             raise NotImplementedError()
         self._paused = True
@@ -272,7 +269,6 @@ class _OutDrain(object):
         """
         
         """
-        print("actually resuming fanout")
         p = self._pause
         self._pause = None
         self._paused = False
@@ -284,7 +280,6 @@ class _OutDrain(object):
         """
         
         """
-        print("fanout flow stopped", reason)
         for fount in self._founts[:]:
             if fount.drain is not None:
                 fount.drain.flowStopped(reason)
@@ -346,7 +341,6 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
         
         """
         super(Thru, self).flowingFrom(fount)
-        print("Thru flowingFrom", fount)
         for idx, appDrain, outFount, inDrain in zip(
                 count(), self._drains, self._outFounts, self._inDrains):
             appFount = outFount.flowTo(appDrain)
@@ -355,7 +349,6 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
             else:
                 self._founts[idx] = appFount
             appFount.flowTo(inDrain)
-            # print("reflow:", outFount, appDrain, appFount, inDrain)
         nextFount = self._in.fount
 
         # literally copy/pasted from _SiphonDrain.flowingFrom.  Hmm.
