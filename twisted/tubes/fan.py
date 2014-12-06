@@ -1,4 +1,6 @@
 # -*- test-case-name: twisted.tubes.test.test_fan -*-
+from itertools import count
+
 from zope.interface import implementer
 
 from .pauser import Pauser
@@ -21,7 +23,6 @@ class _InDrain(object):
         
         """
         self._in = fanIn
-        self._pauseBecausePauseCalled = None
         self._pauseBecauseNoDrain = None
 
 
@@ -29,9 +30,30 @@ class _InDrain(object):
         """
         
         """
-        if self._pauseBecauseNoDrain is not None:
-            self._pauseBecauseNoDrain.unpause()
-            self._pauseBecauseNoDrain = None
+        # if our previous fount is paused because *we* didn't have a drain, we
+        # need to unpause it so it can be happy with a potential new drain.
+        # but we can't do that because our previous fount is still pointed at
+        # us.  so we need to be sure our previous fount is pointed away from us
+        # now.  except the previous fount... might also be *this* fount.
+
+        # if fount is not self.fount and self.fount is not None:
+        #     self.fount.flowTo(None)
+
+        # except the fount is having similar thoughts about us as a drain, and
+        # this can only happen in one order or the other. right now siphon
+        # takes care of it.
+        pbnd = self._pauseBecauseNoDrain
+        self._pauseBecauseNoDrain = None
+        # do this _before_ unpausing the old one; if it's a new fount, the
+        # order doesn't matter, but if it's the old fount, then doing it in
+        # this order ensures it never actually unpauses, we just hand off one
+        # pause for the other.
+        if fount is not None and self._in.fount.drain is None:
+            self._pauseBecauseNoDrain = fount.pauseFlow()
+            print("FAN:PBND", self._pauseBecauseNoDrain)
+        if pbnd is not None:
+            print("FAN:UN_PAUSE", pbnd)
+            pbnd.unpause()
         self.fount = fount
 
 
@@ -39,12 +61,7 @@ class _InDrain(object):
         """
         
         """
-        drain = self._in.fount.drain
-        if drain is not None:
-            return drain.receive(item)
-        else:
-            self._pauseBecauseNoDrain = self.fount.pauseFlow()
-            return 1.0
+        return self._in.fount.drain.receive(item)
 
 
     def flowStopped(self, reason):
@@ -88,7 +105,16 @@ class _InFount(object):
         for drain in self._in._drains:
             # XXX wrong because drains could be added and removed
             subPauses.append(drain.fount.pauseFlow())
+        print("aggregate pause", subPauses)
         return _AggregatePause(subPauses)
+
+
+    def stopFlow(self):
+        """
+        
+        """
+        for drain in self._in._drains:
+            drain.fount.stopFlow()
 
 
 
@@ -109,6 +135,7 @@ class _AggregatePause(object):
         """
         
         """
+        print("aggregate unpause")
         for subPause in self._subPauses:
             subPause.unpause()
 
@@ -191,6 +218,7 @@ class _OutDrain(object):
     """
     
     """
+
     fount = None
     inputType = None
 
@@ -199,7 +227,8 @@ class _OutDrain(object):
         
         """
         self._founts = founts
-        self._paused = None
+        self._pause = None
+        self._paused = False
         self._pauser = Pauser(self._actuallyPause,
                               self._actuallyResume)
 
@@ -208,6 +237,14 @@ class _OutDrain(object):
         """
         
         """
+        if self._paused:
+            p = self._pause
+            if fount is not None:
+                self._pause = fount.pauseFlow()
+            else:
+                self._pause = None
+            if p is not None:
+                p.unpause()
         self.fount = fount
 
 
@@ -224,23 +261,31 @@ class _OutDrain(object):
         """
         
         """
-        if self._paused is not None:
+        print("actually pausing fanout")
+        if self._paused:
             raise NotImplementedError()
-        self._paused = self.fount.pauseFlow()
+        self._paused = True
+        if self.fount is not None:
+            self._pause = self.fount.pauseFlow()
 
 
     def _actuallyResume(self):
         """
         
         """
-        self._paused.unpause()
-        self._paused = None
+        print("actually resuming fanout")
+        p = self._pause
+        self._pause = None
+        self._paused = False
+        if p is not None:
+            p.unpause()
 
 
     def flowStopped(self, reason):
         """
         
         """
+        print("fanout flow stopped", reason)
         for fount in self._founts[:]:
             if fount.drain is not None:
                 fount.drain.flowStopped(reason)
@@ -287,9 +332,13 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
         """
         
         """
-        self._drains = drains
         self._in = In()
         self._out = Out()
+
+        self._drains = list(drains)
+        self._founts = list(None for drain in self._drains)
+        self._outFounts = list(self._out.newFount() for drain in self._drains)
+        self._inDrains = list(self._in.newDrain() for drain in self._drains)
         self._outDrain = self._out.drain
 
 
@@ -298,9 +347,14 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
         
         """
         super(Thru, self).flowingFrom(fount)
-        for drain in self._drains:
-            newFount = self._out.newFount()
-            nextFount = newFount.flowTo(drain)
-            if nextFount is not None:
-                nextFount.flowTo(self._in.newDrain())
+        print("Thru flowingFrom", fount)
+        for idx, appDrain, outFount, inDrain in zip(
+                count(), self._drains, self._outFounts, self._inDrains):
+            appFount = outFount.flowTo(appDrain)
+            if appFount is None:
+                appFount = self._founts[idx]
+            else:
+                self._founts[idx] = appFount
+            appFount.flowTo(inDrain)
+            # print("reflow:", outFount, appDrain, appFount, inDrain)
         return self._in.fount
