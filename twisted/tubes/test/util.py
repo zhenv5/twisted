@@ -125,15 +125,13 @@ class FakeFount(object):
     """
     Fake fount implementation for testing.
     """
-
-    outputType = IFakeOutput
-
     drain = None
 
     flowIsPaused = 0
     flowIsStopped = False
-    def __init__(self):
+    def __init__(self, outputType=None):
         self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
+        self.outputType = outputType
 
 
     def flowTo(self, drain):
