@@ -66,14 +66,11 @@ def calculatorSeries():
     from twisted.tubes.framing import bytesToLines, linesToBytes
 
     full = series(bytesToLines(),
-                  Thru([
-                      series(LinesToNumbersOrOperators(),
-                             CalculatingTube(Calculator()),
-                             NumbersToLines(),
-                             linesToBytes()),
-                      series(Prompter()),
-                  ]),
-                  )
+                  Thru([series(LinesToNumbersOrOperators(),
+                               CalculatingTube(Calculator()),
+                               NumbersToLines(),
+                               linesToBytes()),
+                        series(Prompter())]))
     return full
 
 def mathFlow(fount, drain):
