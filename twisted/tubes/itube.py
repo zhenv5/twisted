@@ -273,6 +273,15 @@ class IDivertable(ITube):
 
 class ISegment(Interface):
     """
-    This is a marker interface for the arbitrarily-sized segments of data that
-    a stream-oriented protocol may deliver.
+    This is a marker interface for a L{bytes} which represents the
+    arbitrarily-sized segments of data that a stream-oriented protocol may
+    deliver; contrast with L{IFrame}.
+    """
+
+
+
+class IFrame(Interface):
+    """
+    This is a marker interface for a L{bytes} which represents a discrete,
+    separated sequence of bytes within a protocol; contrast with L{ISegment}.
     """
