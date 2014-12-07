@@ -29,7 +29,11 @@ def beginFlowingFrom(drain, fount):
         inType = drain.inputType
         if outType is not None and inType is not None:
             if not inType.isOrExtends(outType):
-                raise TypeError()
+                raise TypeError(
+                    ("the output of {fount}, {outType}, is not compatible "
+                     "with the required input type of {drain}, {inType}")
+                    .format(inType=inType, outType=outType,
+                            fount=fount, drain=drain))
     oldFount = drain.fount
     drain.fount = fount
     if ( (oldFount is not None) and (oldFount is not fount) and
