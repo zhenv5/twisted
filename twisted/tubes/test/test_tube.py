@@ -653,6 +653,7 @@ class SeriesTest(TestCase):
         class ToTube(object):
             inputType = IFakeInput
         siphonDrain = series(ToTube())
+        self.ff.outputType = IFakeOutput
         self.failUnlessRaises(TypeError, self.ff.flowTo, siphonDrain)
         self.assertIdentical(siphonDrain.fount, None)
 
