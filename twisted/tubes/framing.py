@@ -5,7 +5,7 @@ Tubes that can convert streams of data into discrete chunks and back again.
 
 from zope.interface import implementer
 
-from .itube import IDivertable
+from .itube import IDivertable, IFrame, ISegment
 from .tube import tube, series, Diverter
 from twisted.protocols.basic import (
     LineOnlyReceiver, NetstringReceiver, Int8StringReceiver,
@@ -43,15 +43,19 @@ class _Transporter(object):
 
 
 @tube
-class _StringsToData(object):
+class _FramesToSegments(object):
     """
-    A tube which could convert "strings" - discrete chunks of data - into
-    "data" - parts of a data stream, with framing.
+    A tube which could convert "L{frames <IFrame>}" - discrete chunks of data -
+    into "L{segments <ISegment>}" - parts of a raw data stream, with framing
+    headers or delimiters attached.
 
     @param _received: the C{sendString} method, a 1-argument callable taking
         L{bytes}.
     @type _received: L{callable}
     """
+
+    inputType = IFrame
+    outputType = ISegment
 
     def __init__(self, stringReceiver, sendMethodName="sendString"):
         stringReceiver.makeConnection(_Transporter(self._unflush))
@@ -88,7 +92,11 @@ class _NotDisconnecting(object):
 
 @implementer(IDivertable)
 @tube
-class _DataToStrings(object):
+class _SegmentsToFrames(object):
+
+    inputType = ISegment
+    outputType = IFrame
+
     def __init__(self, stringReceiver,
                  receivedMethodName="stringReceived"):
         self._stringReceiver = stringReceiver
@@ -120,17 +128,17 @@ class _DataToStrings(object):
 
 
 def stringsToNetstrings():
-    return _StringsToData(NetstringReceiver())
+    return _FramesToSegments(NetstringReceiver())
 
 
 
 def netstringsToStrings():
-    return _DataToStrings(NetstringReceiver())
+    return _SegmentsToFrames(NetstringReceiver())
 
 
 
 def linesToBytes():
-    return _StringsToData(LineOnlyReceiver(), "sendLine")
+    return _FramesToSegments(LineOnlyReceiver(), "sendLine")
 
 
 @tube
@@ -138,6 +146,9 @@ class _CarriageReturnRemover(object):
     """
     Automatically fix newlines, because hacker news.
     """
+
+    inputType = IFrame
+    outputType = IFrame
 
     def received(self, value):
         if value.endswith(b'\r'):
@@ -161,7 +172,7 @@ def bytesDelimitedBy(delimiter):
     """
     receiver = LineOnlyReceiver()
     receiver.delimiter = delimiter
-    return _DataToStrings(receiver, "lineReceived")
+    return _SegmentsToFrames(receiver, "lineReceived")
 
 
 
@@ -181,9 +192,9 @@ _packedPrefixProtocols = {
 }
 
 def packedPrefixToStrings(prefixBits):
-    return _DataToStrings(_packedPrefixProtocols[prefixBits]())
+    return _SegmentsToFrames(_packedPrefixProtocols[prefixBits]())
 
 
 
 def stringsToPackedPrefix(prefixBits):
-    return _StringsToData(_packedPrefixProtocols[prefixBits]())
+    return _FramesToSegments(_packedPrefixProtocols[prefixBits]())
