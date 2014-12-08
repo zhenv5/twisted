@@ -161,6 +161,17 @@ class Participantube(object):
         """
         
 
+    def do_tell(self, user, message):
+        """
+        I sent a user a direct message.
+
+        How does flow control work here?  Does every user need a flow set up to
+        every other active user on the system?  That seems heinously
+        inefficient.  n**2 inefficient to be precise.  However, if I let each
+        new message establish a new drain on the recipient's fanIn, that means
+        the number of messages sent to that drain is unconstrained.
+        """
+        
 
     def do_spoke(self, channel, sender, message):
         """
