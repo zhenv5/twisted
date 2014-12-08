@@ -28,6 +28,17 @@ Use like so::
 
 This creates a fount in evenFount and oddFount, which each have an outputType
 of "int".
+
+Why do this rather than just having C{EvenOdd} just call methods directly based
+on whether a number is even or odd?
+
+By using a L{Router}, flow control relationships are automatically preserved by
+the same mechanism that tubes usually use.  The distinct drains of evenFount
+and oddFount can both be independently paused, and the pause state will be
+propagated to the "numbers" fount.  If you want to send on outputs to multiple
+drains which may have complex flow-control interrelationships, you can't do
+that by calling the C{receive} method directly since any one of those methods
+might reentrantly pause you.
 """
 
 from .tube import tube
