@@ -119,6 +119,49 @@ class Participantube(object):
         self._participant.sayInChannel(channel, message)
         return ()
 
+    def do_shout(self, message):
+        """
+        okay this is a tricky one.
+
+        if I want to shout a message to all the channels I'm currently present
+        in, how do I do that?
+
+        If I simply do a for loop, then there's an unfortunate possibility:
+
+        alice is on two channels, #a and #b.
+
+        bob is also in #a and #b.
+
+        alice calls sayInChannel on #a.
+
+        bob is backed up; his client calls pauseFlow() on the group drain for
+        #a.
+
+        Since calling sayInChannel isn't an output, alice's
+        Participantube.receive didn't yield, so the for loop is going to keep
+        doing stuff.  However, bob now believes his fount is paused, which
+        means that all channels he is in have been paused, which means that the
+        second call to .receive() - the one on #b - is invalid.
+
+        in other words, alice must yield.
+
+        blub
+        ----
+
+        maybe we don't want one slow client to back up a whole channel, but
+        that's a separate issue, addressed by doing::
+
+            (channelOut.newFount().flowTo(Buffer(n)).flowTo(StopWhenPaused())
+            .flowTo(participnat))
+
+        so this issue remains, because is a more general one of "what do I do
+        if I want complex multi-dimensional flow control, but I also want to
+        write code that looks normal".  You can just substitute "bob's flow is
+        now terminated" for "bob thinks his fount is now paused".
+        """
+        
+
+
     def do_spoke(self, channel, sender, message):
         """
         Someone spoke to me (on a channel).
