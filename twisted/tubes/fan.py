@@ -224,17 +224,34 @@ class _OutDrain(object):
     """
 
     fount = None
-    inputType = None
 
-    def __init__(self, founts):
+    def __init__(self, founts, inputType, outputType):
         """
         
         """
-        self._founts = founts
         self._pause = None
         self._paused = False
-        self._pauser = Pauser(self._actuallyPause,
-                              self._actuallyResume)
+
+        self._founts = founts
+
+        def _actuallyPause():
+            if self._paused:
+                raise NotImplementedError()
+            self._paused = True
+            if self.fount is not None:
+                self._pause = self.fount.pauseFlow()
+
+        def _actuallyResume():
+            p = self._pause
+            self._pause = None
+            self._paused = False
+            if p is not None:
+                p.unpause()
+
+        self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
+
+        self.inputType = inputType
+        self.outputType = outputType
 
 
     def flowingFrom(self, fount):
@@ -261,28 +278,6 @@ class _OutDrain(object):
                 fount.drain.receive(item)
 
 
-    def _actuallyPause(self):
-        """
-        
-        """
-        if self._paused:
-            raise NotImplementedError()
-        self._paused = True
-        if self.fount is not None:
-            self._pause = self.fount.pauseFlow()
-
-
-    def _actuallyResume(self):
-        """
-        
-        """
-        p = self._pause
-        self._pause = None
-        self._paused = False
-        if p is not None:
-            p.unpause()
-
-
     def flowStopped(self, reason):
         """
         
@@ -297,12 +292,13 @@ class Out(object):
     """
     
     """
-    def __init__(self):
+    def __init__(self, inputType=None, outputType=None):
         """
         
         """
         self._founts = []
-        self._drain = _OutDrain(self._founts)
+        self._drain = _OutDrain(self._founts, inputType=inputType,
+                                outputType=outputType)
 
 
     @property

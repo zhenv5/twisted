@@ -2,11 +2,12 @@
 from collections import defaultdict
 from json import loads, dumps
 
-from zope.interface import Interface, implementer
 from zope.interface.common import IMapping
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
+
+from twisted.tubes.routing import Router, Routed, to
 from twisted.tubes.protocol import factoryFromFlow
 from twisted.tubes.itube import IFrame
 from twisted.tubes.tube import series, tube
@@ -70,83 +71,12 @@ def dispatch(self, item):
     return getattr(self, "do_" + item.pop("type"))(**item)
 
 
-
-class IDirected(Interface):
-    """
-    A message that is directed to some specific receiver, via a L{Router}.
-
-    Basically just an interface for L{to}.
-    """
-
-
-@implementer(IDirected)
-class to(object):
-    """
-    
-    """
-    def __init__(self, who, what):
-        """
-        
-        """
-        self._who = who
-        self._what = what
-
-
-@tube
-class _AddressedTo(object):
-    """
-    
-    """
-    def __init__(self, token):
-        """
-        
-        """
-        self._token = token
-        
-    def received(self, item):
-        """
-        
-        """
-        if isinstance(item, to):
-            if item._who is self._token:
-                yield item._what
-
-
-
-class Router(object):
-    """
-    Route messages created by C{to}.
-
-    Really inefficient implementation, but the inefficient details (the use of
-    "Out") is all private, and could be fixed/optimized fairly easily.
-    """
-
-    def __init__(self):
-        """
-        
-        """
-        # inputType of this Out is IDirected
-        self._out = Out()
-        self.drain = self._out.drain
-
-
-    def newRoute(self):
-        """
-        
-        """
-        token = object()
-        fount = self._out.newFount().flowTo(_AddressedTo(token))
-        return (token, fount)
-
-
-
 @tube
 class Participantube(object):
     """
     
     """
-    inputType = IDirected # really wish I had parametric types here!
-                          # IDirected[IMapping]?
+    outputType = Routed(IMapping)
 
     def __init__(self, participant):
         """
