@@ -47,22 +47,29 @@ from .fan import Out
 
 class Routed(object):
     """
-    The inputType for routing.
+    A L{Routed} is an interface describing another interface that has been
+    wrapped in a C{to}.  As such, it is an incomplete implementation of
+    L{zope.interface.interfaces.IInterface}.
     """
 
     def __init__(self, interface=None):
         """
-        
+        Derive a L{Routed} version of C{interface}.
+
+        @param interface: the interface that will be provided by the C{what}
+            attribute of providers of this interface.
+        @type interface: L{zope.interface.interfaces.IInterface}
         """
         self.interface = interface
 
 
     def isOrExtends(self, other):
         """
-        Does the other router extend it?
+        Is this L{Routed} substitutable for the given specification?
+
+        @param other: Another L{Routed} or interface.
+        @type other: L{zope.interface.interfaces.IInterface}
         """
-        if other is None:
-            return True
         if not isinstance(other, Routed):
             return False
         if self.interface is None or other.interface is None:
@@ -73,6 +80,12 @@ class Routed(object):
     def providedBy(self, instance):
         """
         Is this L{Routed} provided by a particular value?
+
+        @param instance: an object which may or may not provide this interface.
+        @type instance: L{object}
+
+        @return: L{True} if so, L{False} if not.
+        @rtype: L{bool}
         """
         if not isinstance(instance, _To):
             return False
@@ -81,64 +94,71 @@ class Routed(object):
         return self.interface.proviedBy(instance._what)
 
 
+
 class _To(object):
     """
-    
+    An object destined for a specific destination.
 
-    @ivar _who: 
-    @type _who: 
+    @ivar _where: Where is this object addressed to?  This is an opaque token.
+    @type _where: L{object}
 
-    @ivar _what: 
-    @type _what: 
+    @ivar _what:
+    @type _what:
     """
 
-    def __init__(self, who, what):
+    def __init__(self, where, what):
         """
         
 
-        @param _who: 
-        @type _who: 
+        @param _where: 
+        @type _where: 
 
         @param _what: 
         @type _what: 
         """
-        self._who = who
+        self._where = where
         self._what = what
 
 
 
-def to(who, what):
+def to(where, what):
     """
-    
+    Construct a provider of L{Routed}C{(providedBy(where))}.
+
+    @see: L{twisted.tubes.routing}
+
+    @param where: A fount returned from L{Router.newRoute}.  This must be
+        I{exactly} the return value of L{Router.newRoute}, as it is compared by
+        object identity and not by any feature of L{IFount}.
+
+    @return: a Routed object.
     """
-    return _To(who, what)
+    return _To(where, what)
 
 
 
 @tube
 class Router(object):
     """
-    
+    A drain with multiple founts that consumes L{Routed}C{(IX)} from its input
+    and produces C{IX} to its outputs.
 
-    @ivar _out: 
-    @type _out: 
+    @ivar _out: A fan-out that consumes L{Routed}C{(X)} and produces C{X}.
+    @type _out: L{Out}
 
-    @ivar drain: 
-    @type drain: 
+    @ivar drain: The input to this L{Router}.
+    @type drain: L{IDrain}
     """
 
     def __init__(self, outputType=None):
-        # This is a really inefficient implementation, but the use of 'Out' is
-        # entirely an implementation detail.
         self._out = Out(inputType=Routed(outputType), outputType=outputType)
         self.drain = self._out.drain
 
 
     def newRoute(self):
         """
-        Create a new route which the input may flow things to.
+        @return: L{IFount}
         """
-        token = object()
         @tube
         class AddressedTo(object):
             if self.drain is not None:
@@ -146,10 +166,7 @@ class Router(object):
                 outputType = self.drain.inputType.interface
             def received(self, item):
                 if isinstance(item, to):
-                    if item._who is self._token:
+                    if item._where is fount:
                         yield item._what
         fount = self._out.newFount().flowTo(AddressedTo())
-        return (token, fount)
-
-
-
+        return fount
