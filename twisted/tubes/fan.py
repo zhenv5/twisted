@@ -10,11 +10,11 @@ from itertools import count
 
 from zope.interface import implementer
 
+from twisted.python.components import proxyForInterface
+
 from .pauser import Pauser
 from .itube import IDrain, IFount, IPause
-from twisted.python.components import proxyForInterface
-from twisted.tubes.begin import beginFlowingTo
-from twisted.tubes.begin import beginFlowingFrom
+from .begin import beginFlowingTo, beginFlowingFrom
 
 
 @implementer(IDrain)
