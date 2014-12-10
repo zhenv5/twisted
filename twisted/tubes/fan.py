@@ -330,28 +330,29 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
     A fan.L{Thru} takes an input and fans it I{thru} multiple
     drains-which-produce-founts, such as L{tubes <twisted.tube.itube.ITube>}::
 
-                        Your Fount
-                     (producing "foo")
-                            |
-                            v
-                          Thru
-                            |
-                          _/|\_
-                        _/  |  \_
-                       /    |    \
-                foo2bar  foo2baz  foo2qux
-                       \_   |   _/
-                         \_ | _/
-                           \|/
-                            |
-                            v
-                          Thru
-                            |
-                            v
-                        Your Drain
-                 (receiving a combination
-                     of foo, bar, baz)
+                Your Fount
+             (producing "foo")
+                    |
+                    v
+                  Thru
+                    |
+                  _/|\_
+                _/  |  \_
+               /    |    \
+        foo2bar  foo2baz  foo2qux
+               \_   |   _/
+                 \_ | _/
+                   \|/
+                    |
+                    v
+                  Thru
+                    |
+                    v
+                Your Drain
+         (receiving a combination
+             of foo, bar, baz)
 
+    The way you would construct such a flow would be:
     """
 
     def __init__(self, drains):
