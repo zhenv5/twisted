@@ -10,238 +10,144 @@ from twisted.internet.defer import Deferred
 from twisted.tubes.routing import Router, Routed, to
 from twisted.tubes.protocol import factoryFromFlow
 from twisted.tubes.itube import IFrame
-from twisted.tubes.tube import series, tube
+from twisted.tubes.tube import series, tube, tubular
 from twisted.tubes.framing import bytesToLines, linesToBytes
 from twisted.tubes.fan import Out, In
 
-class Participant(object):
-    """
-    
-    """
 
-    def __init__(self, hub, bytesFount, bytesDrain):
-        """
-        
-        """
+
+
+@tube
+class Participant(object):
+    outputType = Routed(IMapping)
+
+    def __init__(self, hub, requestsFount, responsesDrain):
         self._hub = hub
         self._participation = {}
         self._in = In()
         self._router = Router()
-        self._tube = Participantube(self)
         self._participating = {}
-        self.client, toClientFount = self._router.newRoute()
 
-        # thought: what if the Participant were persistent server-side? it
-        # wouldn't be much work: Participantube is already basically stateless
-        # itself; it just needs to grow a "preauthenticated" state which would
-        # be useful for other reasons anyway.  the only change here would be
-        # that "client" would need to flow to an Out() which new incoming
-        # connections could attach to rather than flowing to directly -
-        # self._router.
-
-        clientCommands = bytesFount.flowTo(series(bytesToLines(),
-                                                  LinesToCommands()))
         # self._in is both commands from our own client and also messages from
         # other clients.
-        clientCommands.flowTo(self._in.newDrain())
+        requestsFount.flowTo(self._in.newDrain())
+        self._in.fount.flowTo(series(self, self._router.drain))
 
-        (toClientFount
-         .flowTo(series(CommandsToLines(), linesToBytes()))
-         .flowTo(bytesDrain))
+        self.client = self._router.newRoute()
+        self.client.flowTo(series(commandsToLines, responsesDrain))
 
+    def received(self, item):
+        return getattr(self, "do_" + item.pop("type"))(**item)
 
-    def participateIn(self, channel):
-        """
-        
-        """
+    def do_name(self, name):
+        self.name = name
+        yield to(self.client, dict(named=name))
+
+    def do_join(self, channel):
         fountFromChannel, drainToChannel = (
             self._hub.channelNamed(channel).participate(self)
         )
         fountFromChannel.flowTo(self._in.newDrain())
-        key, fountToChannel = self._router.newRoute()
+        fountToChannel = self._router.newRoute()
         fountToChannel.flowTo(drainToChannel)
-        self._participating[channel] = key
 
-
-
-def dispatch(self, item):
-    """
-    Dispatch a received item to a "do_" method.
-    """
-    return getattr(self, "do_" + item.pop("type"))(**item)
-
-
-@tube
-class Participantube(object):
-    """
-    
-    """
-    outputType = Routed(IMapping)
-
-    def __init__(self, participant):
-        """
-        
-        """
-        self._participant = participant
-
-    received = dispatch
-
-    def do_name(self, name):
-        """
-        Give myself a name.
-        """
-        self._participant.name = name
-        yield to(self._participant.client,
-                 {"named": name})
-
-    def do_join(self, channel):
-        """
-        Join a channel.
-        """
-        self._participant.participateIn(channel)
-        yield to(self._participant.client,
+        self._participating[channel] = fountToChannel
+        yield to(self.client,
                  dict(type="joined", channel="channel"))
-        yield to(self._participant._participating[channel],
+        yield to(self._participating[channel],
                  dict(type="joined"))
 
     def do_speak(self, channel, message):
-        """
-        I spoke (on a channel).
-        """
-        # NB: "sender", "channel" added by AddSender, so we don't have to do
-        # that here.
-        yield to(self._participant._participating[channel],
+        yield to(self._participating[channel],
                  dict(type="spoke", message=message))
 
     def do_shout(self, message):
-        """
-        I shouted a message to everyone on all the channels I'm currently
-        participating in.
-
-        (Of dubious utility for an actual chat protocol, but showcases some
-        interesting functionality vis-a-vis sending outputs to multiple places
-        without worrying about flow control anywhere.)
-        """
-        for channel in self._participant._participating.values():
+        for channel in self._participating.values():
             yield to(channel, dict(type="spoke", message=message))
 
     def do_tell(self, receiver, message):
-        """
-        I sent a user a direct message.
-        """
         # TODO: implement _establishRapportWith; should be more or less like
         # joining a channel.
-        rapport = self._participant._establishRapportWith(receiver)
+        rapport = self._establishRapportWith(receiver)
         yield to(rapport, dict(type="told", message=message))
-        # TODO: when does a rapport end?  does a conversation time out?
-        # Presumably a buffer has to be empty.  should I have to yield to(...)
-        # something in order to establish rapport / join channels in the first
-        # place?  should I have to yield a Deferred?
+        # TODO: when does a rapport end?  timeout as soon as the write buffer
+        # is empty?
 
     def do_told(self, sender, message):
-        """
-        A user sent me a direct message.
-        """
-        yield to(self._participant.client, message)
+        yield to(self.client, message)
 
     def do_spoke(self, channel, sender, message):
-        """
-        Someone spoke to me (on a channel).
-        """
-        yield to(self._participant.client,
-                 dict(type="spoke", channel=channel, sender=sender.name,
-                      message=message))
+        yield to(self.client, dict(type="spoke", channel=channel,
+                                   sender=sender.name, message=message))
 
 
 
-@tube
-class LinesToCommands(object):
-    """
-    
-    """
-    inputType = IFrame
-    outputType = IMapping
+@tubular(IFrame, IMapping)
+def linesToCommands(line):
+    yield loads(line)
 
-    def received(self, line):
-        """
-        
-        """
-        return loads(line)
 
-@tube
-class CommandsToLines(object):
-    """
-    
-    """
-    inputType = IMapping
-    outputType = IFrame
 
-    def received(self, message):
-        """
-        
-        """
-        return dumps(message)
+@tubular(IMapping, IFrame)
+def commandsToLines(message):
+    yield dumps(message)
 
 
 
 class Channel(object):
-    """
-    
-    """
-    def __init__(self, hub, name):
-        """
-        
-        """
-        self._hub = hub
+    def __init__(self, name):
         self._name = name
         self._out = Out()
         self._in = In()
         self._in.fount.flowTo(self._out.drain)
 
     def participate(self, participant):
-        """
-        @return: a 2-tuple of (fount, drain) where the fount is messages that
-            the given participant can observe and drain is an input for
-            messages from that participant
-        """
-        @tube
-        class AddSender(object):
-            def received(self, item):
-                yield dict(item, sender=participant, channel=self._name)
+        @tubular(IMapping, IMapping)
+        def addSender(item):
+            yield dict(item, sender=participant, channel=self._name)
 
-        fount = self._out.newFount()
-        drain = self._in.newDrain()
-        return fount, series(AddSender(), drain)
+        return (self._out.newFount(),
+                series(addSender, self._in.newDrain()))
+
+
+
+@tube
+class OnStop(object):
+    def __init__(self, callback):
+        self.callback = callback
+    def received(self, item):
+        yield item
+    def stopped(self, reason):
+        self.callback()
+        return ()
+
 
 
 class Hub(object):
     def __init__(self):
         self.participants = []
-        def newChannel(name):
-            return Channel(self, name)
-        self.channels = defaultdict(newChannel)
+        self.channels = defaultdict(Channel)
 
-    def newParticipant(self, fount, drain):
-        @tube
-        class RemoveOnStop(object):
-            def received(stopper, item):
-                yield item
-            def stopped(stopper, reason):
-                self.participants.remove(participant)
-        participant = Participant(self, fount.flowTo(RemoveOnStop(), drain))
+    def newParticipantFlow(self, fount, drain):
+        commandFount = fount.flowTo(
+            series(OnStop(lambda: self.participants.remove(participant)),
+                   bytesToLines(), linesToCommands)
+        )
+        commandDrain = series(commandsToLines, linesToBytes(), drain)
+        participant = Participant(self, commandFount, commandDrain)
         self.participants.append(participant)
 
     def channelNamed(self, name):
-        """
-        get a channel with the given name
-        """
         return self.channels[name]
+
+
 
 def main(reactor, port="stdio:"):
     endpoint = serverFromString(reactor, port)
-    hub = Hub()
-    endpoint.listen(factoryFromFlow(hub.newParticipant))
+    endpoint.listen(factoryFromFlow(Hub().newParticipantFlow))
     return Deferred()
+
+
 
 from twisted.internet.task import react
 from sys import argv
