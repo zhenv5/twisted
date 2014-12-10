@@ -109,6 +109,51 @@ def tube(cls):
 
 
 
+@implementer(ITube)
+class _Tubule(object):
+    """
+    
+    """
+    def __init__(self, inputType, outputType, received):
+        """
+        
+        """
+        self.inputType = inputType
+        self.outputType = outputType
+        self.received = received
+
+
+    def started(self):
+        """
+        
+        """
+        return ()
+
+
+    def stopped(self, reason):
+        """
+        
+        """
+        return ()
+
+
+
+def tubular(inputType=None, outputType=None):
+    """
+    Decorator for a stateless function which receives inputs.
+
+    For example, to add 1 to each in a stream of numbers:
+
+    @tubular(inputType=int, outputType=int)
+    def addOne(item):
+        yield item + 1
+    """
+    def decorator(decoratee):
+        return _Tubule(inputType, outputType, decoratee)
+    return decorator
+
+
+
 def series(start, *tubes):
     """
     Connect up a series of objects capable of transforming inputs to outputs;
