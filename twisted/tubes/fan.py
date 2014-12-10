@@ -3,7 +3,8 @@
 # See LICENSE for details.
 
 """
-
+Tools for turning L{founts <twisted.tubes.itube.IFount>} and L{drains
+<twisted.tubes.itube.IDrain>} into multiple founts and drains.
 """
 
 from itertools import count
@@ -148,29 +149,31 @@ class _AggregatePause(object):
 
 
 class In(object):
-    """
-    
+    r"""
+    A fan.L{In} presents a single L{fount <twisted.tubes.itube.IFount>} that
+    delivers the inputs from multiple L{drains <twisted.tubes.itube.IDrain>}::
+
+        your fount ---> In.newDrain()--\
+                                        \
+        your fount ---> In.newDrain()----> In ---> In.fount ---> your drain
+                                        /
+        your fount ---> In.newDrain()--/
+
+    @ivar fount: The fount which produces all new attributes.
+    @type fount: L{twisted.tubes.itube.IFount}
     """
     def __init__(self):
-        """
-        
-        """
-        self._fount = _InFount(self)
+        self.fount = _InFount(self)
         self._drains = []
         self._subdrain = None
 
 
-    @property
-    def fount(self):
-        """
-        
-        """
-        return self._fount
-
-
     def newDrain(self):
         """
-        
+        Create a new L{drains <twisted.tubes.itube.IDrain>} which will send its
+        inputs out via C{self.fount}.
+
+        @return: a drain.
         """
         it = _InDrain(self)
         self._drains.append(it)
@@ -181,7 +184,7 @@ class In(object):
 @implementer(IFount)
 class _OutFount(object):
     """
-
+    
     """
     drain = None
 
@@ -289,24 +292,27 @@ class _OutDrain(object):
 
 
 class Out(object):
+    r"""
+    A fan.L{Out} presents a single L{drain <twisted.tubes.itube.IDrain>} that
+    delivers the inputs to multiple L{founts <twisted.tubes.itube.IFount>}::
+
+                                           /--> Out.newFount() --> your drain
+                                          /
+        your fount --> Out.drain --> Out <----> Out.newFount() --> your drain
+                                          \
+                                           \--> Out.newFount() --> your drain
+
+    @ivar drain: The fount which produces all new attributes.
+    @type drain: L{twisted.tubes.itube.IDrain}
     """
-    
-    """
+
     def __init__(self, inputType=None, outputType=None):
         """
         
         """
         self._founts = []
-        self._drain = _OutDrain(self._founts, inputType=inputType,
-                                outputType=outputType)
-
-
-    @property
-    def drain(self):
-        """
-        
-        """
-        return self._drain
+        self.drain = _OutDrain(self._founts, inputType=inputType,
+                               outputType=outputType)
 
 
     def newFount(self):
@@ -320,8 +326,32 @@ class Out(object):
 
 
 class Thru(proxyForInterface(IDrain, "_outDrain")):
-    """
-    
+    r"""
+    A fan.L{Thru} takes an input and fans it I{thru} multiple
+    drains-which-produce-founts, such as L{tubes <twisted.tube.itube.ITube>}::
+
+                        Your Fount
+                     (producing "foo")
+                            |
+                            v
+                          Thru
+                            |
+                          _/|\_
+                        _/  |  \_
+                       /    |    \
+                foo2bar  foo2baz  foo2qux
+                       \_   |   _/
+                         \_ | _/
+                           \|/
+                            |
+                            v
+                          Thru
+                            |
+                            v
+                        Your Drain
+                 (receiving a combination
+                     of foo, bar, baz)
+
     """
 
     def __init__(self, drains):
