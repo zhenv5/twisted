@@ -284,6 +284,7 @@ class _NullFount(object):
         """
         Do nothing.
         """
+        self.drain.flowStopped(Failure(StopFlowCalled()))
 
 
 
