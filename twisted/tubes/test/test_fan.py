@@ -1,3 +1,10 @@
+# -*- test-case-name: twisted.tube.test.test_fan -*-
+# Copyright (c) Twisted Matrix Laboratories.
+# See LICENSE for details.
+
+"""
+Tests for L{twisted.tubes.fan}.
+"""
 
 from zope.interface.verify import verifyObject
 
@@ -11,14 +18,20 @@ from ..fan import Out
 
 class FakeIntermediateDrain(FakeDrain):
     """
-    
+    An intermediate drain that returns a subsequent fount, for debugging
+    tube-like transceivers with more explicit ordering.
     """
 
     nextStep = FakeFount()
 
     def flowingFrom(self, something):
         """
-        
+        This drain should accept some input and allege that it returns some
+        output.
+
+        @param something: A fount.
+
+        @return: C{self.nextStep}
         """
         super(FakeIntermediateDrain, self).flowingFrom(something)
         return self.nextStep
@@ -45,7 +58,8 @@ class FanOutTests(SynchronousTestCase):
 
     def test_verifyCompliance(self):
         """
-        
+        L{Out.newFount} and L{Out.drain} adhere to their respected declared
+        interfaces.
         """
         out = Out()
         verifyObject(IFount, out.newFount())
@@ -54,7 +68,8 @@ class FanOutTests(SynchronousTestCase):
 
     def test_fanOut(self):
         """
-
+        When an L{Out} is constructed and flowed to two drains, both drains
+        receive the same value passed to L{Out.drain}'s C{receive} method.
         """
         ff = FakeFount()
         fdA = FakeDrain()
@@ -76,7 +91,8 @@ class FanOutTests(SynchronousTestCase):
 
     def test_fanReceivesBeforeFountsHaveDrains(self):
         """
-        
+        L{Out.drain}'s C{receive} method only relays outputs to founts which
+        are presently attached.
         """
         ff = FakeFount()
         fd = FakeDrain()
@@ -92,9 +108,10 @@ class FanOutTests(SynchronousTestCase):
         self.assertEquals(fd.received, [])
 
 
-    def test_oneFountPausesUpstreamFount(self):
+    def test_pausingOneOutFountPausesUpstreamFount(self):
         """
-        
+        When one fount created by L{Out.newFount} is paused, the fount flowing
+        to L{Out.drain} is paused.
         """
         ff = FakeFount()
         out = Out()
@@ -108,7 +125,10 @@ class FanOutTests(SynchronousTestCase):
 
     def test_oneFountPausesInReceive(self):
         """
-        
+        When an L{Out} has two founts created by C{newFount} fA and fB, and
+        they are flowing to two drains, dA and dB, if dA pauses its fount
+        during C{receive(X)}, C{X} will still be delivered to dB, because dB
+        hasn't paused.
         """
         ff = FakeFount()
         out = Out()
