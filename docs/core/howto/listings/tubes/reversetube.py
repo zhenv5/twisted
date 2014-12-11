@@ -1,15 +1,10 @@
-from twisted.python.log import startLogging
-from sys import stdout
-startLogging(stdout)
-
-# cut here
-
 from twisted.tubes.protocol import factoryFromFlow
 from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
-from twisted.tubes.tube import Tube, series
+from twisted.tubes.tube import tube, series
 
-class Reverser(Tube):
+@tube
+class Reverser(object):
     def received(self, item):
         yield b"".join(reversed(item))
 
