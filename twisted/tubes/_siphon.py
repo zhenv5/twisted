@@ -85,6 +85,9 @@ class DequeMetaIterable(object):
             return paused
         while self._deque:
             result = next(self._deque[0], whatever)
+            if self._suspended:
+                self.prepend(iter([result]))
+                return paused
             if result is whatever:
                 self._deque.popleft()
             else:

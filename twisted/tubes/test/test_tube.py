@@ -423,13 +423,14 @@ class SeriesTest(TestCase):
                 yield 1
                 self.pause = meAsFount.pauseFlow()
                 yield 2
+                yield 3
 
-        pty = series(PauseThenYield())
-        meAsFount = self.ff.flowTo(pty)
+        pty = PauseThenYield()
+        meAsFount = self.ff.flowTo(series(pty))
         meAsFount.flowTo(self.fd)
         self.assertEqual(self.fd.received, [1])
         pty.pause.unpause()
-        self.assertEqual(self.fd.received, [1, 2])
+        self.assertEqual(self.fd.received, [1, 2, 3])
 
 
     def test_initiallyEnthusiasticFountBecomesDisillusioned(self):
