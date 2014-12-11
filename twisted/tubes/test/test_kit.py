@@ -11,7 +11,7 @@ from zope.interface.verify import verifyObject
 from twisted.trial.unittest import SynchronousTestCase as TestCase
 
 from ..itube import IPause, AlreadyUnpaused
-from ..pauser import Pauser
+from ..kit import Pauser
 
 class PauserTest(TestCase):
     """

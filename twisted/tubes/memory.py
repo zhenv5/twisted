@@ -5,7 +5,7 @@ from zope.interface import implementer
 from twisted.python.failure import Failure
 
 from .itube import IFount, StopFlowCalled
-from .pauser import Pauser
+from .kit import Pauser
 
 @implementer(IFount)
 class IteratorFount(object):

@@ -15,13 +15,12 @@ __all__ = [
 
 from zope.interface import implementer
 
-from twisted.tubes.begin import beginFlowingTo
-from twisted.tubes.begin import beginFlowingFrom
+from .kit import Pauser, beginFlowingFrom, beginFlowingTo
+from .itube import IDrain, IFount, ISegment
+
 from twisted.internet.interfaces import IPushProducer
 from twisted.internet.protocol import Protocol as _Protocol
 
-from .itube import IDrain, IFount, ISegment
-from .pauser import Pauser
 
 @implementer(IPushProducer)
 class _FountProducer(object):

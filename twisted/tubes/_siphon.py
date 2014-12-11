@@ -11,14 +11,12 @@ import itertools
 from zope.interface import implementer
 
 from .itube import IPause, IDrain, IFount, ITube
-from .pauser import Pauser
+from .kit import Pauser, beginFlowingFrom, beginFlowingTo
 from ._components import _registryAdapting
 
 from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred
 
-from twisted.tubes.begin import beginFlowingTo
-from twisted.tubes.begin import beginFlowingFrom
 from twisted.python import log
 
 class _SiphonPiece(object):

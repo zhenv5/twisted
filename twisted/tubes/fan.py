@@ -13,9 +13,8 @@ from zope.interface import implementer
 
 from twisted.python.components import proxyForInterface
 
-from .pauser import Pauser
+from .kit import Pauser, beginFlowingTo, beginFlowingFrom
 from .itube import IDrain, IFount, IPause
-from .begin import beginFlowingTo, beginFlowingFrom
 
 
 @implementer(IDrain)

@@ -15,9 +15,7 @@ from twisted.internet.interfaces import IStreamClientEndpoint
 
 from ..itube import IDrain, IFount, IDivertable
 from ..tube import tube
-from twisted.tubes.begin import beginFlowingFrom
-from twisted.tubes.begin import beginFlowingTo
-from ..pauser import Pauser
+from ..kit import Pauser, beginFlowingFrom, beginFlowingTo
 
 
 @implementer(IStreamClientEndpoint)
