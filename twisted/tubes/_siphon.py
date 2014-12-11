@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.tubes.test.test_tube.SeriesTest.test_stopFlowInterruptsStarted -*-
+# -*- test-case-name: twisted.tubes.test.test_tube.SeriesTest -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
