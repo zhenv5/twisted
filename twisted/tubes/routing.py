@@ -91,7 +91,7 @@ class Routed(object):
             return False
         if self.interface is None:
             return True
-        return self.interface.proviedBy(instance._what)
+        return self.interface.providedBy(instance._what)
 
 
 
