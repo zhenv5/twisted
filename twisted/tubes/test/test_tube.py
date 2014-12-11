@@ -421,6 +421,36 @@ class SeriesTest(TestCase):
     test_divertWhileDeferred.todo = "maybe not worth implementing..."
 
 
+    def test_divertWhilePaused(self):
+        """
+        If an L{IDivertable} L{tube} is diverted while it is paused,
+        L{reassemble} will still be passed the rest of the values.
+        """
+        @implementer(IDivertable)
+        @tube
+        class SlowDivertable(object):
+            def received(self, datums):
+                for datum in datums.split(" "):
+                    yield datum
+
+            def reassemble(self, datums):
+                return " ".join(datums)
+
+        diverter = Diverter(SlowDivertable())
+        class PausingDrain(FakeDrain):
+            def receive(self, item):
+                result = super(PausingDrain, self).receive(item)
+                self.pause = self.fount.pauseFlow()
+                return result
+        dtp = PausingDrain()
+        self.ff.flowTo(diverter).flowTo(dtp)
+        self.ff.drain.receive("foo bar baz")
+        otherDrain = FakeDrain()
+        diverter.divert(otherDrain)
+        self.assertEqual(dtp.received, [])
+        self.assertEqual(self.fd.received, ["foo bar baz"])
+
+
     def test_tubeDivertingControlsWhereOutputGoes(self):
         """
         If a siphon A with a tube Ap is flowing to a siphon B with a divertable
