@@ -228,38 +228,6 @@ class SeriesTest(TestCase):
         self.assertEqual(self.fd.stopped, [stopReason])
 
 
-    def test_tubeStoppedDeferredly(self):
-        """
-        The L{_Siphon} stops its L{Tube} and propagates C{flowStopped}
-        downstream upon the completion of all L{Deferred}s returned from its
-        L{Tube}'s C{stopped} implementation.
-        """
-        reasons = []
-        conclusion = Deferred()
-        @tube
-        class SlowEnder(object):
-            def stopped(self, reason):
-                reasons.append(reason)
-                yield conclusion
-
-        self.ff.flowTo(series(SlowEnder(), self.fd))
-        self.assertEquals(reasons, [])
-        self.assertEquals(self.fd.received, [])
-
-        stopReason = Failure(ZeroDivisionError())
-
-        self.ff.drain.flowStopped(stopReason)
-        self.assertEquals(self.fd.received, [])
-        self.assertEquals(len(reasons), 1)
-        self.assertIdentical(reasons[0].type, ZeroDivisionError)
-        self.assertEqual(self.fd.stopped, [])
-
-        conclusion.callback("conclusion")
-        # Now it's really done.
-        self.assertEquals(self.fd.received, ["conclusion"])
-        self.assertEqual(self.fd.stopped, [stopReason])
-
-
     def test_tubeDiverting(self):
         """
         The L{_Siphon} of a L{Tube} sends on data to a newly specified
