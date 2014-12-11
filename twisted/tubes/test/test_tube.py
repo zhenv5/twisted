@@ -838,6 +838,33 @@ class SeriesTest(TestCase):
         self.assertEqual(stopper.received, [1])
 
 
+    def test_stopFlowStopsFlowImmediately(self):
+        """
+        Similar to L{test_stopFlowInterruptsStarted}, if the upstream fount
+        calls C{flowStopped} within its C{stopFlow} implementation.
+        """
+        class FastStopper(FakeFount):
+            def stopFlow(self):
+                super(FastStopper, self).stopFlow()
+                self.drain.flowStopped(Failure(ZeroDivisionError()))
+
+        @tube
+        class OneTwo(object):
+            def started(self):
+                yield 1
+                yield 2
+
+        class Stopper(FakeDrain):
+            def receive(self, item):
+                super(Stopper, self).receive(item)
+                self.fount.stopFlow()
+
+        ff = FastStopper()
+        stopper = Stopper()
+        ff.flowTo(series(OneTwo())).flowTo(stopper)
+        self.assertEqual(stopper.received, [1])
+
+
     def test_stopFlowBeforeFlowBegins(self):
         """
         L{_SiphonFount.stopFlow} will stop the flow of its L{_Siphon}'s
