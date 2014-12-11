@@ -184,39 +184,77 @@ class In(object):
 @implementer(IFount)
 class _OutFount(object):
     """
-    
+    The concrete fount type returned by L{Out.newFount}.
     """
     drain = None
 
     outputType = None
 
-    def __init__(self, pauser, stopper):
+    def __init__(self, upstreamPauser, stopper):
         """
-        
+        @param upstreamPauser: A L{Pauser} which will pause the upstream fount
+            flowing into our L{Out}.
+
+        @param stopper: A 0-argument callback to execute on
+            L{IFount.flowStopped}
         """
-        self._pauser = pauser
+        self._receivedWhilePaused = []
+        self._myPause = None
         self._stopper = stopper
+
+        def actuallyPause():
+            self._myPause = upstreamPauser.pause()
+
+        def actuallyUnpause():
+            aPause = self._myPause
+            self._myPause = None
+            if self._receivedWhilePaused:
+                self.drain.receive(self._receivedWhilePaused.pop(0))
+            aPause.unpause()
+
+        self._pauser = Pauser(actuallyPause, actuallyUnpause)
 
 
     def flowTo(self, drain):
         """
-        
+        Flow to the given drain.  Don't do anything special; just set up the
+        drain attribute and return the appropriate value.
+
+        @param drain: A drain to fan out values to.
+
+        @return: the result of C{drain.flowingFrom}
         """
         return beginFlowingTo(self, drain)
 
 
     def pauseFlow(self):
         """
-        
+        Pause the flow.
         """
         return self._pauser.pause()
 
 
     def stopFlow(self):
         """
-        
+        Invoke the callback supplied to C{__init__} for stopping.
         """
         self._stopper(self)
+
+
+    def _deliverOne(self, item):
+        """
+        Deliver one item to this fount's drain.
+
+        This is only invoked when the upstream is unpaused.
+
+        @param item: An item that the upstream would like to pass on.
+        """
+        if self.drain is None:
+            return
+        if self._myPause is not None:
+            self._receivedWhilePaused.append(item)
+            return
+        self.drain.receive(item)
 
 
 
@@ -277,8 +315,7 @@ class _OutDrain(object):
         
         """
         for fount in self._founts[:]:
-            if fount.drain is not None:
-                fount.drain.receive(item)
+            fount._deliverOne(item)
 
 
     def flowStopped(self, reason):
