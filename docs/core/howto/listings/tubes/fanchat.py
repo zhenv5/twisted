@@ -10,7 +10,7 @@ from twisted.internet.defer import Deferred
 from twisted.tubes.routing import Router, Routed, to
 from twisted.tubes.protocol import factoryFromFlow
 from twisted.tubes.itube import IFrame
-from twisted.tubes.tube import series, tube, tubular
+from twisted.tubes.tube import series, tube, receiver
 from twisted.tubes.framing import bytesToLines, linesToBytes
 from twisted.tubes.fan import Out, In
 
@@ -82,13 +82,13 @@ class Participant(object):
 
 
 
-@tubular(IFrame, IMapping)
+@receiver(IFrame, IMapping)
 def linesToCommands(line):
     yield loads(line)
 
 
 
-@tubular(IMapping, IFrame)
+@receiver(IMapping, IFrame)
 def commandsToLines(message):
     yield dumps(message)
 
@@ -102,7 +102,7 @@ class Channel(object):
         self._in.fount.flowTo(self._out.drain)
 
     def participate(self, participant):
-        @tubular(IMapping, IMapping)
+        @receiver(IMapping, IMapping)
         def addSender(item):
             yield dict(item, sender=participant, channel=self._name)
 

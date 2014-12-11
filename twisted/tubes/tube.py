@@ -139,13 +139,13 @@ class _Tubule(object):
 
 
 
-def tubular(inputType=None, outputType=None):
+def receiver(inputType=None, outputType=None):
     """
     Decorator for a stateless function which receives inputs.
 
     For example, to add 1 to each in a stream of numbers:
 
-    @tubular(inputType=int, outputType=int)
+    @receiver(inputType=int, outputType=int)
     def addOne(item):
         yield item + 1
     """

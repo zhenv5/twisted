@@ -1,6 +1,7 @@
 
 from twisted.tubes.protocol import factoryFromFlow
-from twisted.tubes.tube import tube
+from twisted.tubes.itube import IFrame, ISegment
+from twisted.tubes.tube import tube, receiver
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
@@ -19,18 +20,16 @@ class Calculator(object):
         self.push(result)
         return result
 
-@tube
-class LinesToNumbersOrOperators(object):
-    def received(self, line):
-        from operator import add, mul
-
-        try:
-            yield int(line)
-        except ValueError:
-            if line == '+':
-                yield add
-            elif line == '*':
-                yield mul
+@receiver(inputType=IFrame)
+def linesToNumbersOrOperators(line):
+    from operator import add, mul
+    try:
+        yield int(line)
+    except ValueError:
+        if line == '+':
+            yield add
+        elif line == '*':
+            yield mul
 
 @tube
 class CalculatingTube(object):
@@ -43,13 +42,14 @@ class CalculatingTube(object):
         else:
             yield self.calculator.do(value)
 
-@tube
-class NumbersToLines(object):
-    def received(self, value):
-        yield str(value).encode("ascii")
+@receiver()
+def numbersToLines(value):
+    yield str(value).encode("ascii")
 
 @tube
 class Prompter(object):
+    inputType = ISegment
+    outputType = ISegment
     def started(self):
         yield "> "
     def received(self, item):
@@ -61,9 +61,9 @@ def promptingCalculatorSeries():
     from twisted.tubes.framing import bytesToLines, linesToBytes
 
     full = series(bytesToLines(),
-                  Thru([series(LinesToNumbersOrOperators(),
+                  Thru([series(linesToNumbersOrOperators,
                                CalculatingTube(Calculator()),
-                               NumbersToLines(),
+                               numbersToLines,
                                linesToBytes()),
                         series(Prompter())]))
     return full
@@ -74,9 +74,9 @@ def calculatorSeries():
 
     return series(
         bytesToLines(),
-        LinesToNumbersOrOperators(),
+        linesToNumbersOrOperators,
         CalculatingTube(Calculator()),
-        NumbersToLines(),
+        numbersToLines,
         linesToBytes()
     )
 
