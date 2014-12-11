@@ -17,14 +17,12 @@ from twisted.trial.unittest import SynchronousTestCase as TestCase
 from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred, succeed
 
-from ..itube import IDivertable, ITube, IFount
+from ..itube import IDivertable, ITube, IFount, StopFlowCalled
 from ..tube import tube, series, Diverter
-
 
 # Currently, this private implementation detail is imported only to test the
 # repr.  Is it *possible* to even get access to a _Siphon via the public
 # interface?  When would you see this repr?  Hmm. -glyph
-
 from .._siphon import _Siphon
 
 from ..test.util import (TesterTube, FakeFount, FakeDrain, IFakeInput,
@@ -863,6 +861,8 @@ class SeriesTest(TestCase):
         stopper = Stopper()
         ff.flowTo(series(OneTwo())).flowTo(stopper)
         self.assertEqual(stopper.received, [1])
+        self.assertEqual(len(stopper.stopped), 1)
+        self.assertEqual(stopper[0].type, StopFlowCalled)
 
 
     def test_stopFlowBeforeFlowBegins(self):
