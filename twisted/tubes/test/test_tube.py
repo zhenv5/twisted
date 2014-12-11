@@ -17,12 +17,13 @@ from twisted.trial.unittest import SynchronousTestCase as TestCase
 from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred, succeed
 
-from ..itube import IDivertable, ITube, IFount, StopFlowCalled
+from ..itube import IDivertable, ITube, IFount
 from ..tube import tube, series, Diverter
 
 # Currently, this private implementation detail is imported only to test the
 # repr.  Is it *possible* to even get access to a _Siphon via the public
 # interface?  When would you see this repr?  Hmm. -glyph
+from twisted.internet.defer import gatherResults
 from .._siphon import _Siphon
 
 from ..test.util import (TesterTube, FakeFount, FakeDrain, IFakeInput,
@@ -371,6 +372,53 @@ class SeriesTest(TestCase):
         self.ff.flowTo(firstDiverter)
         self.ff.drain.receive("first data")
         self.assertEqual(finalDrain.received, ["yet more data"])
+
+
+    def test_divertWhileDeferred(self):
+        """
+        If an L{IDivertable} L{tube} is diverted while it is paused because it
+        yielded a L{Deferred}, then L{reassemble} will itself be passed a
+        L{Deferred}?
+        """
+
+        laters = []
+        def later(result):
+            d = Deferred()
+            laters.append((d, result))
+        def advance():
+            d, result = laters.pop(0)
+            d.callback(result)
+
+        @implementer(IDivertable)
+        @tube
+        class SlowDivertable(object):
+            def received(self, datums):
+                for datum in datums.split(" "):
+                    yield later(datum)
+
+            def reassemble(self, datums):
+                return [gatherResults(datums)
+                        .addCallback(lambda data: " ".join(data))]
+
+        diverter = Diverter(SlowDivertable())
+        class PausingDrain(FakeDrain):
+            def receive(self, item):
+                result = super(PausingDrain, self).receive(item)
+                self.pause = self.fount.pauseFlow()
+                return result
+        dtp = PausingDrain()
+        self.ff.flowTo(diverter).flowTo(dtp)
+        self.ff.drain.receive("foo bar baz")
+        otherDrain = FakeDrain()
+        diverter.divert(otherDrain)
+        self.assertEqual(dtp.received, [])
+        self.assertEqual(self.fd.received, [])
+        advance()
+        advance()
+        advance()
+        self.assertEqual(self.fd.received, ["foo bar baz"])
+
+    test_divertWhileDeferred.todo = "maybe not worth implementing..."
 
 
     def test_tubeDivertingControlsWhereOutputGoes(self):
