@@ -149,6 +149,36 @@ class FanOutTests(SynchronousTestCase):
         self.assertEqual(ff.flowIsPaused, 1)
 
 
+    def test_oneFountPausesOthersInReceive(self):
+        """
+        When an L{Out} has two founts created by C{newFount} fA and fB, and
+        they are flowing to two drains, dA and dB, if dA pauses both founts
+        during C{receive(X)}, C{X} will I{not} be delivered to dB, because fB
+        is paused by the time that call would be made.  Unpausing both will
+        cause it to get delivered.
+        """
+        ff = FakeFount()
+        out = Out()
+        fountA = out.newFount()
+        fountB = out.newFount()
+        pauses = []
+        class PauseEverybody(FakeDrain):
+            def receive(self, item):
+                super(PauseEverybody, self).receive(item)
+                pauses.append(fountA.pauseFlow())
+                pauses.append(fountB.pauseFlow())
+        ff.flowTo(out.drain)
+        fountA.flowTo(PauseEverybody())
+        fd = FakeDrain()
+        fountB.flowTo(fd)
+        ff.drain.receive("something")
+        self.assertEqual(fd.received, [])
+        for pause in pauses:
+            pause.unpause()
+        self.assertEqual(fd.received, ["something"])
+
+
+
     def test_oneFountStops(self):
         """
         
