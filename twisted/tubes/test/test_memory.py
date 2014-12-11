@@ -127,13 +127,16 @@ class IteratorFountTests(SynchronousTestCase):
     def test_stopPausedFlow(self):
         """
         When L{IteratorFount} is stopped after being paused, the drain will
-        receive a C{flowStopped}.
+        receive a C{flowStopped} when it is resumed.
         """
         f = IteratorFount([1, 2])
         fd = DrainThatPauses()
         f.flowTo(fd)
         f.stopFlow()
         self.assertEqual(fd.received, [1])
+        self.assertEqual(len(fd.stopped), 0)
+        fd.pause.unpause()
+        self.assertEqual(len(fd.stopped), 1)
         self.assertEqual(fd.stopped[0].type, StopFlowCalled)
 
 
