@@ -846,10 +846,12 @@ class SeriesTest(TestCase):
                 super(FastStopper, self).stopFlow()
                 self.drain.flowStopped(Failure(ZeroDivisionError()))
 
+        noFurther = []
         @tube
         class OneTwo(object):
             def started(self):
                 yield 1
+                noFurther.append(True)
                 yield 2
 
         class Stopper(FakeDrain):
@@ -863,6 +865,9 @@ class SeriesTest(TestCase):
         self.assertEqual(stopper.received, [1])
         self.assertEqual(len(stopper.stopped), 1)
         self.assertEqual(stopper.stopped[0].type, ZeroDivisionError)
+        self.assertFalse(
+            noFurther,
+            "kept iterating started() after it was done")
 
 
     def test_stopFlowBeforeFlowBegins(self):
