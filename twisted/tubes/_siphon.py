@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.tubes.test.test_tube -*-
+# -*- test-case-name: twisted.tubes.test.test_tube.SeriesTest.test_stopFlowInterruptsStarted -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -129,10 +129,14 @@ class _SiphonFount(_SiphonPiece):
 
     def stopFlow(self):
         """
-        Stop the flow from the fount to this L{_Siphon}.
+        Stop the flow from the fount to this L{_Siphon}, and stop delivering
+        buffered items.
         """
         self._siphon._flowWasStopped = True
         fount = self._siphon._tdrain.fount
+        if self._siphon._pendingIterator is not None:
+            # FIXME: (maybe): generator.close?
+            self._siphon._pendingIterator = iter(())
         if fount is None:
             return
         fount.stopFlow()
