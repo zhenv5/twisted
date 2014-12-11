@@ -69,15 +69,15 @@ class SiphonPendingValues(object):
         self._deque.clear()
 
 
-    def popPendingValue(self):
+    def popPendingValue(self, regardless=False):
         """
         Get the next value in the leftmost iterator in the deque.
         """
-        if self._suspended:
+        if self._suspended and not regardless:
             return paused
         while self._deque:
             result = next(self._deque[0], whatever)
-            if self._suspended:
+            if self._suspended and not regardless:
                 self.prepend(iter([result]))
                 return paused
             if result is whatever:
@@ -466,7 +466,7 @@ class _Siphon(object):
         result = []
         # self._suspended = False
         while True:
-            value = self._pending.popPendingValue()
+            value = self._pending.popPendingValue(regardless=True)
             assert value is not paused, """
                                         TODO: if _pending is suspended here we
                                         will get an infinite sequence of the
