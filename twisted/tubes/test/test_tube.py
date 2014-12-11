@@ -829,8 +829,8 @@ class SeriesTest(TestCase):
                 yield 2
 
         class Stopper(FakeDrain):
-            def received(self, item):
-                super(Stopper, self).received(item)
+            def receive(self, item):
+                super(Stopper, self).receive(item)
                 self.fount.stopFlow()
 
         stopper = Stopper()
