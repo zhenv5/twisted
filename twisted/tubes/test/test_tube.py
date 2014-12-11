@@ -815,6 +815,29 @@ class SeriesTest(TestCase):
         self.assertEquals(self.ff.flowIsStopped, True)
 
 
+    def test_stopFlowInterruptsStarted(self):
+        """
+        As per L{IFount.stopFlow}, a compliant L{fount <IFount>} never calls
+        C{received} on its C{drain} after receiving a C{stopFlow} request; so,
+        when a L{tube} yields multiple values from C{started}, only those
+        delivered before C{stopFlow} is called should be delivered.
+        """
+        @tube
+        class OneTwo(object):
+            def started(self):
+                yield 1
+                yield 2
+
+        class Stopper(FakeDrain):
+            def received(self, item):
+                super(Stopper, self).received(item)
+                self.fount.stopFlow()
+
+        stopper = Stopper()
+        self.ff.flowTo(series(OneTwo())).flowTo(stopper)
+        self.assertEqual(stopper.received, [1])
+
+
     def test_stopFlowBeforeFlowBegins(self):
         """
         L{_SiphonFount.stopFlow} will stop the flow of its L{_Siphon}'s
