@@ -342,54 +342,6 @@ class SeriesTest(TestCase):
         self.assertEqual(finalDrain.received, ["yet more data"])
 
 
-    def test_divertWhileDeferred(self):
-        """
-        If an L{IDivertable} L{tube} is diverted while it is paused because it
-        yielded a L{Deferred}, then L{reassemble} will itself be passed a
-        L{Deferred}?
-        """
-
-        laters = []
-        def later(result):
-            d = Deferred()
-            laters.append((d, result))
-            return d
-        def advance():
-            d, result = laters.pop(0)
-            d.callback(result)
-
-        @implementer(IDivertable)
-        @tube
-        class SlowDivertable(object):
-            def received(self, datums):
-                for datum in datums.split(" "):
-                    yield later(datum)
-
-            def reassemble(self, datums):
-                return [gatherResults(datums)
-                        .addCallback(lambda data: " ".join(data))]
-
-        diverter = Diverter(SlowDivertable())
-        class PausingDrain(FakeDrain):
-            def receive(self, item):
-                result = super(PausingDrain, self).receive(item)
-                self.pause = self.fount.pauseFlow()
-                return result
-        dtp = PausingDrain()
-        self.ff.flowTo(diverter).flowTo(dtp)
-        self.ff.drain.receive("foo bar baz")
-        diverter.divert(self.fd)
-        self.assertEqual(dtp.received, [])
-        self.assertEqual(self.fd.received, [])
-        advance()
-        self.assertEqual(self.fd.received, ["foo"])
-        advance()
-        advance()
-        self.assertEqual(self.fd.received, ["bar baz"])
-
-    test_divertWhileDeferred.todo = "maybe not worth implementing..."
-
-
     def test_divertWhilePaused(self):
         """
         If an L{IDivertable} L{tube} is diverted while it is paused,
