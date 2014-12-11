@@ -173,6 +173,7 @@ A ``CalculatingTube`` should pass those numbers and operators to a ``Calculator`
 Let's look at `LinesToNumbersOrOperators`.
 
 .. literalinclude:: listings/tubes/rpn.py
+   :prepend: @tube
    :pyobject: LinesToNumbersOrOperators
 
 `ITube.received` takes an input and produces an iterable of outputs.
@@ -184,6 +185,7 @@ Given the specification for the RPN calculator's input above, those lines may co
 Now that you've parsed those inputs into meaningful values, you can send them on to the ``Calculator`` for processing.
 
 .. literalinclude:: listings/tubes/rpn.py
+   :prepend: @tube
    :pyobject: CalculatingTube
 
 `CalculatingTube` takes a `Calculator` to its constructor, and provides a `received` method which takes, as input, the outputs produced by `LinesToNumbersOrOperators`.
@@ -200,6 +202,7 @@ Finally we need to move this output along so that the user can see it.
 To do this, we use the very simple `NumbersToLines` which takes integer inputs and transforms them into ASCII bytes.
 
 .. literalinclude:: listings/tubes/rpn.py
+   :prepend: @tube
    :pyobject: NumbersToLines
 
 Like `LinesToNumbersOrOperators`, `NumbersToLines` is stateless, and produces one output for every input.
