@@ -34,15 +34,6 @@ class DequeMetaIterable(object):
         self._suspended = False
 
 
-    def __iter__(self):
-        """
-        I am my own iterator.
-
-        @return: C{self}
-        """
-        return self
-
-
     def suspend(self):
         """
         Pretend to be empty until resume() is called.
