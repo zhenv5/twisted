@@ -6,7 +6,7 @@
 Adapters for converting L{ITube} to L{IDrain} and L{IFount}.
 """
 
-import itertools
+from collections import deque
 
 from zope.interface import implementer
 
@@ -18,6 +18,81 @@ from twisted.python.failure import Failure
 from twisted.internet.defer import Deferred
 
 from twisted.python import log
+
+whatever = object()
+paused = object()
+
+class DequeMetaIterable(object):
+    """
+    An iterable that iterates iterables by destructively traversing a mutable
+    deque.
+    """
+
+    def __init__(self):
+        self._deque = deque()
+        self._suspended = False
+
+
+    def __iter__(self):
+        """
+        I am my own iterator.
+
+        @return: C{self}
+        """
+        return self
+
+
+    def suspend(self):
+        """
+        Pretend to be empty until resume() is called.
+        """
+        self._suspended = True
+
+
+    def resume(self):
+        """
+        
+        """
+        self._suspended = False
+
+
+    def prepend(self, iterator):
+        """
+        
+        """
+        self._deque.appendleft(iterator)
+
+
+    def append(self, iterator):
+        """
+        
+        """
+        self._deque.append(iterator)
+
+
+    def clear(self):
+        """
+        
+        """
+        self._deque.clear()
+
+
+    def __next__(self):
+        """
+        Get the next value in the leftmost iterator in the deque.
+        """
+        if self._suspended:
+            return paused
+        while self._deque:
+            result = next(self._deque[0], whatever)
+            if result is whatever:
+                self._deque.popleft()
+            else:
+                return result
+        raise StopIteration()
+
+    next = __next__
+
 
 class _SiphonPiece(object):
     """
@@ -59,24 +134,21 @@ class _SiphonFount(_SiphonPiece):
 
         def _actuallyPause():
             fount = self._siphon._tdrain.fount
-            self._siphon._currentlyPaused = True
+            self._siphon._pending.suspend()
             if fount is None:
                 return
-            if self._siphon._pauseBecausePauseCalled is None:
-                self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
+            self._siphon._pauseBecausePauseCalled = fount.pauseFlow()
 
         def _actuallyResume():
-            self._siphon._currentlyPaused = False
+            fp = self._siphon._pauseBecausePauseCalled
+            self._siphon._pauseBecausePauseCalled = None
 
+            self._siphon._pending.resume()
             self._siphon._unbufferIterator()
-            if self._siphon._currentlyPaused:
-                return
 
-            if self._siphon._pauseBecausePauseCalled:
-                # TODO: validate that the siphon's fount is always set
-                # consisetntly with _pauseBecausePauseCalled.
-                fp = self._siphon._pauseBecausePauseCalled
-                self._siphon._pauseBecausePauseCalled = None
+            # TODO: validate that the siphon's fount is always set consistently
+            # with _pauseBecausePauseCalled.
+            if fp is not None:
                 fp.unpause()
 
         self._pauser = Pauser(_actuallyPause, _actuallyResume)
@@ -132,9 +204,8 @@ class _SiphonFount(_SiphonPiece):
         Stop the flow from the fount to this L{_Siphon}, and stop delivering
         buffered items.
         """
-        self._siphon._flowWasStopped = True
+        self._siphon._noMore(input=True, output=True)
         fount = self._siphon._tdrain.fount
-        self._siphon._pendingIterator = None
         if fount is None:
             return
         fount.stopFlow()
@@ -197,7 +268,7 @@ class _SiphonDrain(_SiphonPiece):
             self._siphon._pauseBecausePauseCalled = pauseFlow()
             pbpc.unpause()
         if fount is not None:
-            if self._siphon._flowWasStopped:
+            if not self._siphon._canStillProcessInput:
                 fount.stopFlow()
             # Is this the right place, or does this need to come after
             # _pauseBecausePauseCalled's check?
@@ -224,10 +295,14 @@ class _SiphonDrain(_SiphonPiece):
 
     def flowStopped(self, reason):
         """
-        This siphon has now stopped.
+        This siphon's fount has communicated the end of the flow to this
+        siphon.  This siphon should finish yielding its current buffer, then
+        yield the result of it's C{_tube}'s C{stopped} method, then communicate
+        the end of flow to its downstream drain.
 
         @param reason: the reason why our fount stopped the flow.
         """
+        self._siphon._noMore(input=True, output=False)
         self._siphon._flowStoppingReason = reason
         def tubeStopped():
             return self._tube.stopped(reason)
@@ -254,32 +329,46 @@ class _Siphon(object):
 
     @ivar _flowStoppingReason: If this is not C{None}, then call C{flowStopped}
         on the downstream L{IDrain} at the next opportunity, where "the next
-        opportunity" is when the last L{Deferred} yielded from L{ITube.stopped}
-        has fired.
+        opportunity" is when all buffered input (values yielded from
+        C{started}, C{received}, and C{stopped}) has been written to the
+        downstream drain and we are unpaused.
 
     @ivar _everStarted: Has this L{_Siphon} ever called C{started} on its
         L{Tube}?
     @type _everStarted: L{bool}
     """
 
-    _currentlyPaused = False
-    _pauseBecausePauseCalled = None
-    _tube = None
-    _pendingIterator = None
-    _flowWasStopped = False
-    _everStarted = False
-    _unbuffering = False
-    _flowStoppingReason = None
-    _pauseBecauseNoDrain = None
-
     def __init__(self, tube):
         """
         Initialize this L{_Siphon} with the given L{Tube} to control its
         behavior.
         """
+        self._canStillProcessInput = True
+        self._pauseBecausePauseCalled = None
+        self._tube = None
+        self._everStarted = False
+        self._unbuffering = False
+        self._flowStoppingReason = None
+        self._pauseBecauseNoDrain = None
+
         self._tfount = _SiphonFount(self)
         self._tdrain = _SiphonDrain(self)
         self._tube = tube
+        self._pending = DequeMetaIterable()
+
+
+    def _noMore(self, input, output):
+        """
+        I am now unable to produce further input, or output, or both.
+
+        @param input: L{True} if I can no longer produce input.
+
+        @param output: L{True} if I can no longer produce output.
+        """
+        if input:
+            self._canStillProcessInput = False
+        if output:
+            self._pending.clear()
 
 
     def __repr__(self):
@@ -296,10 +385,6 @@ class _Siphon(object):
         @param deliverySource: a 0-argument callable that will return an
             iterable.
         """
-        assert self._pendingIterator is None, \
-            repr(list(self._pendingIterator)) + " " + \
-            repr(deliverySource) + " " + \
-            repr(self._pauseBecauseNoDrain)
         try:
             iterableOrNot = deliverySource()
         except:
@@ -313,7 +398,7 @@ class _Siphon(object):
             return
         if iterableOrNot is None:
             return
-        self._pendingIterator = iter(iterableOrNot)
+        self._pending.append(iter(iterableOrNot))
         if self._tfount.drain is None:
             if self._pauseBecauseNoDrain is None:
                 self._pauseBecauseNoDrain = self._tfount.pauseFlow()
@@ -323,36 +408,56 @@ class _Siphon(object):
 
     def _unbufferIterator(self):
         """
-        Un-buffer some items buffered in C{self._pendingIterator} and actually
-        deliver them, as long as we're not paused.
+        Un-buffer some items buffered in C{self._pending} and actually deliver
+        them, as long as we're not paused.
         """
         if self._unbuffering:
             return
-        if self._pendingIterator is None:
-            return
-        whatever = object()
+
         self._unbuffering = True
-        def whenUnclogged(result, somePause):
-            pending = self._pendingIterator
-            self._pendingIterator = itertools.chain(iter([result]), pending)
-            somePause.unpause()
-        while not self._currentlyPaused:
-            if self._pendingIterator is not None:
-                value = next(self._pendingIterator, whatever)
-            else:
-                value = whatever
-            if value is whatever:
-                self._pendingIterator = None
-                if self._flowStoppingReason is not None:
-                    self._tfount.drain.flowStopped(self._flowStoppingReason)
+
+        for value in self._pending:
+            if value is paused:
                 break
             if isinstance(value, Deferred):
-                anPause = self._tfount.pauseFlow()
-                (value.addCallback(whenUnclogged, somePause=anPause)
+                (value
+                 .addCallback(self._whenUnclogged,
+                              somePause=self._tfount.pauseFlow())
                  .addErrback(log.err, "WHAT"))
             else:
                 self._tfount.drain.receive(value)
+        else:
+            if self._flowStoppingReason:
+                self._endOfLine(self._flowStoppingReason)
+
         self._unbuffering = False
+
+
+    def _whenUnclogged(self, result, somePause):
+        """
+        When a Deferred fires with a result, this inserts the result of that
+        Deferred into the head of the delivery queue and unpauses the pause
+        associated that Deferred.
+
+        @param result: The result to pass along.
+
+        @param somePause: The pause to un-pause.
+        """
+        self._pending.prepend(iter([result]))
+        somePause.unpause()
+
+
+    def _endOfLine(self, flowStoppingReason):
+        """
+        We've reached the end of the line.  Immediately stop delivering all
+        buffers and notify our downstream drain why the flow has stopped.
+        """
+        self._noMore(input=True, output=True)
+        self._flowStoppingReason = None
+        self._pending.clear()
+        downstream = self._tfount.drain
+        if downstream is not None:
+            self._tfount.drain.flowStopped(flowStoppingReason)
 
 
 

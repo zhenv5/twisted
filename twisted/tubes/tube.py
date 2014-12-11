@@ -12,8 +12,9 @@ from zope.interface import implementer
 from zope.interface.verify import verifyClass
 
 from twisted.python.components import proxyForInterface
+from twisted.python.failure import Failure
 
-from .itube import IDrain, ITube, IDivertable, IFount
+from .itube import IDrain, ITube, IDivertable, IFount, StopFlowCalled
 from ._siphon import _tubeRegistry, _Siphon, _PlaceholderPause
 from ._components import _registryActive
 
@@ -325,7 +326,10 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
 
         @return: L{None}
         """
-        unpending = self._friendSiphon._pendingIterator
+        # TODO: if _pending is suspended here we will get an infinite sequence
+        # of the 'paused' object, we should probably be sure to safely extract
+        # it.
+        unpending = self._friendSiphon._pending
 
         pendingPending = self._divertable.reassemble(unpending) or []
         upstream = self._friendSiphon._tdrain.fount
