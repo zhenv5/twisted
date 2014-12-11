@@ -251,7 +251,7 @@ class _OutDrain(object):
             if p is not None:
                 p.unpause()
 
-        self._pauser = Pauser(self._actuallyPause, self._actuallyResume)
+        self._pauser = Pauser(_actuallyPause, _actuallyResume)
 
         self.inputType = inputType
         self.outputType = outputType
