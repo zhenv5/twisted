@@ -411,6 +411,27 @@ class SeriesTest(TestCase):
                           "switched(after)"])
 
 
+    def test_tubePausesItself(self):
+        """
+        When one of the methods on L{Tube} pauses its own C{fount} or C{drain},
+        the next item it yields will not arrive at its downstream drain until
+        it is unpaused.
+        """
+        @tube
+        class PauseThenYield(object):
+            def started(self):
+                yield 1
+                self.pause = meAsFount.pauseFlow()
+                yield 2
+
+        pty = series(PauseThenYield())
+        meAsFount = self.ff.flowTo(pty)
+        meAsFount.flowTo(self.fd)
+        self.assertEqual(self.fd.received, [1])
+        pty.pause.unpause()
+        self.assertEqual(self.fd.received, [1, 2])
+
+
     def test_initiallyEnthusiasticFountBecomesDisillusioned(self):
         """
         If an L{IFount} provider synchronously calls C{receive} on a
@@ -905,7 +926,6 @@ class SeriesTest(TestCase):
         ff.flowTo(series(OneAndTwo())).flowTo(self.fd)
         self.assertEqual(self.fd.received, [1, 2])
         self.assertEqual(len(self.fd.stopped), 1)
-
 
 
     def test_seriesStartsWithSeries(self):
