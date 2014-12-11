@@ -3,8 +3,8 @@
 # See LICENSE for details.
 
 """
-Tools for turning L{founts <twisted.tubes.itube.IFount>} and L{drains
-<twisted.tubes.itube.IDrain>} into multiple founts and drains.
+Tools for turning L{founts <IFount>} and L{drains <IDrain>} into multiple
+founts and drains.
 """
 
 from itertools import count
@@ -150,8 +150,8 @@ class _AggregatePause(object):
 
 class In(object):
     r"""
-    A fan.L{In} presents a single L{fount <twisted.tubes.itube.IFount>} that
-    delivers the inputs from multiple L{drains <twisted.tubes.itube.IDrain>}::
+    A fan.L{In} presents a single L{fount <IFount>} that delivers the inputs
+    from multiple L{drains <IDrain>}::
 
         your fount ---> In.newDrain()--\
                                         \
@@ -160,7 +160,7 @@ class In(object):
         your fount ---> In.newDrain()--/
 
     @ivar fount: The fount which produces all new attributes.
-    @type fount: L{twisted.tubes.itube.IFount}
+    @type fount: L{IFount}
     """
     def __init__(self):
         self.fount = _InFount(self)
@@ -170,7 +170,7 @@ class In(object):
 
     def newDrain(self):
         """
-        Create a new L{drains <twisted.tubes.itube.IDrain>} which will send its
+        Create a new L{drains <IDrain>} which will send its
         inputs out via C{self.fount}.
 
         @return: a drain.
@@ -293,8 +293,8 @@ class _OutDrain(object):
 
 class Out(object):
     r"""
-    A fan.L{Out} presents a single L{drain <twisted.tubes.itube.IDrain>} that
-    delivers the inputs to multiple L{founts <twisted.tubes.itube.IFount>}::
+    A fan.L{Out} presents a single L{drain <IDrain>} that delivers the inputs
+    to multiple L{founts <IFount>}::
 
                                            /--> Out.newFount() --> your drain
                                           /
@@ -303,7 +303,7 @@ class Out(object):
                                            \--> Out.newFount() --> your drain
 
     @ivar drain: The fount which produces all new attributes.
-    @type drain: L{twisted.tubes.itube.IDrain}
+    @type drain: L{IDrain}
     """
 
     def __init__(self, inputType=None, outputType=None):
@@ -352,12 +352,24 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
          (receiving a combination
              of foo, bar, baz)
 
-    The way you would construct such a flow would be:
+    The way you would construct such a flow in code would be::
+
+        yourFount.flowTo(Thru([series(foo2bar()),
+                               series(foo2baz()),
+                               series(foo2qux())])).flowTo(yourDrain)
     """
 
     def __init__(self, drains):
         """
-        
+        Create a L{Thru} with an iterable of L{IDrain}.
+
+        All of the drains in C{drains} should be drains that produce a new
+        L{IFount} from L{flowingFrom <IFount.flowingFrom>}, which means they
+        should be a L{series <twisted.tubes.tube.series>} of L{tubes
+        <twisted.tubes.itube.ITube>}, or drains that behave like that, such as
+        L{Thru} itself.
+
+        @param drain: an iterable of L{IDrain}
         """
         self._in = In()
         self._out = Out()
@@ -371,7 +383,10 @@ class Thru(proxyForInterface(IDrain, "_outDrain")):
 
     def flowingFrom(self, fount):
         """
-        
+        Accept input from C{fount} and produce output filtered by all of the
+        C{drain}s given to this L{Thru}'s constructor.
+
+        @param fount:
         """
         super(Thru, self).flowingFrom(fount)
         for idx, appDrain, outFount, inDrain in zip(
