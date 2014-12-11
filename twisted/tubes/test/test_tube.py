@@ -385,6 +385,7 @@ class SeriesTest(TestCase):
         def later(result):
             d = Deferred()
             laters.append((d, result))
+            return d
         def advance():
             d, result = laters.pop(0)
             d.callback(result)
@@ -409,14 +410,14 @@ class SeriesTest(TestCase):
         dtp = PausingDrain()
         self.ff.flowTo(diverter).flowTo(dtp)
         self.ff.drain.receive("foo bar baz")
-        otherDrain = FakeDrain()
-        diverter.divert(otherDrain)
+        diverter.divert(self.fd)
         self.assertEqual(dtp.received, [])
         self.assertEqual(self.fd.received, [])
         advance()
+        self.assertEqual(self.fd.received, ["foo"])
         advance()
         advance()
-        self.assertEqual(self.fd.received, ["foo bar baz"])
+        self.assertEqual(self.fd.received, ["bar baz"])
 
     test_divertWhileDeferred.todo = "maybe not worth implementing..."
 
@@ -434,7 +435,7 @@ class SeriesTest(TestCase):
                     yield datum
 
             def reassemble(self, datums):
-                return " ".join(datums)
+                return [" ".join(datums)]
 
         diverter = Diverter(SlowDivertable())
         class PausingDrain(FakeDrain):
@@ -445,10 +446,9 @@ class SeriesTest(TestCase):
         dtp = PausingDrain()
         self.ff.flowTo(diverter).flowTo(dtp)
         self.ff.drain.receive("foo bar baz")
-        otherDrain = FakeDrain()
-        diverter.divert(otherDrain)
-        self.assertEqual(dtp.received, [])
-        self.assertEqual(self.fd.received, ["foo bar baz"])
+        diverter.divert(self.fd)
+        self.assertEqual(dtp.received, ["foo"])
+        self.assertEqual(self.fd.received, ["bar baz"])
 
 
     def test_tubeDivertingControlsWhereOutputGoes(self):
