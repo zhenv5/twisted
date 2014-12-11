@@ -319,7 +319,7 @@ class Out(object):
         """
         
         """
-        f = _OutFount(self._drain._pauser, self._founts.remove)
+        f = _OutFount(self.drain._pauser, self._founts.remove)
         self._founts.append(f)
         return f
 
