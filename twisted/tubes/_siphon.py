@@ -21,6 +21,7 @@ from twisted.python import log
 
 whatever = object()
 paused = object()
+finished = object()
 
 class DequeMetaIterable(object):
     """
@@ -77,7 +78,7 @@ class DequeMetaIterable(object):
         self._deque.clear()
 
 
-    def __next__(self):
+    def popPendingValue(self):
         """
         Get the next value in the leftmost iterator in the deque.
         """
@@ -92,9 +93,30 @@ class DequeMetaIterable(object):
                 self._deque.popleft()
             else:
                 return result
-        raise StopIteration()
+        return finished
 
-    next = __next__
+
+    def ejectBuffer(self):
+        """
+        Eject the entire pending buffer into a list for reassembly by a
+        diverter.
+
+        @return: a L{list} of all buffered output values.
+        """
+        result = []
+        # self._suspended = False
+        while True:
+            value = self.popPendingValue()
+            assert value is not paused, """
+                                        TODO: if _pending is suspended here we
+                                        will get an infinite sequence of the
+                                        'paused' object, we should probably be
+                                        sure to safely extract it.
+                                        """
+            if value is finished:
+                return result
+            result.append(value)
+
 
 
 class _SiphonPiece(object):
@@ -419,19 +441,21 @@ class _Siphon(object):
 
         self._unbuffering = True
 
-        for value in self._pending:
+        while True:
+            value = self._pending.popPendingValue()
             if value is paused:
                 break
-            if isinstance(value, Deferred):
+            elif value is finished:
+                if self._flowStoppingReason:
+                    self._endOfLine(self._flowStoppingReason)
+                break
+            elif isinstance(value, Deferred):
                 (value
                  .addCallback(self._whenUnclogged,
                               somePause=self._tfount.pauseFlow())
                  .addErrback(log.err, "WHAT"))
             else:
                 self._tfount.drain.receive(value)
-        else:
-            if self._flowStoppingReason:
-                self._endOfLine(self._flowStoppingReason)
 
         self._unbuffering = False
 

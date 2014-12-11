@@ -327,10 +327,7 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
 
         @return: L{None}
         """
-        # TODO: if _pending is suspended here we will get an infinite sequence
-        # of the 'paused' object, we should probably be sure to safely extract
-        # it.
-        unpending = self._friendSiphon._pending
+        unpending = self._friendSiphon._pending.ejectBuffer()
 
         pendingPending = self._divertable.reassemble(unpending) or []
         upstream = self._friendSiphon._tdrain.fount
