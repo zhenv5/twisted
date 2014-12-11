@@ -1,6 +1,6 @@
 
 from twisted.tubes.protocol import factoryFromFlow
-from twisted.tubes.tube import Tube
+from twisted.tubes.tube import tube
 
 from twisted.internet.endpoints import serverFromString
 from twisted.internet.defer import Deferred
@@ -19,7 +19,8 @@ class Calculator(object):
         self.push(result)
         return result
 
-class LinesToNumbersOrOperators(Tube):
+@tube
+class LinesToNumbersOrOperators(object):
     def received(self, line):
         from operator import add, mul
 
@@ -31,7 +32,8 @@ class LinesToNumbersOrOperators(Tube):
             elif line == '*':
                 yield mul
 
-class CalculatingTube(Tube):
+@tube
+class CalculatingTube(object):
     def __init__(self, calculator):
         self.calculator = calculator
 
@@ -41,9 +43,30 @@ class CalculatingTube(Tube):
         else:
             yield self.calculator.do(value)
 
-class NumbersToLines(Tube):
+@tube
+class NumbersToLines(object):
     def received(self, value):
         yield str(value).encode("ascii")
+
+@tube
+class Prompter(object):
+    def started(self):
+        yield "> "
+    def received(self, item):
+        yield "> "
+
+def promptingCalculatorSeries():
+    from twisted.tubes.fan import Thru
+    from twisted.tubes.tube import series
+    from twisted.tubes.framing import bytesToLines, linesToBytes
+
+    full = series(bytesToLines(),
+                  Thru([series(LinesToNumbersOrOperators(),
+                               CalculatingTube(Calculator()),
+                               NumbersToLines(),
+                               linesToBytes()),
+                        series(Prompter())]))
+    return full
 
 def calculatorSeries():
     from twisted.tubes.tube import series
