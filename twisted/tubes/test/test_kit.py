@@ -1,4 +1,4 @@
-# -*- test-case-name: twisted.tube.test.test_pauser -*-
+# -*- test-case-name: twisted.tube.test.test_kit -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
