@@ -327,7 +327,7 @@ class Diverter(proxyForInterface(IDrain, "_drain")):
 
         @return: L{None}
         """
-        unpending = self._friendSiphon._pending.ejectBuffer()
+        unpending = self._friendSiphon.ejectPending()
 
         pendingPending = self._divertable.reassemble(unpending) or []
         upstream = self._friendSiphon._tdrain.fount

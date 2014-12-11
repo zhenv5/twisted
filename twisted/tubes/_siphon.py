@@ -23,7 +23,7 @@ whatever = object()
 paused = object()
 finished = object()
 
-class DequeMetaIterable(object):
+class SiphonPendingValues(object):
     """
     An iterable that iterates iterables by destructively traversing a mutable
     deque.
@@ -85,28 +85,6 @@ class DequeMetaIterable(object):
             else:
                 return result
         return finished
-
-
-    def ejectBuffer(self):
-        """
-        Eject the entire pending buffer into a list for reassembly by a
-        diverter.
-
-        @return: a L{list} of all buffered output values.
-        """
-        result = []
-        # self._suspended = False
-        while True:
-            value = self.popPendingValue()
-            assert value is not paused, """
-                                        TODO: if _pending is suspended here we
-                                        will get an infinite sequence of the
-                                        'paused' object, we should probably be
-                                        sure to safely extract it.
-                                        """
-            if value is finished:
-                return result
-            result.append(value)
 
 
 
@@ -370,7 +348,7 @@ class _Siphon(object):
         self._tfount = _SiphonFount(self)
         self._tdrain = _SiphonDrain(self)
         self._tube = tube
-        self._pending = DequeMetaIterable()
+        self._pending = SiphonPendingValues()
 
 
     def _noMore(self, input, output):
@@ -476,6 +454,29 @@ class _Siphon(object):
         downstream = self._tfount.drain
         if downstream is not None:
             self._tfount.drain.flowStopped(flowStoppingReason)
+
+
+    def ejectPending(self):
+        """
+        Eject the entire pending buffer into a list for reassembly by a
+        diverter.
+
+        @return: a L{list} of all buffered output values.
+        """
+        result = []
+        # self._suspended = False
+        while True:
+            value = self._pending.popPendingValue()
+            assert value is not paused, """
+                                        TODO: if _pending is suspended here we
+                                        will get an infinite sequence of the
+                                        'paused' object, we should probably be
+                                        sure to safely extract it.
+                                        """
+            if value is finished:
+                return result
+            result.append(value)
+
 
 
 
