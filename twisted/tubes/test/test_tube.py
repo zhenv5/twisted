@@ -862,7 +862,7 @@ class SeriesTest(TestCase):
         ff.flowTo(series(OneTwo())).flowTo(stopper)
         self.assertEqual(stopper.received, [1])
         self.assertEqual(len(stopper.stopped), 1)
-        self.assertEqual(stopper[0].type, StopFlowCalled)
+        self.assertEqual(stopper.stopped[0].type, ZeroDivisionError)
 
 
     def test_stopFlowBeforeFlowBegins(self):
@@ -875,6 +875,32 @@ class SeriesTest(TestCase):
         self.fd.fount.stopFlow()
         self.ff.flowTo(partially)
         self.assertEquals(self.ff.flowIsStopped, True)
+
+
+    def test_stopFlowWhileStartingFlow(self):
+        """
+        If a fount flowing to a tube calls C{flowStopped} in C{flowTo}, the
+        results of C{started} and C{stopped} on the tube should both show up to
+        its drain.
+        """
+        class JustStop(FakeFount):
+            def flowTo(self, drain):
+                result = super(JustStop, self).flowTo(drain)
+                drain.flowStopped(ZeroDivisionError())
+                return result
+
+        @tube
+        class OneAndTwo(object):
+            def started(self):
+                yield 1
+            def stopped(self, reason):
+                yield 2
+
+        ff = JustStop()
+        ff.flowTo(series(OneAndTwo())).flowTo(self.fd)
+        self.assertEqual(self.fd.received, [1, 2])
+        self.assertEqual(len(self.fd.stopped), 1)
+
 
 
     def test_seriesStartsWithSeries(self):
