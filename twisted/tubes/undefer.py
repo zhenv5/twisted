@@ -1,38 +1,34 @@
 # -*- test-case-name: twisted.tubes.test.test_undefer -*-
+from .tube import receiver, series, skip
+
 from twisted.internet.defer import Deferred
-from .tube import tube, series, skip
-
-
-@tube
-class PauseThenYield(object):
-    def received(self, item):
-        if isinstance(item, Deferred):
-            pause = self._selfAsFount.pauseFlow()
-            def gotResult(result):
-                gotResult.ok = True
-                gotResult.result = result
-            def gotError(failure):
-                gotResult.ok = False
-                gotResult.result = failure
-            def done(result):
-                pause.unpause()
-            item.addCallbacks(gotResult, gotError).addCallback(done)
-            yield skip
-            if gotResult.ok:
-                yield gotResult.result
-            else:
-                gotResult.result.raiseException()
-
-
+from twisted.python.failure import Failure
 
 def deferredToResult():
     """
-    
+    Convert L{Deferred}s into their results.
+
+    @return: a L{drain <twisted.tubes.tube.IDrain>} that receives L{Deferred}s
+        and emits the values that are the results of those L{Deferred}s.
     """
-    pty = PauseThenYield()
-    drain = series(pty)
-    aFount = drain.flowingFrom(None)
-    pty._selfAsFount = aFount
+    @receiver()
+    def received(item):
+        if isinstance(item, Deferred):
+            pause = selfAsFount.pauseFlow()
+            results = []
+            def done(result):
+                results[:] = [result]
+                pause.unpause()
+            item.addBoth(done)
+            yield skip
+            [result] = results
+            if isinstance(result, Failure):
+                result.raiseException()
+            else:
+                yield result
+
+    drain = series(received)
+    selfAsFount = drain.flowingFrom(None)
     return drain
 
 
