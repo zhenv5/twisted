@@ -134,9 +134,7 @@ class _SiphonFount(_SiphonPiece):
         """
         self._siphon._flowWasStopped = True
         fount = self._siphon._tdrain.fount
-        if self._siphon._pendingIterator is not None:
-            # FIXME: (maybe): generator.close?
-            self._siphon._pendingIterator = iter(())
+        self._siphon._pendingIterator = None
         if fount is None:
             return
         fount.stopFlow()
@@ -339,7 +337,10 @@ class _Siphon(object):
             self._pendingIterator = itertools.chain(iter([result]), pending)
             somePause.unpause()
         while not self._currentlyPaused:
-            value = next(self._pendingIterator, whatever)
+            if self._pendingIterator is not None:
+                value = next(self._pendingIterator, whatever)
+            else:
+                value = whatever
             if value is whatever:
                 self._pendingIterator = None
                 if self._flowStoppingReason is not None:
