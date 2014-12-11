@@ -15,13 +15,13 @@ from .kit import Pauser, beginFlowingFrom, beginFlowingTo
 from ._components import _registryAdapting
 
 from twisted.python.failure import Failure
-from twisted.internet.defer import Deferred
 
 from twisted.python import log
 
 whatever = object()
 paused = object()
 finished = object()
+skip = object()
 
 class SiphonPendingValues(object):
     """
@@ -414,33 +414,16 @@ class _Siphon(object):
             value = self._pending.popPendingValue()
             if value is paused:
                 break
+            elif value is skip:
+                continue
             elif value is finished:
                 if self._flowStoppingReason:
                     self._endOfLine(self._flowStoppingReason)
                 break
-            elif isinstance(value, Deferred):
-                (value
-                 .addCallback(self._whenUnclogged,
-                              somePause=self._tfount.pauseFlow())
-                 .addErrback(log.err, "WHAT"))
             else:
                 self._tfount.drain.receive(value)
 
         self._unbuffering = False
-
-
-    def _whenUnclogged(self, result, somePause):
-        """
-        When a Deferred fires with a result, this inserts the result of that
-        Deferred into the head of the delivery queue and unpauses the pause
-        associated that Deferred.
-
-        @param result: The result to pass along.
-
-        @param somePause: The pause to un-pause.
-        """
-        self._pending.prepend(iter([result]))
-        somePause.unpause()
 
 
     def _endOfLine(self, flowStoppingReason):
