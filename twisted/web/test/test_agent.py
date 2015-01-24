@@ -50,7 +50,7 @@ try:
 except ImportError:
     ssl = None
 else:
-    from twisted.internet._sslverify import ClientTLSOptions
+    from twisted.internet._sslverify import ClientTLSOptions, IOpenSSLTrustRoot
 
 
 
@@ -1315,6 +1315,27 @@ class AgentHTTPSTests(TestCase, FakeReactorAndConnectMixin):
         )
 
 
+    def test_alternateTrustRoot(self):
+        """
+        L{BrowserLikePolicyForHTTPS.creatorForNetloc} returns an
+        L{IOpenSSLClientConnectionCreator} provider which will add certificates
+        from the given trust root.
+        """
+        @implementer(IOpenSSLTrustRoot)
+        class CustomOpenSSLTrustRoot(object):
+            called = False
+            context = None
+            def _addCACertsToContext(self, context):
+                self.called = True
+                self.context = context
+        trustRoot = CustomOpenSSLTrustRoot()
+        policy = BrowserLikePolicyForHTTPS(trustRoot=trustRoot)
+        creator = policy.creatorForNetloc(b"thingy", 4321)
+        self.assertTrue(trustRoot.called)
+        connection = creator.clientConnectionForTLS(None)
+        self.assertIs(trustRoot.context, connection.get_context())
+
+
 
 class WebClientContextFactoryTests(TestCase):
     """
@@ -1955,10 +1976,10 @@ class ContentDecoderAgentTests(TestCase, FakeReactorAndConnectMixin,
         self.assertEqual(len(protocol.requests), 1)
         req, res = protocol.requests.pop()
         self.assertEqual(
-            list(req.headers.getAllRawHeaders()),
-            [('Host', ['example.com']),
+            list(sorted(req.headers.getAllRawHeaders())),
+            [('Accept-Encoding', ['fizz', 'decoder1,decoder2']),
              ('Foo', ['bar']),
-             ('Accept-Encoding', ['fizz', 'decoder1,decoder2'])])
+             ('Host', ['example.com'])])
 
 
     def test_plainEncodingResponse(self):
@@ -2698,35 +2719,62 @@ class BrowserLikeRedirectAgentTests(TestCase,
 
 
 
+class AbortableStringTransport(StringTransport):
+    """
+    A version of L{StringTransport} that supports C{abortConnection}.
+    """
+    # This should be replaced by a common version in #6530.
+    aborting = False
+
+
+    def abortConnection(self):
+        """
+        A testable version of the C{ITCPTransport.abortConnection} method.
+
+        Since this is a special case of closing the connection,
+        C{loseConnection} is also called.
+        """
+        self.aborting = True
+        self.loseConnection()
+
+
+
 class DummyResponse(object):
     """
-    Fake L{IResponse} for testing readBody that just captures the protocol
-    passed to deliverBody.
+    Fake L{IResponse} for testing readBody that captures the protocol passed to
+    deliverBody and uses it to make a connection with a transport.
 
     @ivar protocol: After C{deliverBody} is called, the protocol it was called
         with.
+
+    @ivar transport: An instance created by calling C{transportFactory} which
+        is used by L{DummyResponse.protocol} to make a connection.
     """
 
     code = 200
     phrase = "OK"
 
-    def __init__(self, headers=None):
+    def __init__(self, headers=None, transportFactory=AbortableStringTransport):
         """
         @param headers: The headers for this response.  If C{None}, an empty
             L{Headers} instance will be used.
         @type headers: L{Headers}
+
+        @param transportFactory: A callable used to construct the transport.
         """
         if headers is None:
             headers = Headers()
         self.headers = headers
+        self.transport = transportFactory()
 
 
     def deliverBody(self, protocol):
         """
-        Just record the given protocol without actually delivering anything to
-        it.
+        Record the given protocol and use it to make a connection with
+        L{DummyResponse.transport}.
         """
         self.protocol = protocol
+        self.protocol.makeConnection(self.transport)
 
 
 
@@ -2745,6 +2793,18 @@ class ReadBodyTests(TestCase):
         response.protocol.dataReceived("second")
         response.protocol.connectionLost(Failure(ResponseDone()))
         self.assertEqual(self.successResultOf(d), "firstsecond")
+
+
+    def test_cancel(self):
+        """
+        When cancelling the L{Deferred} returned by L{client.readBody}, the
+        connection to the server will be aborted.
+        """
+        response = DummyResponse()
+        deferred = client.readBody(response)
+        deferred.cancel()
+        self.failureResultOf(deferred, defer.CancelledError)
+        self.assertTrue(response.transport.aborting)
 
 
     def test_withPotentialDataLoss(self):
@@ -2786,3 +2846,20 @@ class ReadBodyTests(TestCase):
         reason = self.failureResultOf(d)
         reason.trap(ConnectionLost)
         self.assertEqual(reason.value.args, ("mystery problem",))
+
+
+    def test_deprecatedTransport(self):
+        """
+        Calling L{client.readBody} with a transport that does not implement
+        L{twisted.internet.interfaces.ITCPTransport} produces a deprecation
+        warning, but no exception when cancelling.
+        """
+        response = DummyResponse(transportFactory=StringTransport)
+        d = self.assertWarns(
+            DeprecationWarning,
+            'Using readBody with a transport that does not implement '
+            'ITCPTransport',
+            __file__,
+            lambda: client.readBody(response))
+        d.cancel()
+        self.failureResultOf(d, defer.CancelledError)

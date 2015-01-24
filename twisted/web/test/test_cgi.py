@@ -76,7 +76,7 @@ print "cgi output"
 class PythonScript(twcgi.FilteredScript):
     filter = sys.executable
 
-class CGI(unittest.TestCase):
+class CGITests(unittest.TestCase):
     """
     Tests for L{twcgi.FilteredScript}.
     """
@@ -261,7 +261,7 @@ class CGI(unittest.TestCase):
                 Set the C{called} flag to C{True} if C{spawnProcess} is called.
 
                 @param args: Positional arguments.
-                @param kwargs: Keyword arguements.
+                @param kwargs: Keyword arguments.
                 """
                 self.called = True
 

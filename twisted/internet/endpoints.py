@@ -1114,8 +1114,6 @@ def _parseSSL(factory, port, privateKey="server.pem", certKey=None,
     kw = {}
     if sslmethod is not None:
         kw['method'] = getattr(ssl.SSL, sslmethod)
-    else:
-        kw['method'] = ssl.SSL.SSLv23_METHOD
     certPEM = FilePath(certKey).getContent()
     keyPEM = FilePath(privateKey).getContent()
     privateCertificate = ssl.PrivateCertificate.loadPEM(certPEM + keyPEM)
@@ -1473,7 +1471,7 @@ def serverFromString(reactor, description):
     @type description: L{bytes}
 
     @return: A new endpoint which can be used to listen with the parameters
-        given by by C{description}.
+        given by C{description}.
 
     @rtype: L{IStreamServerEndpoint<twisted.internet.interfaces.IStreamServerEndpoint>}
 
@@ -1633,7 +1631,6 @@ def _parseClientSSL(*args, **kwargs):
         verify = False
         caCerts = None
     kwargs['sslContextFactory'] = ssl.CertificateOptions(
-        method=ssl.SSL.SSLv23_METHOD,
         certificate=certx509,
         privateKey=privateKey,
         verify=verify,
@@ -1743,7 +1740,7 @@ def clientFromString(reactor, description):
     @type description: L{bytes}
 
     @return: A new endpoint which can be used to connect with the parameters
-        given by by C{description}.
+        given by C{description}.
     @rtype: L{IStreamClientEndpoint<twisted.internet.interfaces.IStreamClientEndpoint>}
 
     @since: 10.2

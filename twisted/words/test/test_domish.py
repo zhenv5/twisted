@@ -10,7 +10,7 @@ from twisted.trial import unittest
 from twisted.words.xish import domish
 
 
-class DomishTestCase(unittest.TestCase):
+class DomishTests(unittest.TestCase):
     def testEscaping(self):
         s = "&<>'\""
         self.assertEqual(domish.escapeToXml(s), "&amp;&lt;&gt;'\"")
@@ -81,7 +81,7 @@ class DomishTestCase(unittest.TestCase):
     def test_elements(self):
         """
         Calling C{elements} without arguments on a L{domish.Element} returns
-        all child elements, whatever the qualfied name.
+        all child elements, whatever the qualified name.
         """
         e = domish.Element((u"testns", u"foo"))
         c1 = e.addElement(u"name")
@@ -250,7 +250,7 @@ class DomishStreamTestsMixin:
 
 
 
-class DomishExpatStreamTestCase(DomishStreamTestsMixin, unittest.TestCase):
+class DomishExpatStreamTests(DomishStreamTestsMixin, unittest.TestCase):
     """
     Tests for L{domish.ExpatElementStream}, the expat-based element stream
     implementation.
@@ -264,7 +264,7 @@ class DomishExpatStreamTestCase(DomishStreamTestsMixin, unittest.TestCase):
 
 
 
-class DomishSuxStreamTestCase(DomishStreamTestsMixin, unittest.TestCase):
+class DomishSuxStreamTests(DomishStreamTestsMixin, unittest.TestCase):
     """
     Tests for L{domish.SuxElementStream}, the L{twisted.web.sux}-based element
     stream implementation.
@@ -419,7 +419,7 @@ class SerializerTests(unittest.TestCase):
         e.addRawXml("<abc123>")
         # The testcase below should NOT generate valid XML -- that's
         # the whole point of using the raw XML call -- it's the callers
-        # responsiblity to ensure that the data inserted is valid
+        # responsibility to ensure that the data inserted is valid
         self.assertEqual(e.toXml(), "<foo><abc123></foo>")
 
     def testRawXMLWithUnicodeSerialization(self):

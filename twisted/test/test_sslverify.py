@@ -31,7 +31,7 @@ from twisted.test.test_twisted import SetAsideModule
 from twisted.test.iosim import connectedServerAndClient
 
 from twisted.internet.error import ConnectionClosed
-from twisted.python.compat import nativeString
+from twisted.python.compat import nativeString, _PY3
 from twisted.python.constants import NamedConstant, Names
 from twisted.python.filepath import FilePath
 
@@ -883,7 +883,25 @@ class OpenSSLOptions(unittest.TestCase):
              "",
              "Serial Number: 12345",
              "Digest: C4:96:11:00:30:C3:EC:EE:A3:55:AA:ED:8C:84:85:18",
-             "Public Key with Hash: ff33994c80812aa95a79cdb85362d054"])
+             # Maintenance Note: the algorithm used to compute the following
+             # "public key hash" is highly dubious and might break at some
+             # point in the future.  See the docstring for PublicKey.keyHash
+             # for information on how this might be addressed in the future.
+             "Public Key with Hash: 50d4b8070143375b3330dedf3a8b9e91"])
+
+
+    def test_publicKeyMatching(self):
+        """
+        L{PublicKey.matches} returns L{True} for keys from certificates with
+        the same key, and L{False} for keys from certificates with different
+        keys.
+        """
+        hostA = sslverify.Certificate.loadPEM(A_HOST_CERTIFICATE_PEM)
+        hostB = sslverify.Certificate.loadPEM(A_HOST_CERTIFICATE_PEM)
+        peerA = sslverify.Certificate.loadPEM(A_PEER_CERTIFICATE_PEM)
+
+        self.assertTrue(hostA.getPublicKey().matches(hostB.getPublicKey()))
+        self.assertFalse(peerA.getPublicKey().matches(hostA.getPublicKey()))
 
 
     def test_certificateOptionsSerialization(self):
@@ -2410,26 +2428,30 @@ class SelectVerifyImplementationTests(unittest.SynchronousTestCase):
 
             sslverify._selectVerifyImplementation(_postTwelveOpenSSL)
 
-            [warning] = list(
-                warning
-                for warning
-                in self.flushWarnings()
-                if warning["category"] == UserWarning)
+        [warning] = list(
+            warning
+            for warning
+            in self.flushWarnings()
+            if warning["category"] == UserWarning)
 
-            expectedMessage = (
-                "You do not have a working installation of the "
-                "service_identity module: "
-                "'No module named service_identity'.  "
-                "Please install it from "
-                "<https://pypi.python.org/pypi/service_identity> "
-                "and make sure all of its dependencies are satisfied.  "
-                "Without the service_identity module and a recent enough "
-                "pyOpenSSL to support it, Twisted can perform only "
-                "rudimentary TLS client hostname verification.  Many valid "
-                "certificate/hostname mappings may be rejected.")
+        if _PY3:
+            importError = (
+                "'import of 'service_identity' halted; None in sys.modules'")
+        else:
+            importError = "'No module named service_identity'"
 
-            self.assertEqual(
-                (warning["message"], warning["filename"], warning["lineno"]),
-                # See the comment in test_pyOpenSSLTooOldWarning.
-                (expectedMessage, "", 0))
+        expectedMessage = (
+            "You do not have a working installation of the "
+            "service_identity module: {message}.  Please install it from "
+            "<https://pypi.python.org/pypi/service_identity> "
+            "and make sure all of its dependencies are satisfied.  "
+            "Without the service_identity module and a recent enough "
+            "pyOpenSSL to support it, Twisted can perform only "
+            "rudimentary TLS client hostname verification.  Many valid "
+            "certificate/hostname mappings may be rejected.").format(
+                message=importError)
 
+        self.assertEqual(
+            (warning["message"], warning["filename"], warning["lineno"]),
+            # See the comment in test_pyOpenSSLTooOldWarning.
+            (expectedMessage, "", 0))

@@ -26,12 +26,10 @@ from functools import wraps
 
 # Twisted imports
 from twisted.python.compat import cmp, comparable
-from twisted.python import lockfile, failure
-from twisted.python.logger import Logger
+from twisted.python import lockfile, log, failure
 from twisted.python.deprecate import warnAboutFunction, deprecated
 from twisted.python.versions import Version
 
-log = Logger()
 
 
 class AlreadyCalledError(Exception):
@@ -666,11 +664,11 @@ class DebugInfo:
         info = ''
         if hasattr(self, "creator"):
             info += " C: Deferred was created:\n C:"
-            info += "".join(self.creator).rstrip().replace("\n", "\n C:")
+            info += "".join(self.creator).rstrip().replace("\n","\n C:")
             info += "\n"
         if hasattr(self, "invoker"):
             info += " I: First Invoker was:\n I:"
-            info += "".join(self.invoker).rstrip().replace("\n", "\n I:")
+            info += "".join(self.invoker).rstrip().replace("\n","\n I:")
             info += "\n"
         return info
 
@@ -683,14 +681,11 @@ class DebugInfo:
         state, print a traceback (if said errback is a L{Failure}).
         """
         if self.failResult is not None:
-            # Note: this is two separate messages for compatibility with
-            # earlier tests; arguably it should be a single error message.
-            log.critical("Unhandled error in Deferred:",
-                         isError=True)
+            log.msg("Unhandled error in Deferred:", isError=True)
             debugInfo = self._getDebugTracebacks()
             if debugInfo != '':
-                debugInfo = ("(debug: " + debugInfo + ")")
-            log.failure("{debugInfo}", self.failResult, debugInfo=debugInfo)
+                log.msg("(debug: " + debugInfo + ")", isError=True)
+            log.err(self.failResult)
 
 
 
@@ -867,10 +862,8 @@ class DeferredList(Deferred):
                 try:
                     deferred.cancel()
                 except:
-                    log.failure(
-                        "Exception raised from user supplied canceller"
-                    )
-
+                    log.err(
+                        _why="Exception raised from user supplied canceller")
 
 
 def _parseDListResult(l, fireOnOneErrback=False):
@@ -1112,9 +1105,9 @@ def _inlineCallbacks(result, g, deferred):
                 result = result.throwExceptionIntoGenerator(g)
             else:
                 result = g.send(result)
-        except StopIteration:
+        except StopIteration as e:
             # fell off the end, or "return" statement
-            deferred.callback(None)
+            deferred.callback(getattr(e, "value", None))
             return deferred
         except _DefGen_Return as e:
             # returnValue() was called; time to give a result to the original
@@ -1196,7 +1189,7 @@ def inlineCallbacks(f):
     inlineCallbacks helps you write L{Deferred}-using code that looks like a
     regular sequential function. For example::
 
-        @inlineCallBacks
+        @inlineCallbacks
         def thingummy():
             thing = yield makeSomeRequestResultingInDeferred()
             print(thing)  # the result! hoorj!
@@ -1236,6 +1229,14 @@ def inlineCallbacks(f):
             else:
                 # will trigger an errback
                 raise Exception('DESTROY ALL LIFE')
+
+    If you are using Python 3.3 or later, it is possible to use the C{return}
+    statement instead of L{returnValue}::
+
+        @inlineCallbacks
+        def loadData(url):
+            response = yield makeRequest(url)
+            return json.loads(respoonse)
     """
     @wraps(f)
     def unwindGenerator(*args, **kwargs):
@@ -1537,7 +1538,7 @@ class DeferredFilesystemLock(lockfile.FilesystemLock):
     @ivar _interval: The retry interval for an L{IReactorTime} based scheduler.
 
     @ivar _tryLockCall: A L{DelayedCall} based on C{_interval} that will manage
-        the next retry for aquiring the lock.
+        the next retry for acquiring the lock.
 
     @ivar _timeoutCall: A L{DelayedCall} based on C{deferUntilLocked}'s timeout
         argument.  This is in charge of timing out our attempt to acquire the
@@ -1613,7 +1614,7 @@ class DeferredFilesystemLock(lockfile.FilesystemLock):
             else:
                 if timeout is not None and self._timeoutCall is None:
                     reason = failure.Failure(TimeoutError(
-                        "Timed out aquiring lock: %s after %fs" % (
+                        "Timed out acquiring lock: %s after %fs" % (
                             self.name,
                             timeout)))
                     self._timeoutCall = self._scheduler.callLater(

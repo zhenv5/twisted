@@ -479,7 +479,7 @@ class HTTPDownloader(HTTPClientFactory):
                 return
             start, end, realLength = http.parseContentRange(contentRange[0])
             if start != self.requestedPartial:
-                # server is acting wierdly
+                # server is acting weirdly
                 self.requestedPartial = 0
 
 
@@ -873,7 +873,8 @@ class BrowserLikePolicyForHTTPS(object):
         @rtype: L{client connection creator
             <twisted.internet.interfaces.IOpenSSLClientConnectionCreator>}
         """
-        return optionsForClientTLS(hostname.decode("ascii"))
+        return optionsForClientTLS(hostname.decode("ascii"),
+                                   trustRoot=self._trustRoot)
 
 
 
@@ -1129,7 +1130,7 @@ class _RetryingHTTP11ClientProtocol(object):
 
     def request(self, request):
         """
-        Do a request, and retry once (with a new connection) it it fails in
+        Do a request, and retry once (with a new connection) if it fails in
         a retryable manner.
 
         @param request: A L{Request} instance that will be requested using the
@@ -1428,7 +1429,7 @@ class _StandardEndpointFactory(object):
 class Agent(_AgentBase):
     """
     L{Agent} is a very basic HTTP client.  It supports I{HTTP} and I{HTTPS}
-    scheme URIs (but performs no certificate checking by default).
+    scheme URIs.
 
     @ivar _pool: An L{HTTPConnectionPool} instance.
 
@@ -2071,9 +2072,25 @@ def readBody(response):
     @type response: L{IResponse} provider
 
     @return: A L{Deferred} which will fire with the body of the response.
+        Cancelling it will close the connection to the server immediately.
     """
-    d = defer.Deferred()
-    response.deliverBody(_ReadBodyProtocol(response.code, response.phrase, d))
+    def cancel(deferred):
+        """
+        Cancel a L{readBody} call, close the connection to the HTTP server
+        immediately.
+
+        @param deferred: The cancelled L{defer.Deferred}.
+        """
+        getattr(protocol.transport, 'abortConnection', lambda: None)()
+    d = defer.Deferred(cancel)
+    protocol = _ReadBodyProtocol(response.code, response.phrase, d)
+    response.deliverBody(protocol)
+    if getattr(protocol.transport, 'abortConnection', None) is None:
+        warnings.warn(
+            'Using readBody with a transport that does not implement '
+            'ITCPTransport',
+            category=DeprecationWarning,
+            stacklevel=2)
     return d
 
 

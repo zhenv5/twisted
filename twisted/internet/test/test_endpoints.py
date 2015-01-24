@@ -58,7 +58,9 @@ try:
     from twisted.internet.ssl import PrivateCertificate, Certificate
     from twisted.internet.ssl import CertificateOptions, KeyPair
     from twisted.internet.ssl import DiffieHellmanParameters
-    from OpenSSL.SSL import ContextType, SSLv23_METHOD, TLSv1_METHOD
+    from OpenSSL.SSL import (
+        ContextType, SSLv23_METHOD, TLSv1_METHOD, OP_NO_SSLv3
+    )
     testCertificate = Certificate.loadPEM(pemPath.getContent())
     testPrivateCertificate = PrivateCertificate.loadPEM(pemPath.getContent())
 
@@ -1171,9 +1173,10 @@ class WrappedIProtocolTests(unittest.TestCase):
         self.assertEqual(self.eventLog['executable'], wpp.executable)
         self.assertEqual(self.eventLog['data'], 'stderr1')
         self.assertEqual(self.eventLog['protocol'], wpp.protocol)
-        self.assertIn(
-            'wrote stderr unhandled by',
-            log.textFromEventDict(self.eventLog))
+        self.assertEqual(
+            self.eventLog['format'],
+            'Process %(executable)r wrote stderr unhandled '
+            'by %(protocol)s: %(data)s')
 
 
     def test_stderrSkip(self):
@@ -1561,7 +1564,7 @@ class TCP6EndpointNameResolutionTestCase(ClientEndpointTestCaseMixin,
 
 class RaisingMemoryReactorWithClock(RaisingMemoryReactor, Clock):
     """
-    An extention of L{RaisingMemoryReactor} with L{task.Clock}.
+    An extension of L{RaisingMemoryReactor} with L{task.Clock}.
     """
     def __init__(self, listenException=None, connectException=None):
         Clock.__init__(self)
@@ -2505,6 +2508,9 @@ class ServerStringTests(unittest.TestCase):
         self.assertEqual(server._backlog, 50)
         self.assertEqual(server._interface, "")
         self.assertEqual(server._sslContextFactory.method, SSLv23_METHOD)
+        self.assertTrue(
+            server._sslContextFactory._options & OP_NO_SSLv3,
+        )
         ctx = server._sslContextFactory.getContext()
         self.assertIsInstance(ctx, ContextType)
 
@@ -2581,7 +2587,7 @@ class ServerStringTests(unittest.TestCase):
         test_ssl.skip = test_sslWithDefaults.skip = skipSSL
         test_sslChainLoads.skip = skipSSL
         test_sslChainFileMustContainCert.skip = skipSSL
-        test_sslDHparameters.skip = skipSSL
+        test_sslDHparameters = skipSSL
 
 
     def test_unix(self):
@@ -2903,6 +2909,8 @@ class SSLClientStringTests(unittest.TestCase):
         self.assertEqual(client._bindAddress, (b"10.0.0.3", 0))
         certOptions = client._sslContextFactory
         self.assertIsInstance(certOptions, CertificateOptions)
+        self.assertEqual(certOptions.method, SSLv23_METHOD)
+        self.assertTrue(certOptions._options & OP_NO_SSLv3)
         ctx = certOptions.getContext()
         self.assertIsInstance(ctx, ContextType)
         self.assertEqual(Certificate(certOptions.certificate), testCertificate)
