@@ -77,11 +77,11 @@ def parsemsg(s):
     Breaks a message from an IRC server into its prefix, command, and arguments.
 
     @param s: The message to break.
-    @type s: C{str}
-    
-    @rtype: C{tuple}
+    @type s: L{bytes}
+
+    @rtype: L{tuple}
     @return: A 3-tuple of (prefix, command, args) where args is
-        of type C{list}.
+        of type L{list}.
     """
     prefix = ''
     trailing = []
@@ -324,13 +324,13 @@ class IRC(protocol.Protocol):
         the given arguments.
 
         @param command: The IRC command to determine the function for.
-        @type command: C{str}
-        
-        @param prefix: The prefix of the IRC message.
-        @type prefix: C{str}
-        
+        @type command: L{bytes}
+
+        @param prefix: The prefix of the IRC message (as returned by L{parsemsg}).
+        @type prefix: L{bytes}
+
         @param params: A list of parameters to call the function with.
-        @type params: C{list}
+        @type params: L{list}
         """
         method = getattr(self, "irc_%s" % command, None)
         try:
@@ -2218,13 +2218,13 @@ class IRCClient(basic.LineReceiver):
         Initiate a Direct Client Connection
 
         @param user: The hostmask of the user/client.
-        @type user: C{str} or C{unicode}
-        
+        @type user: L{bytes}
+
         @param channel: The name of the IRC channel.
-        @type channel: C{str}
-        
+        @type channel: L{bytes}
+
         @param data: The DCC request message.
-        @type data: C{str}
+        @type data: L{bytes}
         """
 
         if not data: return
@@ -2324,24 +2324,24 @@ class IRCClient(basic.LineReceiver):
         By default, I do nothing here.
 
         @param user: The hostmask of the requesting user.
-        @type user: C{str} or C{unicode}
-        
+        @type user: L{bytes}
+
         @param address: The IP address of the requesting user.
-        @type address: C{str}
-        
+        @type address: L{bytes}
+
         @param port: An integer representing the port of the requesting user.
-        @type port: C{int}
-        
+        @type port: L{int}
+
         @param fileName: The name of the file to be transferred.
-        @type fileName: C{str}
-        
+        @type fileName: L{bytes}
+
         @param size: The size of the file to be transferred, which may be
             C{-1} if the size of the file was not specified in the DCC
             SEND request.
-        @type size: C{int}
-        
+        @type size: L{int}
+
         @param data: A 3-list of [fileName, address, port].
-        @type data: C{list}
+        @type data: L{list}
         """
         ## filename = path.basename(arg)
         ## protocol = DccFileReceive(filename, size,
@@ -2359,17 +2359,17 @@ class IRCClient(basic.LineReceiver):
 
         @param user: The hostmask of the user who wants to resume
             the transfer of a file previously offered via DCC send.
-        @type user: C{str} or C{unicode}
-        
+        @type user: L{bytes}
+
         @param file: The name of the file to resume the transfer of.
-        @type file: C{str}
-        
+        @type file: L{bytes}
+
         @param port: An integer representing the port of the requesting user.
-        @type port: C{int}
-        
+        @type port: L{int}
+
         @param resumePos: The position in the file from where the
             transfer should resume.
-        @type resumePos: C{int}
+        @type resumePos: L{int}
         """
         pass
 
@@ -2381,17 +2381,17 @@ class IRCClient(basic.LineReceiver):
 
         @param user: The hostmask of the user who has accepted
             the DCC resume request.
-        @type user: C{str} or C{unicode}
-        
+        @type user: L{bytes}
+
         @param file: The name of the file to resume the transfer of.
-        @type file: C{str}
-        
+        @type file: L{bytes}
+
         @param port: An integer representing the port of the accepting user.
-        @type port: C{int}
-        
+        @type port: L{int}
+
         @param resumePos: The position in the file from where the
             transfer should resume.
-        @type resumePos: C{int}
+        @type resumePos: L{int}
         """
         pass
 
@@ -2457,22 +2457,18 @@ class IRCClient(basic.LineReceiver):
         """
         Called when a fitting ctcpReply_ method is not found.
 
-        XXX: If the client makes arbitrary CTCP queries,
-        this method should probably show the responses to
-        them instead of treating them as anomolies.
-
         @param user: The hostmask of the user.
-        @type user: C{str} or C{unicode}
-        
+        @type user: L{bytes}
+
         @param channel: The name of the IRC channel.
-        @type channel: C{str}
-        
+        @type channel: L{bytes}
+
         @param tag: The CTCP request tag for which no
             fitting method is found.
-        @type tag: C{str}
-        
+        @type tag: L{bytes}
+
         @param data: The CTCP message.
-        @type data: C{str}
+        @type data: L{bytes}
         """
         log.msg("Unknown CTCP reply from %s: %s %s\n"
                  % (user, tag, data))
@@ -2485,17 +2481,17 @@ class IRCClient(basic.LineReceiver):
         When I get a message that's so broken I can't use it.
 
         @param line: The indecipherable message.
-        
+
         @param excType: The exception type of the exception
             raised by the message.
-        @type excType: C{type}
-        
+        @type excType: L{type}
+
         @param excValue: The exception parameter of excType or its
-            associated value(the second argument to C{raise}) which
-            is usually a class instance.
-        
+            associated value(the second argument to C{raise}).
+        @type excValue: L{BaseException}
+
         @param tb: The Traceback as a traceback object.
-        @type tb: C{traceback}
+        @type tb: L{traceback}
         """
         log.msg(line)
         log.msg(''.join(traceback.format_exception(excType, excValue, tb)))
@@ -2507,7 +2503,7 @@ class IRCClient(basic.LineReceiver):
         but not wholly indecipherable.
 
         @param s: The peculiar message.
-        @type s: C{str}
+        @type s: L{bytes}
         """
         log.msg(s + '\n')
 
@@ -2571,13 +2567,13 @@ class IRCClient(basic.LineReceiver):
         it with the given arguments.
 
         @param command: The IRC command to determine the function for.
-        @type command: C{str}
-        
-        @param prefix: The prefix of the IRC message.
-        @type prefix: C{str}
-        
+        @type command: L{bytes}
+
+        @param prefix: The prefix of the IRC message (as returned by L{parsemsg}).
+        @type prefix: L{bytes}
+
         @param params: A list of parameters to call the function with.
-        @type params: C{list}
+        @type params: L{list}
         """
         method = getattr(self, "irc_%s" % command, None)
         try:
@@ -2623,7 +2619,7 @@ class DccFileReceiveBasic(protocol.Protocol, styles.Ephemeral):
     This does enough to keep the other guy talking, but you'll want to
     extend my dataReceived method to *do* something with the data I get.
 
-    @ivar bytesReceived: See C{bytesReceived} parameter of L{__init__}
+    @ivar bytesReceived: See L{bytesReceived} parameter of L{__init__}
     """
 
     bytesReceived = 0
@@ -2632,7 +2628,7 @@ class DccFileReceiveBasic(protocol.Protocol, styles.Ephemeral):
         """
         @param bytesReceived: An integer representing the number of bytes
             of data received.
-        @type bytesReceived: C{int}
+        @type bytesReceived: L{int}
         """
         self.bytesReceived = resumeOffset
         self.resume = (resumeOffset != 0)
@@ -2655,23 +2651,23 @@ class DccSendProtocol(protocol.Protocol, styles.Ephemeral):
 
     @ivar blocksize: An integer representing the size of an
         individual block of data.
-    @type blocksize: C{int}
+    @type blocksize: L{int}
 
     @ivar file: The file to be sent. This can be either a
-        file object or simply the name of the file as a string.
-    @type file: C{file} or C{str}
+        file object or simply the name of the file.
+    @type file: L{file} or L{bytes}
 
     @ivar bytesSent: An integer representing the number of
         bytes sent.
-    @type bytesSent: C{int}
+    @type bytesSent: L{int}
 
     @ivar completed: An integer representing whether the
         transfer has been completed or not.
-    @type completed: C{int}
+    @type completed: L{int}
 
     @ivar connected: An integer representing whether the
         connection has been established or not.
-    @type connected: C{int}
+    @type connected: L{int}
     """
 
     blocksize = 1024
@@ -2739,11 +2735,11 @@ def fileSize(file):
     I'll try my damndest to determine the size of this file object.
 
     @param file: The file object to determine the size of.
-    @type file: C{file}
-    
-    @rtype: C{int} or C{None}
+    @type file: L{file}
+
+    @rtype: L{int} or L{None}
     @return: The size of the file object as an integer if it can
-        be determined, otherwise return C{None}.
+        be determined, otherwise return L{None}.
     """
     size = None
     if hasattr(file, "fileno"):
@@ -2859,10 +2855,10 @@ def dccDescribe(data):
     """
     Given the data chunk from a DCC query, return a descriptive string.
 
-    @param data: A string containing the data from a DCC query.
-    @type data: C{str}
-    
-    @rtype: C{str}
+    @param data: The data from a DCC query.
+    @type data: L{bytes}
+
+    @rtype: L{bytes}
     @return: A descriptive string.
     """
 
@@ -2926,27 +2922,23 @@ class DccFileReceive(DccFileReceiveBasic):
     XXX: I need to make sure the client understands if the file cannot be written.
 
     @ivar filename: The name of the file to get.
-    @type filename: C{str}
+    @type filename: L{bytes}
 
     @ivar fileSize: The size of the file to get, which has a default
         value of C{-1} if the size of the file was not specified in the
         DCC SEND request.
-    @type fileSize: C{int}
+    @type fileSize: L{int}
 
     @ivar destDir: The destination directory for the file to be received.
-    @type destDir: C{str}
 
     @ivar overwrite: An integer representing whether an existing file
-        should be overwritten or not. This initially is an C{int} but
-        can be modified to be a C{bool} using the C{set_overwrite} method.
-    @type overwrite: C{int} or C{bool}
 
     @ivar queryData: queryData is a 3-tuple of (user, channel, data).
-    @type queryData: C{tuple}
+    @type queryData: L{tuple}
 
     @ivar fromUser: This is the hostmask of the requesting user and is found at
-        index 0 of C{queryData}.
-    @type fromUser: C{str} or C{unicode}
+        index 0 of L{queryData}.
+    @type fromUser: L{bytes}
     """
 
     filename = 'dcc'
@@ -2973,8 +2965,9 @@ class DccFileReceive(DccFileReceiveBasic):
 
         May raise OSError if the supplied directory path is not suitable.
 
-        @param directory: The directory path as a string.
-        @type directory: C{str}
+        @param directory: The directory where the file to be received
+            will be placed.
+        @type directory: L{bytes}
         """
         if not path.exists(directory):
             raise OSError(errno.ENOENT, "You see no directory there.",
@@ -2996,7 +2989,7 @@ class DccFileReceive(DccFileReceiveBasic):
         This replaces the file name provided by the sender.
 
         @param filename: The new name for the file.
-        @type filename: C{str}
+        @type filename: L{bytes}
         """
         self.filename = filename
 
@@ -3006,7 +2999,7 @@ class DccFileReceive(DccFileReceiveBasic):
 
         @param boolean: A boolean value representing whether existing
             files should be overwritten or not.
-        @type boolean: C{bool}            
+        @type boolean: L{bool}
         """
         self.overwrite = boolean
 
@@ -3039,9 +3032,9 @@ class DccFileReceive(DccFileReceiveBasic):
     def connectionLost(self, reason):
         """
         When the connection is lost, I close the file.
-        
-        @param reason: A string describing why the connection was lost.
-        @type reason: C{str}
+
+        @param reason: The reason why the connection was lost.
+        @type reason: L{Failure}
         """
         self.connected = 0
         logmsg = ("%s closed." % (self,))
