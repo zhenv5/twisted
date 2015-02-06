@@ -6,7 +6,9 @@ Tests for L{twisted.web.tap}.
 """
 
 import os, stat
+from unittest import skipIf, skipUnless
 
+from twisted.python.reflect import requireModule
 from twisted.python.usage import UsageError
 from twisted.python.filepath import FilePath
 from twisted.internet.interfaces import IReactorUNIX
@@ -194,3 +196,29 @@ class ServiceTests(TestCase):
             exc = self.assertRaises(
                 UsageError, options.parseOptions, ['--wsgi', name])
             self.assertEqual(str(exc), "No such WSGI application: %r" % (name,))
+
+
+    @skipIf(requireModule('OpenSSL.SSL'), 'SSL module is available')
+    def test_HTTPSFailureOnMissingSSL(self):
+        """
+        An L{UsageError} is raised when C{https} is requested but there is no
+        support for SSL.
+        """
+        options = Options()
+
+        exception = self.assertRaises(
+            UsageError, options.parseOptions, ['--https=443'])
+
+        self.assertEqual('SSL support not installed', exception.message)
+
+
+    @skipUnless(requireModule('OpenSSL.SSL'), 'SSL module is not available')
+    def test_HTTPSAcceptedOnAvailableSSL(self):
+        """
+        When SSL support is present, it accepts the --https option.
+        """
+        options = Options()
+
+        options.parseOptions(['--https=443'])
+
+        self.assertEqual('443', options['https'])
