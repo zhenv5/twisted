@@ -209,7 +209,7 @@ class ServiceTests(TestCase):
 
         self.assertEqual('SSL support not installed', exception.message)
 
-    if requireModule('OpenSSL.SSL'):
+    if requireModule('OpenSSL.SSL') is None:
         test_HTTPSFailureOnMissingSSL.skip = 'SSL module is available.'
 
 
@@ -223,5 +223,5 @@ class ServiceTests(TestCase):
 
         self.assertEqual('443', options['https'])
 
-    if not requireModule('OpenSSL.SSL'):
+    if requireModule('OpenSSL.SSL') is not None:
         test_HTTPSAcceptedOnAvailableSSL.skip = 'SSL module is not available.'
