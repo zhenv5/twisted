@@ -2,6 +2,7 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
+from __future__ import division, absolute_import
 
 """
 HTML rendering for twisted.web.
@@ -25,12 +26,13 @@ __all__ = [
     'Comment', 'CDATA', 'Tag', 'slot', 'CharRef', 'renderElement'
     ]
 
-import warnings
-from zope.interface import implements
 
-from cStringIO import StringIO
+import warnings
+from zope.interface import implementer
+
 from xml.sax import make_parser, handler
 
+from twisted.python.compat import NativeStringIO
 from twisted.web._stan import Tag, slot, Comment, CDATA, CharRef
 from twisted.python.filepath import FilePath
 
@@ -353,6 +355,7 @@ def _flatsaxParse(fl):
     return s.document
 
 
+@implementer(ITemplateLoader)
 class TagLoader(object):
     """
     An L{ITemplateLoader} that loads existing L{IRenderable} providers.
@@ -360,7 +363,6 @@ class TagLoader(object):
     @ivar tag: The object which will be loaded.
     @type tag: An L{IRenderable} provider.
     """
-    implements(ITemplateLoader)
 
     def __init__(self, tag):
         """
@@ -375,6 +377,7 @@ class TagLoader(object):
 
 
 
+@implementer(ITemplateLoader)
 class XMLString(object):
     """
     An L{ITemplateLoader} that loads and parses XML from a string.
@@ -382,16 +385,15 @@ class XMLString(object):
     @ivar _loadedTemplate: The loaded document.
     @type _loadedTemplate: a C{list} of Stan objects.
     """
-    implements(ITemplateLoader)
 
     def __init__(self, s):
         """
-        Run the parser on a StringIO copy of the string.
+        Run the parser on a NativeStringIO copy of the string.
 
         @param s: The string from which to load the XML.
         @type s: C{str}
         """
-        self._loadedTemplate = _flatsaxParse(StringIO(s))
+        self._loadedTemplate = _flatsaxParse(NativeStringIO(s))
 
 
     def load(self):
@@ -405,6 +407,7 @@ class XMLString(object):
 
 
 
+@implementer(ITemplateLoader)
 class XMLFile(object):
     """
     An L{ITemplateLoader} that loads and parses XML from a file.
@@ -415,7 +418,6 @@ class XMLFile(object):
     @ivar _path: The L{FilePath}, file object, or filename that is being
         loaded from.
     """
-    implements(ITemplateLoader)
 
     def __init__(self, path):
         """

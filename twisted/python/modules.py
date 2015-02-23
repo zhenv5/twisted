@@ -2,6 +2,9 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
+# This will break on Python 2, see bug #7794 for details
+#from __future__ import division, absolute_import
+
 """
 This module aims to provide a unified, object-oriented view of Python's
 runtime hierarchy.
@@ -68,6 +71,7 @@ from twisted.python.components import registerAdapter
 from twisted.python.filepath import FilePath, UnlistableError
 from twisted.python.zippath import ZipArchive
 from twisted.python.reflect import namedAny
+from twisted.python.compat import networkString
 
 _nothing = object()
 
@@ -482,7 +486,7 @@ class IPathImportMapper(Interface):
 class _DefaultMapImpl:
     """ Wrapper for the default importer, i.e. None.  """
     def mapPath(self, fsPathString):
-        return FilePath(fsPathString)
+        return FilePath(networkString(fsPathString))
 _theDefaultMapper = _DefaultMapImpl()
 
 
@@ -622,7 +626,7 @@ class PythonPath:
         while '.' in topPackageObj.__name__:
             topPackageObj = self.moduleDict['.'.join(
                     topPackageObj.__name__.split('.')[:-1])]
-        if _isPackagePath(FilePath(topPackageObj.__file__)):
+        if _isPackagePath(FilePath(networkString(topPackageObj.__file__))):
             # if package 'foo' is on sys.path at /a/b/foo, package 'foo's
             # __file__ will be /a/b/foo/__init__.py, and we are looking for
             # /a/b here, the path-entry; so go up two steps.

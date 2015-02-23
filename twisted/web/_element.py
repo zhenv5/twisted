@@ -2,7 +2,9 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
-from zope.interface import implements
+from __future__ import division, absolute_import
+
+from zope.interface import implementer
 
 from twisted.web.iweb import IRenderable
 
@@ -122,6 +124,7 @@ def renderer():
 
 
 
+@implementer(IRenderable)
 class Element(object):
     """
     Base for classes which can render part of a page.
@@ -149,7 +152,6 @@ class Element(object):
     @ivar loader: The factory which will be used to load documents to
         return from C{render}.
     """
-    implements(IRenderable)
     loader = None
 
     def __init__(self, loader=None):
@@ -182,4 +184,3 @@ class Element(object):
         if loader is None:
             raise MissingTemplateLoader(self)
         return loader.load()
-

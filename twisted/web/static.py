@@ -5,7 +5,7 @@
 """
 Static resources for L{twisted.web}.
 """
-from __future__ import division
+from __future__ import division, absolute_import
 
 import os
 import warnings
@@ -15,7 +15,7 @@ import cgi
 import time
 import mimetypes
 
-from zope.interface import implements
+from zope.interface import implementer
 
 from twisted.web import server
 from twisted.web import resource
@@ -439,7 +439,7 @@ class File(resource.Resource, styles.Versioned, filepath.FilePath):
             offset, offset + size - 1, self.getFileSize())
 
 
-    def _doSingleRangeRequest(self, request, (start, end)):
+    def _doSingleRangeRequest(self, request, place):
         """
         Set up the response for Range headers that specify a single range.
 
@@ -454,6 +454,7 @@ class File(resource.Resource, styles.Versioned, filepath.FilePath):
         @return: A 2-tuple of the offset and size of the range to return.
             offset == size == 0 indicates that the request is not satisfiable.
         """
+        start, end = place
         offset, size  = self._rangeToOffsetAndSize(start, end)
         if offset == size == 0:
             # This range doesn't overlap with any of this resource, so the
@@ -614,7 +615,7 @@ class File(resource.Resource, styles.Versioned, filepath.FilePath):
 
         try:
             fileForReading = self.openForReading()
-        except IOError, e:
+        except IOError as e:
             import errno
             if e[0] == errno.EACCES:
                 return self.forbidden.render(request)
@@ -661,6 +662,7 @@ class File(resource.Resource, styles.Versioned, filepath.FilePath):
 
 
 
+@implementer(interfaces.IPullProducer)
 class StaticProducer(object):
     """
     Superclass for classes that implement the business of producing.
@@ -669,7 +671,6 @@ class StaticProducer(object):
     @ivar fileObject: The file the contents of which to write to the request.
     """
 
-    implements(interfaces.IPullProducer)
 
     bufferSize = abstract.FileDescriptor.bufferSize
 

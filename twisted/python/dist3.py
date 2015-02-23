@@ -132,6 +132,7 @@ modules = [
     "twisted.web.test",
     "twisted.web.test.requesthelper",
     "twisted.web._version",
+    "twisted.web.xmlrpc",
 ]
 
 
@@ -224,6 +225,7 @@ testModules = [
     "twisted.web.test.test_newclient",
     "twisted.web.test.test_resource",
     "twisted.web.test.test_web",
+    "twisted.web.test.test_xmlrpc",
 ]
 
 
@@ -234,10 +236,16 @@ almostModules = [
     # twisted.names.client semi-depends on twisted.names.root, but only on
     # Windows really:
     "twisted.names.root",
+    # Required for twisted.web.xmlrpc
+    "twisted.persisted.styles",
     # Missing test coverage:
     "twisted.protocols.loopback",
     # Minimally used by setup3.py:
     "twisted.python.dist",
+    # Required for twisted.web.xmlrpc
+    "twisted.python.modules",
+    # Required for twisted.web.xmlrpc
+    "twisted.python.urlpath",
     # twisted.python.filepath depends on twisted.python.win32, but on Linux it
     # only really needs to import:
     "twisted.python.win32",
@@ -246,6 +254,10 @@ almostModules = [
     "twisted.test.reflect_helper_ZDE",
     # Required by some of the ported trial tests:
     "twisted.trial.reporter",
+    # Required for twisted.web.xmlrpc
+    "twisted.web._element",
+    # Required for twisted.web.xmlrpc
+    "twisted.web._flatten",
     # Agent code and downloadPage aren't ported, test coverage isn't complete:
     "twisted.web.client",
     # twisted.web.resource depends on twisted.web.error, so it is sorta
@@ -263,6 +275,12 @@ almostModules = [
     # GzipEncoder and allowed methods functionality not ported, no doubt
     # missing lots of test coverage:
     "twisted.web.server",
+    # Required for twisted.web.xmlrpc
+    "twisted.web.static",
+    # Required for twisted.web.xmlrpc
+    "twisted.web.template",
+    # Required for twisted.web.xmlrpc
+    "twisted.web.util",
 ]
 
 

@@ -2,7 +2,7 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
-
+from __future__ import division, absolute_import
 
 """
 Different styles of persisted objects.
@@ -10,15 +10,24 @@ Different styles of persisted objects.
 
 # System Imports
 import types
-import copy_reg
 import copy
 import inspect
 import sys
 
+from twisted.python.compat import _PY3
+if _PY3:
+    import copyreg as copy_reg
+else:
+    import copy_reg
 try:
     import cStringIO as StringIO
 except ImportError:
-    import StringIO
+    if _PY3:
+        import io as StringIO
+    else:
+        import StringIO
+
+
 
 # Twisted Imports
 from twisted.python import log

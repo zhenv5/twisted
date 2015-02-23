@@ -2,10 +2,17 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
-#
+from __future__ import division, absolute_import
 
-import urlparse
-import urllib
+#
+from twisted.python.compat import _PY3
+if _PY3:
+    import urllib.parse as urlparse
+    import urllib.parse as urllib
+
+else:
+    import urlparse
+    import urllib
 
 class URLPath:
     def __init__(self, scheme='', netloc='localhost', path='',
@@ -18,7 +25,7 @@ class URLPath:
 
     _qpathlist = None
     _uqpathlist = None
-    
+
     def pathList(self, unquote=0, copy=1):
         if self._qpathlist is None:
             self._qpathlist = self.path.split('/')
@@ -101,7 +108,7 @@ class URLPath:
                 l = self.pathList()
                 l[-1] = path
                 path = '/'.join(l)
-        
+
         return URLPath(scheme,
                         netloc,
                         path,
@@ -109,7 +116,7 @@ class URLPath:
                         fragment)
 
 
-    
+
     def __str__(self):
         x = urlparse.urlunsplit((
             self.scheme, self.netloc, self.path,
@@ -119,4 +126,3 @@ class URLPath:
     def __repr__(self):
         return ('URLPath(scheme=%r, netloc=%r, path=%r, query=%r, fragment=%r)'
                 % (self.scheme, self.netloc, self.path, self.query, self.fragment))
-

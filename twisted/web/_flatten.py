@@ -2,22 +2,23 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
+from __future__ import division, absolute_import
+
 """
 Context-free flattener/serializer for rendering Python objects, possibly
 complex or arbitrarily nested, as strings.
 """
 
-from cStringIO import StringIO
 from sys import exc_info
 from types import GeneratorType
 from traceback import extract_tb
 from twisted.internet.defer import Deferred
+from twisted.python.compat import NativeStringIO
 from twisted.web.error import UnfilledSlot, UnsupportedType, FlattenerError
 
 from twisted.web.iweb import IRenderable
 from twisted.web._stan import (
     Tag, slot, voidElements, Comment, CDATA, CharRef)
-
 
 
 def escapeForContent(data):
@@ -317,7 +318,7 @@ def _flattenTree(request, root):
             element = stack[-1].next()
         except StopIteration:
             stack.pop()
-        except Exception, e:
+        except Exception as e:
             stack.pop()
             roots = []
             for generator in stack:
@@ -328,7 +329,8 @@ def _flattenTree(request, root):
             if type(element) is str:
                 yield element
             elif isinstance(element, Deferred):
-                def cbx((original, toFlatten)):
+                def cbx(val):
+                    original, toFlatten = val
                     stack.append(toFlatten)
                     return original
                 yield element.addCallback(cbx)
@@ -416,7 +418,7 @@ def flattenString(request, root):
         its result when C{root} has been completely flattened into C{write} or
         which will be errbacked if an unexpected exception occurs.
     """
-    io = StringIO()
+    io = NativeStringIO()
     d = flatten(request, root, io.write)
     d.addCallback(lambda _: io.getvalue())
     return d

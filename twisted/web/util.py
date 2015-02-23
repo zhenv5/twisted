@@ -10,7 +10,8 @@ __all__ = [
     "redirectTo", "Redirect", "ChildRedirector", "ParentRedirect",
     "DeferredResource", "htmlIndent", "FailureElement", "formatFailure"]
 
-from cStringIO import StringIO
+from twisted.python.compat import InstanceType, StringType, NativeStringIO
+
 import linecache
 import types
 
@@ -149,7 +150,7 @@ def htmlUnknown(x):
     return '<code>'+html.escape(saferepr(x))+'</code>'
 
 def htmlDict(d):
-    io = StringIO()
+    io = NativeStringIO()
     w = io.write
     w('<div class="dict"><span class="heading">Dictionary instance @ %s</span>' % hex(id(d)))
     w('<table class="dict">')
@@ -162,7 +163,7 @@ def htmlDict(d):
     return io.getvalue()
 
 def htmlList(l):
-    io = StringIO()
+    io = NativeStringIO()
     w = io.write
     w('<div class="list"><span class="heading">List instance @ %s</span>' % hex(id(l)))
     for i in l:
@@ -189,10 +190,10 @@ def htmlFunc(f):
                          f.func_code.co_firstlineno))+
             '</div>')
 
-htmlReprTypes = {types.DictType: htmlDict,
-                 types.ListType: htmlList,
-                 types.InstanceType: htmlInst,
-                 types.StringType: htmlString,
+htmlReprTypes = {dict: htmlDict,
+                 list: htmlList,
+                 InstanceType: htmlInst,
+                 StringType: htmlString,
                  types.FunctionType: htmlFunc}
 
 
@@ -376,7 +377,7 @@ class FailureElement(Element):
 
     @since: 12.1
     """
-    loader = XMLFile(getModule(__name__).filePath.sibling("failure.xhtml"))
+    loader = XMLFile(getModule(__name__).filePath.sibling(b"failure.xhtml"))
 
     def __init__(self, failure, loader=None):
         Element.__init__(self, loader)
