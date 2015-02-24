@@ -9,7 +9,7 @@ A generic resource for publishing objects via XML-RPC.
 
 Maintainer: Itamar Shtull-Trauring
 """
-from twisted.python.compat import _PY3, intToBytes, nativeString
+from twisted.python.compat import _PY3, intToBytes, nativeString, urllib_parse
 
 # System Imports
 import base64
@@ -18,7 +18,6 @@ if _PY3:
     import urllib.parse as urlparse
 else:
     import xmlrpclib
-    import urlparse
 
 # Sibling Imports
 from twisted.web import resource, server, http
@@ -190,8 +189,9 @@ class XMLRPC(resource.Resource):
                 content = xmlrpclib.dumps(f, methodresponse=True,
                                           allow_none=self.allowNone)
 
-            request.setHeader(b"content-length", intToBytes(len(content)))
-            request.write(content.encode('utf8'))
+            encodedContent = content.encode('utf8')
+            request.setHeader(b"content-length", intToBytes(len(encodedContent)))
+            request.write(encodedContent)
         except:
             log.err()
         request.finish()
@@ -333,14 +333,14 @@ class QueryProtocol(http.HTTPClient):
         self.sendHeader(b'User-Agent', b'Twisted/XMLRPClib')
         self.sendHeader(b'Host', self.factory.host)
         self.sendHeader(b'Content-type', b'text/xml')
-        self.sendHeader(
-            b'Content-length', intToBytes(len(self.factory.payload)))
+        encodedPayload = self.factory.payload.encode('utf8')
+        self.sendHeader(b'Content-length', intToBytes(len(encodedPayload)))
         if self.factory.user:
             auth = b':'.join([self.factory.user, self.factory.password])
             authHeader = b''.join([b'Basic ', base64.b64encode(auth)])
             self.sendHeader(b'Authorization', authHeader)
         self.endHeaders()
-        self.transport.write(self.factory.payload.encode('utf8'))
+        self.transport.write(encodedPayload)
 
     def handleStatus(self, version, status, message):
         if status != b'200':
@@ -509,7 +509,7 @@ class Proxy:
         @type url: C{bytes}
 
         """
-        scheme, netloc, path, params, query, fragment = urlparse.urlparse(url)
+        scheme, netloc, path, params, query, fragment = urllib_parse.urlparse(url)
         netlocParts = netloc.split(b'@')
         if len(netlocParts) == 2:
             userpass = netlocParts.pop(0).split(b':')

@@ -425,6 +425,12 @@ except ImportError:
     # Python 3+
     FileType = IOBase
 
+if _PY3:
+    import urllib.parse as urllib_parse
+else:
+    import urllib
+    import urlparse as urllib_parse
+    urllib_parse.unquote = urllib.unquote
 
 __all__ = [
     "reraise",
@@ -444,4 +450,5 @@ __all__ = [
     "StringType",
     "InstanceType",
     "FileType",
+    "urllib_parse",
     ]
