@@ -425,6 +425,10 @@ except ImportError:
     # Python 3+
     FileType = IOBase
 
+if _PY3:
+    import urllib.parse as urllib_parse
+else:
+    import urlparse as urllib_parse
 
 __all__ = [
     "reraise",
@@ -444,4 +448,5 @@ __all__ = [
     "StringType",
     "InstanceType",
     "FileType",
+    "urllib_parse",
     ]

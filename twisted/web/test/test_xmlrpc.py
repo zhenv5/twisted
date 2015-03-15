@@ -6,15 +6,19 @@
 Tests for  XML-RPC support in L{twisted.web.xmlrpc}.
 """
 
+from __future__ import division, absolute_import
+
+from twisted.python.compat import (
+    nativeString, networkString, NativeStringIO, intToBytes)
+
 import datetime
-import xmlrpclib
-from StringIO import StringIO
 
 from twisted.trial import unittest
 from twisted.web import xmlrpc
 from twisted.web.xmlrpc import (
-    XMLRPC, payloadTemplate, addIntrospection, _QueryFactory, withRequest)
-from twisted.web import server, static, client, error, http
+    XMLRPC, payloadTemplate, addIntrospection, _QueryFactory, withRequest,
+    xmlrpclib)
+from twisted.web import server, client, error, http, resource as web_resource
 from twisted.internet import reactor, defer
 from twisted.internet.error import ConnectionDone
 from twisted.python import failure
@@ -36,7 +40,7 @@ class AsyncXMLRPCTests(unittest.TestCase):
     def setUp(self):
         self.request = DummyRequest([''])
         self.request.method = 'POST'
-        self.request.content = StringIO(
+        self.request.content = NativeStringIO(
             payloadTemplate % ('async', xmlrpclib.dumps(())))
 
         result = self.result = defer.Deferred()
@@ -57,7 +61,7 @@ class AsyncXMLRPCTests(unittest.TestCase):
 
         self.result.callback("result")
 
-        resp = xmlrpclib.loads("".join(self.request.written))
+        resp = xmlrpclib.loads(b"".join(self.request.written))
         self.assertEqual(resp, (('result',), None))
         self.assertEqual(self.request.finished, 1)
 
@@ -136,6 +140,12 @@ class Test(XMLRPC):
 
     def xmlrpc_deferFault(self):
         return defer.fail(xmlrpc.Fault(17, "hi"))
+
+    def xmlrpc_snowman(self, payload):
+        snowman = u"\u2603"
+        if snowman != payload:
+            return xmlrpc.Fault(13, "Payload not unicode snowman")
+        return snowman
 
     def xmlrpc_complex(self):
         return {"a": ["b", "c", 12, []], "D": "foo"}
@@ -282,7 +292,7 @@ class XMLRPCTests(unittest.TestCase):
         setUp(), using the given factory as the queryFactory, or
         self.queryFactory if no factory is provided.
         """
-        p = xmlrpc.Proxy("http://127.0.0.1:%d/" % self.port)
+        p = xmlrpc.Proxy(networkString("http://127.0.0.1:%d/" % self.port))
         if factory is None:
             p.queryFactory = self.queryFactory
         else:
@@ -295,6 +305,7 @@ class XMLRPCTests(unittest.TestCase):
             ("defer", ("a",), "a"),
             ("dict", ({"a": 1}, "a"), 1),
             ("pair", ("a", 1), ["a", 1]),
+            ("snowman", (u"\u2603"), u"\u2603"),
             ("complex", (), {"a": ["b", "c", 12, []], "D": "foo"})]
 
         dl = []
@@ -323,8 +334,8 @@ class XMLRPCTests(unittest.TestCase):
         d = defer.DeferredList(dl, fireOnOneErrback=True)
         def cb(ign):
             for factory in self.factories:
-                self.assertEqual(factory.headers['content-type'],
-                                  'text/xml')
+                self.assertEqual(factory.headers[b'content-type'],
+                                  b'text/xml')
             self.flushLoggedErrors(TestRuntimeError, TestValueError)
         d.addCallback(cb)
         return d
@@ -350,7 +361,7 @@ class XMLRPCTests(unittest.TestCase):
         """
         A classic GET on the xml server should return a NOT_ALLOWED.
         """
-        d = client.getPage("http://127.0.0.1:%d/" % (self.port,))
+        d = client.getPage(networkString("http://127.0.0.1:%d/" % (self.port,)))
         d = self.assertFailure(d, error.Error)
         d.addCallback(
             lambda exc: self.assertEqual(int(exc.args[0]), http.NOT_ALLOWED))
@@ -360,8 +371,8 @@ class XMLRPCTests(unittest.TestCase):
         """
         Test that an invalid XML input returns an L{xmlrpc.Fault}.
         """
-        d = client.getPage("http://127.0.0.1:%d/" % (self.port,),
-                           method="POST", postdata="foo")
+        d = client.getPage(networkString("http://127.0.0.1:%d/" % (self.port,)),
+                           method=b"POST", postdata=b"foo")
         def cb(result):
             self.assertRaises(xmlrpc.Fault, xmlrpclib.loads, result)
         d.addCallback(cb)
@@ -425,7 +436,7 @@ class XMLRPCTests(unittest.TestCase):
         to the underlying connectTCP call.
         """
         reactor = MemoryReactor()
-        proxy = xmlrpc.Proxy("http://127.0.0.1:69", connectTimeout=2.0,
+        proxy = xmlrpc.Proxy(b"http://127.0.0.1:69", connectTimeout=2.0,
                              reactor=reactor)
         proxy.callRemote("someMethod")
         self.assertEqual(reactor.tcpClients[0][3], 2.0)
@@ -438,7 +449,7 @@ class XMLRPCTests(unittest.TestCase):
         to the underlying connectSSL call.
         """
         reactor = MemoryReactor()
-        proxy = xmlrpc.Proxy("https://127.0.0.1:69", connectTimeout=3.0,
+        proxy = xmlrpc.Proxy(b"https://127.0.0.1:69", connectTimeout=3.0,
                              reactor=reactor)
         proxy.callRemote("someMethod")
         self.assertEqual(reactor.sslClients[0][4], 3.0)
@@ -452,7 +463,7 @@ class XMLRPCProxyWithoutSlashTests(XMLRPCTests):
     """
 
     def proxy(self, factory=None):
-        p = xmlrpc.Proxy("http://127.0.0.1:%d" % self.port)
+        p = xmlrpc.Proxy(networkString("http://127.0.0.1:%d" % self.port))
         if factory is None:
             p.queryFactory = self.queryFactory
         else:
@@ -472,7 +483,8 @@ class XMLRPCPublicLookupProcedureTests(unittest.TestCase):
             0, server.Site(resource), interface="127.0.0.1")
         self.addCleanup(self.p.stopListening)
         self.port = self.p.getHost().port
-        self.proxy = xmlrpc.Proxy('http://127.0.0.1:%d' % self.port)
+        self.proxy = xmlrpc.Proxy(
+            networkString('http://127.0.0.1:%d' % self.port))
 
 
     def test_lookupProcedure(self):
@@ -544,7 +556,7 @@ class SerializationConfigMixin:
         self.addCleanup(self.p.stopListening)
         self.port = self.p.getHost().port
         self.proxy = xmlrpc.Proxy(
-            "http://127.0.0.1:%d/" % (self.port,), **kwargs)
+            networkString("http://127.0.0.1:%d/" % (self.port,)), **kwargs)
 
 
     def test_roundtripValue(self):
@@ -589,8 +601,8 @@ class XMLRPCAuthenticatedTests(XMLRPCTests):
     Test with authenticated proxy. We run this with the same inout/ouput as
     above.
     """
-    user = "username"
-    password = "asecret"
+    user = b"username"
+    password = b"asecret"
 
     def setUp(self):
         self.p = reactor.listenTCP(0, server.Site(TestAuthHeader()),
@@ -600,16 +612,17 @@ class XMLRPCAuthenticatedTests(XMLRPCTests):
 
 
     def test_authInfoInURL(self):
-        p = xmlrpc.Proxy("http://%s:%s@127.0.0.1:%d/" % (
-            self.user, self.password, self.port))
+        url = "http://%s:%s@127.0.0.1:%d/" % (
+            nativeString(self.user), nativeString(self.password), self.port)
+        p = xmlrpc.Proxy(networkString(url))
         d = p.callRemote("authinfo")
         d.addCallback(self.assertEqual, [self.user, self.password])
         return d
 
 
     def test_explicitAuthInfo(self):
-        p = xmlrpc.Proxy("http://127.0.0.1:%d/" % (
-            self.port,), self.user, self.password)
+        p = xmlrpc.Proxy(networkString("http://127.0.0.1:%d/" % (
+            self.port,)), self.user, self.password)
         d = p.callRemote("authinfo")
         d.addCallback(self.assertEqual, [self.user, self.password])
         return d
@@ -622,16 +635,16 @@ class XMLRPCAuthenticatedTests(XMLRPCTests):
         embed new lines when using long inputs.
         """
         longPassword = self.password * 40
-        p = xmlrpc.Proxy("http://127.0.0.1:%d/" % (
-            self.port,), self.user, longPassword)
+        p = xmlrpc.Proxy(networkString("http://127.0.0.1:%d/" % (
+            self.port,)), self.user, longPassword)
         d = p.callRemote("authinfo")
         d.addCallback(self.assertEqual, [self.user, longPassword])
         return d
 
 
     def test_explicitAuthInfoOverride(self):
-        p = xmlrpc.Proxy("http://wrong:info@127.0.0.1:%d/" % (
-            self.port,), self.user, self.password)
+        p = xmlrpc.Proxy(networkString("http://wrong:info@127.0.0.1:%d/" % (
+            self.port,)), self.user, self.password)
         d = p.callRemote("authinfo")
         d.addCallback(self.assertEqual, [self.user, self.password])
         return d
@@ -654,7 +667,7 @@ class XMLRPCIntrospectionTests(XMLRPCTests):
                 meths,
                 ['add', 'complex', 'defer', 'deferFail',
                  'deferFault', 'dict', 'echo', 'fail', 'fault',
-                 'pair', 'system.listMethods',
+                 'pair', 'snowman', 'system.listMethods',
                  'system.methodHelp',
                  'system.methodSignature', 'withRequest'])
 
@@ -695,12 +708,20 @@ class XMLRPCClientErrorHandlingTests(unittest.TestCase):
     Test error handling on the xmlrpc client.
     """
     def setUp(self):
-        self.resource = static.Data(
-            "This text is not a valid XML-RPC response.",
-            "text/plain")
-        self.resource.isLeaf = True
-        self.port = reactor.listenTCP(0, server.Site(self.resource),
-                                                     interface='127.0.0.1')
+        class ResourceWithInvalidResponse(web_resource.Resource):
+            isLeaf = True
+            def render_GET(self, request):
+                data = b"This text is not a valid XML-RPC response."
+                request.setHeader(b"content-type", b'text/plain')
+                request.setHeader(b"content-length", intToBytes(len(data)))
+                if request.method == b"HEAD":
+                    return b''
+                return data
+
+
+        self.port = reactor.listenTCP(
+            0, server.Site(ResourceWithInvalidResponse()),
+            interface='127.0.0.1')
 
     def tearDown(self):
         return self.port.stopListening()
@@ -710,8 +731,8 @@ class XMLRPCClientErrorHandlingTests(unittest.TestCase):
         Test that calling the xmlrpc client on a static http server raises
         an exception.
         """
-        proxy = xmlrpc.Proxy("http://127.0.0.1:%d/" %
-                             (self.port.getHost().port,))
+        proxy = xmlrpc.Proxy(networkString("http://127.0.0.1:%d/" %
+                                           (self.port.getHost().port,)))
         return self.assertFailure(proxy.callRemote("someMethod"), Exception)
 
 
@@ -810,7 +831,8 @@ class XMLRPCWithRequestTests(unittest.TestCase):
         """
         request = DummyRequest('/RPC2')
         request.method = "POST"
-        request.content = StringIO(xmlrpclib.dumps(("foo",), 'withRequest'))
+        request.content = NativeStringIO(xmlrpclib.dumps(
+            ("foo",), 'withRequest'))
         def valid(n, request):
             data = xmlrpclib.loads(request.written[0])
             self.assertEqual(data, (('POST foo',), None))
