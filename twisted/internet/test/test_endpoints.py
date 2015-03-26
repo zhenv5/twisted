@@ -35,6 +35,7 @@ from twisted.internet.interfaces import IConsumer, IPushProducer
 from twisted.test.proto_helpers import StringTransportWithDisconnection
 from twisted.internet.interfaces import ITransport
 from twisted.internet.protocol import Factory
+from twisted.internet.endpoints import StandardErrorBehavior
 
 pemPath = FilePath(testInitPath.encode("utf-8")).sibling(b"server.pem")
 
@@ -44,7 +45,6 @@ if not _PY3:
     from twisted.python.modules import getModule
     from twisted.internet import stdio
     from twisted.internet.stdio import PipeAddress
-    from twisted.internet.endpoints import StandardErrorBehavior
 
     casPath = getModule(__name__).filePath.sibling("fake_CAs")
     chainPath = casPath.child("chain.pem")
@@ -831,7 +831,7 @@ class ProcessEndpointsTestCase(unittest.TestCase):
 
     def setUp(self):
         self.reactor = MemoryProcessReactor()
-        self.ep = endpoints.ProcessEndpoint(self.reactor, '/bin/executable')
+        self.ep = endpoints.ProcessEndpoint(self.reactor, b'/bin/executable')
         self.factory = protocol.Factory()
         self.factory.protocol = StubApplicationProtocol
 
@@ -841,7 +841,7 @@ class ProcessEndpointsTestCase(unittest.TestCase):
         Default values are set for the optional parameters in the endpoint.
         """
         self.assertIsInstance(self.ep._reactor, MemoryProcessReactor)
-        self.assertEqual(self.ep._executable, '/bin/executable')
+        self.assertEqual(self.ep._executable, b'/bin/executable')
         self.assertEqual(self.ep._args, ())
         self.assertEqual(self.ep._env, {})
         self.assertEqual(self.ep._path, None)
@@ -856,18 +856,18 @@ class ProcessEndpointsTestCase(unittest.TestCase):
         """
         The parameters passed to the endpoint are stored in it.
         """
-        environ = {'HOME': None}
+        environ = {b'HOME': None}
         ep = endpoints.ProcessEndpoint(
-            MemoryProcessReactor(), '/bin/executable',
-            ['/bin/executable'], {'HOME': environ['HOME']},
-            '/runProcessHere/', 1, 2, True, {3: 'w', 4: 'r', 5: 'r'},
+            MemoryProcessReactor(), b'/bin/executable',
+            [b'/bin/executable'], {b'HOME': environ[b'HOME']},
+            b'/runProcessHere/', 1, 2, True, {3: 'w', 4: 'r', 5: 'r'},
             StandardErrorBehavior.DROP)
 
         self.assertIsInstance(ep._reactor, MemoryProcessReactor)
-        self.assertEqual(ep._executable, '/bin/executable')
-        self.assertEqual(ep._args, ['/bin/executable'])
-        self.assertEqual(ep._env, {'HOME': environ['HOME']})
-        self.assertEqual(ep._path, '/runProcessHere/')
+        self.assertEqual(ep._executable, b'/bin/executable')
+        self.assertEqual(ep._args, [b'/bin/executable'])
+        self.assertEqual(ep._env, {b'HOME': environ[b'HOME']})
+        self.assertEqual(ep._path, b'/runProcessHere/')
         self.assertEqual(ep._uid, 1)
         self.assertEqual(ep._gid, 2)
         self.assertEqual(ep._usePTY, True)
@@ -891,13 +891,13 @@ class ProcessEndpointsTestCase(unittest.TestCase):
         The parameters for spawnProcess stored in the endpoint are passed when
         the endpoint's connect method is invoked.
         """
-        environ = {'HOME': None}
+        environ = {b'HOME': None}
 
         memoryReactor = MemoryProcessReactor()
         ep = endpoints.ProcessEndpoint(
-            memoryReactor, '/bin/executable',
-            ['/bin/executable'], {'HOME': environ['HOME']},
-            '/runProcessHere/', 1, 2, True, {3: 'w', 4: 'r', 5: 'r'})
+            memoryReactor, b'/bin/executable',
+            [b'/bin/executable'], {b'HOME': environ[b'HOME']},
+            b'/runProcessHere/', 1, 2, True, {3: 'w', 4: 'r', 5: 'r'})
         d = ep.connect(self.factory)
         self.successResultOf(d)
 
@@ -970,7 +970,7 @@ class ProcessEndpointTransportTests(unittest.TestCase):
     def setUp(self):
         self.reactor = MemoryProcessReactor()
         self.endpoint = endpoints.ProcessEndpoint(self.reactor,
-                                                  '/bin/executable')
+                                                  b'/bin/executable')
         protocol = self.successResultOf(
             self.endpoint.connect(Factory.forProtocol(Protocol))
         )
@@ -1074,8 +1074,8 @@ class ProcessEndpointTransportTests(unittest.TestCase):
         The writeSequence method of L{_ProcessEndpointTransport} writes a list
         of string passed to it to the transport's stdin.
         """
-        self.endpointTransport.writeSequence(['test1', 'test2', 'test3'])
-        self.assertEqual(self.process.io.getvalue(), 'test1test2test3')
+        self.endpointTransport.writeSequence([b'test1', b'test2', b'test3'])
+        self.assertEqual(self.process.io.getvalue(), b'test1test2test3')
 
 
     def test_write(self):
@@ -1083,8 +1083,8 @@ class ProcessEndpointTransportTests(unittest.TestCase):
         The write method of L{_ProcessEndpointTransport} writes a string of
         data passed to it to the child process's stdin.
         """
-        self.endpointTransport.write('test')
-        self.assertEqual(self.process.io.getvalue(), 'test')
+        self.endpointTransport.write(b'test')
+        self.assertEqual(self.process.io.getvalue(), b'test')
 
 
     def test_loseConnection(self):
@@ -1123,7 +1123,7 @@ class WrappedIProtocolTests(unittest.TestCase):
     """
     def setUp(self):
         self.reactor = MemoryProcessReactor()
-        self.ep = endpoints.ProcessEndpoint(self.reactor, '/bin/executable')
+        self.ep = endpoints.ProcessEndpoint(self.reactor, b'/bin/executable')
         self.eventLog = None
         self.factory = protocol.Factory()
         self.factory.protocol = StubApplicationProtocol
@@ -3350,7 +3350,5 @@ if _PY3:
     del (StandardIOEndpointsTestCase, UNIXEndpointsTestCase, ParserTestCase,
          ServerStringTests, ClientStringTests, SSLClientStringTests,
          AdoptedStreamServerEndpointTestCase, SystemdEndpointPluginTests,
-         TCP6ServerEndpointPluginTests, StandardIOEndpointPluginTests,
-         ProcessEndpointsTestCase, WrappedIProtocolTests,
-         ProcessEndpointTransportTests,
+         TCP6ServerEndpointPluginTests, StandardIOEndpointPluginTests
          )
