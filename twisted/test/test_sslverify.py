@@ -15,17 +15,27 @@ from zope.interface import implementer
 
 skipSSL = None
 skipSNI = None
+skipNPN = None
 try:
     import OpenSSL
 except ImportError:
     skipSSL = "OpenSSL is required for SSL tests."
     skipSNI = skipSSL
+    skipNPN = skipSSL
 else:
     from OpenSSL import SSL
     from OpenSSL.crypto import PKey, X509
     from OpenSSL.crypto import TYPE_RSA, FILETYPE_PEM
     if getattr(SSL.Context, "set_tlsext_servername_callback", None) is None:
         skipSNI = "PyOpenSSL 0.13 or greater required for SNI support."
+
+    try:
+        c = SSL.Context(SSL.SSLv23_METHOD)
+        c.set_npn_advertise_callback(lambda c: None)
+    except AttributeError:
+        skipNPN = "PyOpenSSL 0.15 or greater is required for NPN support"
+    except NotImplementedError:
+        skipNPN = "OpenSSL 1.0.1 or greater required for NPN support"
 
 from twisted.test.test_twisted import SetAsideModule
 from twisted.test.iosim import connectedServerAndClient
@@ -287,6 +297,17 @@ class WritingProtocol(protocol.Protocol):
 
     def connectionLost(self, reason):
         self.factory.onLost.errback(reason)
+
+
+class NegotiatedProtocol(protocol.Protocol):
+    def __init__(self):
+        self.deferred = defer.Deferred()
+
+    def connectionMade(self):
+        self.transport.write(b'x')
+
+    def dataReceived(self, data):
+        self.deferred.callback(self.transport.getNextProtocol())
 
 
 
@@ -1716,6 +1737,219 @@ class ServiceIdentityTests(unittest.SynchronousTestCase):
         self.assertIsInstance(sErr, ConnectionClosed)
         errors = self.flushLoggedErrors(ZeroDivisionError)
         self.assertTrue(errors)
+
+
+
+class NPNAndALPNTest(unittest.TestCase):
+    """
+    Test the function of NPN and ALPN protocol selection.
+
+    These tests only run on platforms that have a PyOpenSSL version >= 0.15,
+    and OpenSSL version 1.0.1 or later.
+    """
+    if skipSSL:
+        skip = skipSSL
+    elif skipNPN:
+        skip = skipNPN
+
+    serverPort = clientConn = None
+
+    sKey = None
+    sCert = None
+    cKey = None
+    cCert = None
+
+    def setUp(self):
+        """
+        Create class variables of client and server certificates.
+        """
+        self.sKey, self.sCert = makeCertificate(
+            O=b"Server Test Certificate",
+            CN=b"server")
+        self.cKey, self.cCert = makeCertificate(
+            O=b"Client Test Certificate",
+            CN=b"client")
+        self.caCert1 = makeCertificate(
+            O=b"CA Test Certificate 1",
+            CN=b"ca1")[1]
+        self.caCert2 = makeCertificate(
+            O=b"CA Test Certificate",
+            CN=b"ca2")[1]
+
+
+    def tearDown(self):
+        if self.serverPort is not None:
+            self.serverPort.stopListening()
+        if self.clientConn is not None:
+            self.clientConn.disconnect()
+
+
+    def loopback(self, serverCertOpts, clientCertOpts):
+        """
+        Create the TLS connection, and save the two ends of the connection
+        on the test class.
+        """
+        self.proto = NegotiatedProtocol()
+
+        serverFactory = protocol.ServerFactory()
+        serverFactory.protocol = lambda: self.proto
+
+        clientFactory = protocol.ClientFactory()
+        clientFactory.protocol = NegotiatedProtocol
+
+        self.serverPort = reactor.listenSSL(0, serverFactory, serverCertOpts)
+        self.clientConn = reactor.connectSSL('127.0.0.1',
+                self.serverPort.getHost().port, clientFactory, clientCertOpts)
+
+
+    def test_NPNAndALPNSuccess(self):
+        """
+        Test that, when both ALPN and NPN are used, and both the client and
+        server have overlapping protocol choices, a protocol is successfully
+        negotiated. Further test that it's the first protocol in the list.
+        """
+        protocols = [b'h2', b'http/1.1']
+        self.loopback(
+            sslverify.OpenSSLCertificateOptions(
+                privateKey=self.sKey,
+                certificate=self.sCert,
+                verify=True,
+                requireCertificate=True,
+                caCerts=[self.cCert],
+                nextProtocols=protocols,
+            ),
+            sslverify.OpenSSLCertificateOptions(
+                privateKey=self.cKey,
+                certificate=self.cCert,
+                verify=True,
+                requireCertificate=True,
+                caCerts=[self.sCert],
+                nextProtocols=protocols,
+            ),
+        )
+
+        return self.proto.deferred.addCallback(
+            self.assertEqual, b'h2')
+
+
+    def test_NPNAndALPNFailure(self):
+        """
+        Test that when the client and server have no overlap of protocols, no
+        protocol is negotiated.
+        """
+        protocols = [b'h2', b'http/1.1']
+        self.loopback(
+            sslverify.OpenSSLCertificateOptions(
+                privateKey=self.sKey,
+                certificate=self.sCert,
+                verify=True,
+                requireCertificate=True,
+                caCerts=[self.cCert],
+                nextProtocols=protocols,
+            ),
+            sslverify.OpenSSLCertificateOptions(
+                privateKey=self.cKey,
+                certificate=self.cCert,
+                verify=True,
+                requireCertificate=True,
+                caCerts=[self.sCert],
+                nextProtocols=[],
+            ),
+        )
+
+        return self.proto.deferred.addCallback(
+            self.assertEqual, None)
+
+
+
+class NPNAndALPNAbsentTest(unittest.TestCase):
+    """
+    Test that NPN/ALPN operations fail on platforms that do not support
+    them.
+
+    These tests only run on platforms that have a PyOpenSSL version < 0.15,
+    or an OpenSSL version earlier than 1.0.1
+    """
+    if skipSSL:
+        skip = skipSSL
+    elif not skipNPN:
+        skip = "NPN/ALPN is present on this platform"
+
+    serverPort = clientConn = None
+
+    sKey = None
+    sCert = None
+    cKey = None
+    cCert = None
+
+    def setUp(self):
+        """
+        Create class variables of client and server certificates.
+        """
+        self.sKey, self.sCert = makeCertificate(
+            O=b"Server Test Certificate",
+            CN=b"server")
+        self.cKey, self.cCert = makeCertificate(
+            O=b"Client Test Certificate",
+            CN=b"client")
+        self.caCert1 = makeCertificate(
+            O=b"CA Test Certificate 1",
+            CN=b"ca1")[1]
+        self.caCert2 = makeCertificate(
+            O=b"CA Test Certificate",
+            CN=b"ca2")[1]
+
+
+    def tearDown(self):
+        if self.serverPort is not None:
+            self.serverPort.stopListening()
+        if self.clientConn is not None:
+            self.clientConn.disconnect()
+
+
+    def loopback(self, serverCertOpts, clientCertOpts):
+        """
+        Create the TLS connection, and save the two ends of the connection
+        on the test class.
+        """
+        self.proto = NegotiatedProtocol()
+
+        serverFactory = protocol.ServerFactory()
+        serverFactory.protocol = lambda: self.proto
+
+        clientFactory = protocol.ClientFactory()
+        clientFactory.protocol = NegotiatedProtocol
+
+        self.serverPort = reactor.listenSSL(0, serverFactory, serverCertOpts)
+        self.clientConn = reactor.connectSSL('127.0.0.1',
+                self.serverPort.getHost().port, clientFactory, clientCertOpts)
+
+
+    def test_NPNAndALPNNotImplemented(self):
+        """
+        Tests that a NotImplementedError is raised when using nextProtocols
+        on a platform that does not support either NPN or ALPN.
+        """
+        protocols = [b'h2', b'http/1.1']
+        serverCertOpts = sslverify.OpenSSLCertificateOptions(
+            privateKey=self.sKey,
+            certificate=self.sCert,
+            verify=True,
+            requireCertificate=True,
+            caCerts=[self.cCert],
+            nextProtocols=protocols,
+        )
+        clientCertOpts = sslverify.OpenSSLCertificateOptions(
+            privateKey=self.cKey,
+            certificate=self.cCert,
+            verify=True,
+            requireCertificate=True,
+            caCerts=[self.sCert],
+            nextProtocols=protocols,
+        )
+        self.assertRaises(
+            NotImplementedError, self.loopback, serverCertOpts, clientCertOpts,
+        )
 
 
 

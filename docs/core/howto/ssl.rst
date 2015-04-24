@@ -220,6 +220,44 @@ Additionally, it is possible to limit the acceptable ciphers for your connection
 Since Twisted uses a secure cipher configuration by default, it is discouraged to do so unless absolutely necessary.
 
 
+Application Layer Protocol Negotiation (ALPN) and Next Protocol Negotiation (NPN)
+---------------------------------------------------------------------------------
+
+ALPN and NPN are TLS extensions that can be used for a client and server to
+negotiate what application-layer protocol will be spoken once the encrypted
+connection is established. This avoids the need for extra round trips once the
+encrypted connection is established, instead piggybacking on the TLS handshake
+to do the negotiation.
+
+ALPN is the newer of the two protocols, supported in OpenSSL versions 1.0.2
+onward. NPN is supported from OpenSSL version 1.0.1.
+
+:api:`twisted.internet.ssl.CertificateOptions` allows for selecting the
+protocols your program is willing to speak after the connection is established.
+Doing so is very simple:
+
+.. code-block:: python
+
+    from twisted.internet.ssl import CertificateOptions
+    options = CertificateOptions(..., nextProtocol=['h2', 'http/1.1'])
+
+Twisted will attempt to use both ALPN and NPN if they're available, to maximise
+compatibility with peers. If both ALPN and NPN are supported by the peer, then
+the result from ALPN will be preferred.
+
+For NPN, the client selects the protocol to use; for ALPN, the server does. If
+Twisted is acting in either of those roles, then it will prefer the earliest
+protocol in the list that is supported by both peers.
+
+To determine what protocol was negotiated, use
+:api:`twisted.protocols.tls.TLSMemoryBIOProtocol.getNextProtocol <TLSMemoryBIOProtocol.getNextProtocol`.
+This method will return ``None`` if the peer did not offer ALPN or NPN, or
+will return one of the strings passed to the ``nextProtocol`` parameter.
+
+If ALPN and NPN are used and no overlap can be found, the connection will not
+be established: instead, the handshake will fail.
+
+
 Related facilities
 ------------------
 
