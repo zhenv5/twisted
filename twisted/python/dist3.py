@@ -122,6 +122,7 @@ modules = [
     "twisted.python.test.modules_helpers",
     "twisted.python.threadable",
     "twisted.python.threadpool",
+    "twisted.python.urlpath",
     "twisted.python.usage",
     "twisted.python.util",
     "twisted.python.versions",
@@ -130,6 +131,7 @@ modules = [
     "twisted.test.proto_helpers",
     "twisted.test.ssl_helpers",
     "twisted.trial",
+    "twisted.trial._asyncrunner",
     "twisted.trial._asynctest",
     "twisted.trial._synctest",
     "twisted.trial.itrial",
@@ -148,6 +150,8 @@ modules = [
     "twisted.web._version",
     "twisted.web.http_headers",
     "twisted.web.resource",
+    "twisted.web.script",
+    "twisted.web.static",
     "twisted.web.test",
     "twisted.web.test.requesthelper",
 ]
@@ -198,6 +202,7 @@ testModules = [
     "twisted.names.test.test_dns",
     "twisted.names.test.test_hosts",
     "twisted.names.test.test_rfc1982",
+    "twisted.names.test.test_util",
     "twisted.protocols.test.test_basic",
     "twisted.protocols.test.test_tls",
     "twisted.python.test.test_components",
@@ -207,8 +212,10 @@ testModules = [
     "twisted.python.test.test_runtime",
     "twisted.python.test.test_systemd",
     "twisted.python.test.test_tzhelper",
+    "twisted.python.test.test_urlpath",
     "twisted.python.test.test_util",
     "twisted.python.test.test_versions",
+    "twisted.test.testutils",
     "twisted.test.test_abstract",
     "twisted.test.test_compat",
     "twisted.test.test_context",
@@ -254,11 +261,14 @@ testModules = [
     "twisted.trial.test.test_util",
     "twisted.trial.test.test_warning",
     "twisted.web.error",
+    "twisted.web.test._util",
     # The downloadPage tests weren't ported:
     "twisted.web.test.test_http",
     "twisted.web.test.test_http_headers",
     "twisted.web.test.test_newclient",
     "twisted.web.test.test_resource",
+    "twisted.web.test.test_script",
+    "twisted.web.test.test_static",
     "twisted.web.test.test_web",
     "twisted.web.test.test_webclient",
 ]
@@ -289,6 +299,7 @@ almostModules = [
     "twisted.web.util",
     # Agent code and downloadPage aren't ported, test coverage isn't complete:
     "twisted.web.client",
+
     # Required by twisted.web.server, no actual code here:
     "twisted.web.iweb",
     # Required by twisted.web.server for an error handling case:
@@ -302,6 +313,8 @@ almostModules = [
     "twisted.web.server",
     # Required by twisted.web.error when formatting flattener roots
     "twisted.web.template",
+    # Parts are ported for twisted.web.static
+    "twisted.web.util",
 ]
 
 
