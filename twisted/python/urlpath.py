@@ -4,7 +4,7 @@
 
 #
 
-import urlparse
+from twisted.python.compat import urlparse
 import urllib
 
 class URLPath:
