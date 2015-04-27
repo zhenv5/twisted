@@ -15,29 +15,27 @@ from socket import AF_INET, AF_INET6, SOCK_STREAM, IPPROTO_TCP
 from zope.interface import implementer
 from zope.interface.verify import verifyObject, verifyClass
 
-from twisted.python.compat import _PY3
 from twisted.trial import unittest
-from twisted.internet import (
-    error, interfaces, defer, endpoints, protocol, reactor, threads)
-from twisted.internet.address import (
-    IPv4Address, IPv6Address, UNIXAddress, _ProcessAddress, HostnameAddress)
-from twisted.internet.protocol import ClientFactory, Protocol
-from twisted.test.proto_helpers import RaisingMemoryReactor, StringTransport
-from twisted.python.failure import Failure
-from twisted.python.systemd import ListenFDs
-from twisted.python.filepath import FilePath
-from twisted.python import log
-
-from twisted.internet.task import Clock
-from twisted.test.proto_helpers import (MemoryReactorClock as MemoryReactor)
 from twisted.test import __file__ as testInitPath
-from twisted.internet.interfaces import IConsumer, IPushProducer
-from twisted.internet.endpoints import StandardErrorBehavior
+from twisted.test.proto_helpers import MemoryReactorClock as MemoryReactor
+from twisted.test.proto_helpers import RaisingMemoryReactor, StringTransport
 from twisted.test.proto_helpers import StringTransportWithDisconnection
-from twisted.internet.interfaces import ITransport
-from twisted.internet.protocol import Factory
 
-pemPath = FilePath(testInitPath.encode("utf-8")).sibling(b"server.pem")
+from twisted.internet import error, interfaces, defer, endpoints, protocol
+from twisted.internet import reactor, threads
+from twisted.internet.address import IPv4Address, IPv6Address, UNIXAddress
+from twisted.internet.address import _ProcessAddress, HostnameAddress
+from twisted.internet.endpoints import StandardErrorBehavior
+from twisted.internet.interfaces import IConsumer, IPushProducer, ITransport
+from twisted.internet.protocol import ClientFactory, Protocol, Factory
+from twisted.internet.task import Clock
+from twisted.python import log
+from twisted.python.compat import _PY3
+from twisted.python.failure import Failure
+from twisted.python.filepath import FilePath
+from twisted.python.systemd import ListenFDs
+
+pemPath = FilePath(testInitPath).sibling("server.pem").asBytesMode()
 
 if not _PY3:
     from twisted.plugin import getPlugins
