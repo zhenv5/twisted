@@ -40,13 +40,6 @@ else:
     # flag that works *at all* is somewhat challenging.
     dontWaitSkip = "MSG_DONTWAIT is only known to work as intended on Linux"
 
-try:
-    from twisted.python.sendmsg import send1msg, recv1msg
-    from twisted.python.sendmsg import SCM_RIGHTS, getsockfam
-except ImportError:
-    CModuleImportSkip = "Cannot import twisted.python.sendmsg"
-else:
-    CModuleImportSkip = None
 
 try:
     from twisted.python.sendmsg import sendmsg, recvmsg
@@ -55,6 +48,15 @@ except ImportError:
     importSkip = "Platform doesn't support sendmsg."
 else:
     importSkip = None
+
+
+try:
+    from twisted.python.sendmsg import send1msg, recv1msg
+    from twisted.python.sendmsg import getsockfam
+except ImportError:
+    CModuleImportSkip = "Cannot import twisted.python.sendmsg"
+else:
+    CModuleImportSkip = None
 
 
 
