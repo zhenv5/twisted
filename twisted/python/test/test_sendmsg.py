@@ -5,6 +5,7 @@
 Tests for L{twisted.python.sendmsg}.
 """
 
+import os
 import sys
 import errno
 
@@ -27,7 +28,7 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 from twisted.python.runtime import platform
-from twisted.python.compat import _PY3
+from twisted.python.compat import _PY3, intToBytes
 
 from twisted.internet.protocol import ProcessProtocol
 
@@ -40,11 +41,21 @@ else:
     dontWaitSkip = "MSG_DONTWAIT is only known to work as intended on Linux"
 
 try:
-    from twisted.python.sendmsg import SCM_RIGHTS, send1msg, recv1msg, getsockfam
+    from twisted.python.sendmsg import send1msg, recv1msg
+    from twisted.python.sendmsg import SCM_RIGHTS, getsockfam
 except ImportError:
     CModuleImportSkip = "Cannot import twisted.python.sendmsg"
 else:
     CModuleImportSkip = None
+
+try:
+    from twisted.python.sendmsg import sendmsg, recvmsg
+    from twisted.python.sendmsg import SCM_RIGHTS, getSocketFamily
+except ImportError:
+    importSkip = "Platform doesn't support sendmsg."
+else:
+    importSkip = None
+
 
 
 class ExitedWithStderr(Exception):
@@ -56,7 +67,10 @@ class ExitedWithStderr(Exception):
         """
         Dump the errors in a pretty way in the event of a subprocess traceback.
         """
-        return '\n'.join([''] + list(self.args))
+        if _PY3:
+            return b'\n'.join([b''] + list(self.args)).decode()
+        else:
+            return '\n'.join([''] + list(self.args))
 
 
 class StartStopProcessProtocol(ProcessProtocol):
@@ -77,8 +91,8 @@ class StartStopProcessProtocol(ProcessProtocol):
     def __init__(self):
         self.started = Deferred()
         self.stopped = Deferred()
-        self.output = ''
-        self.errors = ''
+        self.output = b''
+        self.errors = b''
 
 
     def connectionMade(self):
@@ -338,7 +352,7 @@ class CModuleSendmsgTests(TestCase):
         for i in range(1024):
             try:
                 send1msg(self.input.fileno(), "x" * 1024, MSG_DONTWAIT)
-            except error, e:
+            except error as e:
                 self.assertEqual(e.args[0], errno.EAGAIN)
                 break
         else:
@@ -540,5 +554,201 @@ class CModuleGetSocketFamilyTests(TestCase):
         address family, L{getsockfam} returns C{AF_UNIX}.
         """
         self.assertEqual(AF_UNIX, getsockfam(self._socket(AF_UNIX)))
+    if nonUNIXSkip is not None:
+        test_unix.skip = nonUNIXSkip
+
+
+
+class NewSendmsgTests(TestCase):
+    """
+    Tests for the new L{sendmsg} interface.
+    """
+    if importSkip is not None:
+        skip = importSkip
+
+    def setUp(self):
+        """
+        Create a pair of UNIX sockets.
+        """
+        self.input, self.output = socketpair(AF_UNIX)
+
+
+    def tearDown(self):
+        """
+        Close the sockets opened by setUp.
+        """
+        self.input.close()
+        self.output.close()
+
+
+    def test_syscallError(self):
+        """
+        If the underlying C{sendmsg} call fails, L{send1msg} raises
+        L{socket.error} with its errno set to the underlying errno value.
+        """
+        self.input.close()
+        exc = self.assertRaises(error, sendmsg, self.input, b"hello, world")
+        self.assertEqual(exc.args[0], errno.EBADF)
+
+
+    def test_syscallErrorWithControlMessage(self):
+        """
+        The behavior when the underlying C{sendmsg} call fails is the same
+        whether L{sendmsg} is passed ancillary data or not.
+        """
+        self.input.close()
+        exc = self.assertRaises(
+            error, sendmsg, self.input, b"hello, world", [(0, 0, b"0123")], 0)
+        self.assertEqual(exc.args[0], errno.EBADF)
+
+
+    def test_roundtrip(self):
+        """
+        L{recvmsg} will retrieve a message sent via L{sendmsg}.
+        """
+        message = b"hello, world!"
+        self.assertEqual(
+            len(message),
+            sendmsg(self.input, message))
+
+        result = recvmsg(self.output)
+        self.assertEqual(result.data, b"hello, world!")
+        self.assertEqual(result.flags, 0)
+        self.assertEqual(result.ancillary, [])
+
+
+    def test_shortsend(self):
+        """
+        L{sendmsg} returns the number of bytes which it was able to send.
+        """
+        message = b"x" * 1024 * 1024
+        self.input.setblocking(False)
+        sent = sendmsg(self.input, message)
+        # Sanity check - make sure we did fill the send buffer and then some
+        self.assertTrue(sent < len(message))
+        received = recvmsg(self.output, len(message))
+        self.assertEqual(len(received[0]), sent)
+
+
+    def test_roundtripEmptyAncillary(self):
+        """
+        L{sendmsg} treats an empty ancillary data list the same way it treats
+        receiving no argument for the ancillary parameter at all.
+        """
+        sendmsg(self.input, b"hello, world!", [], 0)
+
+        result = recvmsg(self.output)
+        self.assertEqual(result, (b"hello, world!", [], 0))
+
+
+    def test_flags(self):
+        """
+        The C{flags} argument to L{sendmsg} is passed on to the underlying
+        C{sendmsg} call, to affect it in whatever way is defined by those flags.
+        """
+        # Just exercise one flag with simple, well-known behavior.  MSG_DONTWAIT
+        # makes the send a non-blocking call, even if the socket is in blocking
+        # mode.  See also test_flags in RecvmsgTests
+        for i in range(1024):
+            try:
+                sendmsg(self.input, b"x" * 1024, flags=MSG_DONTWAIT)
+            except error as e:
+                self.assertEqual(e.args[0], errno.EAGAIN)
+                break
+        else:
+            self.fail(
+                "Failed to fill up the send buffer, "
+                "or maybe send1msg blocked for a while")
+    if dontWaitSkip is not None:
+        test_flags.skip = dontWaitSkip
+
+
+    def spawn(self, script):
+        """
+        Start a script that is a peer of this test as a subprocess.
+
+        @param script: the module name of the script in this directory (no
+            package prefix, no '.py')
+        @type script: C{str}
+
+        @rtype: L{StartStopProcessProtocol}
+        """
+        pyExe = FilePath(sys.executable).asBytesMode().path
+        sspp = StartStopProcessProtocol()
+        reactor.spawnProcess(
+            sspp, pyExe, [
+                pyExe,
+                FilePath(__file__).sibling(script + ".py").asBytesMode().path,
+                intToBytes(self.output.fileno()),
+            ],
+            env = {b"PYTHONPATH": FilePath(
+                os.pathsep.join(sys.path)).asBytesMode().path},
+            childFDs={0: "w", 1: "r", 2: "r",
+                      self.output.fileno(): self.output.fileno()}
+        )
+        return sspp
+
+
+    @inlineCallbacks
+    def test_sendSubProcessFD(self):
+        """
+        Calling L{sendmsg} with SOL_SOCKET, SCM_RIGHTS, and a platform-endian
+        packed file descriptor number should send that file descriptor to a
+        different process, where it can be retrieved by using L{recv1msg}.
+        """
+        sspp = self.spawn("newpullpipe")
+        yield sspp.started
+        pipeOut, pipeIn = pipe()
+        self.addCleanup(close, pipeOut)
+
+        sendmsg(
+            self.input, b"blonk",
+            [(SOL_SOCKET, SCM_RIGHTS, pack("i", pipeIn))])
+
+        close(pipeIn)
+        yield sspp.stopped
+        self.assertEqual(read(pipeOut, 1024), b"Test fixture data: blonk.\n")
+        # Make sure that the pipe is actually closed now.
+        self.assertEqual(read(pipeOut, 1024), b"")
+
+
+class GetSocketFamilyTests(TestCase):
+
+    if importSkip is not None:
+        skip = importSkip
+
+    def _socket(self, addressFamily):
+        """
+        Create a new socket using the given address family and return that
+        socket's file descriptor.  The socket will automatically be closed when
+        the test is torn down.
+        """
+        s = socket(addressFamily)
+        self.addCleanup(s.close)
+        return s
+
+
+    def test_inet(self):
+        """
+        When passed the file descriptor of a socket created with the C{AF_INET}
+        address family, L{getSocketFamily} returns C{AF_INET}.
+        """
+        self.assertEqual(AF_INET, getSocketFamily(self._socket(AF_INET)))
+
+
+    def test_inet6(self):
+        """
+        When passed the file descriptor of a socket created with the C{AF_INET6}
+        address family, L{getSocketFamily} returns C{AF_INET6}.
+        """
+        self.assertEqual(AF_INET6, getSocketFamily(self._socket(AF_INET6)))
+
+
+    def test_unix(self):
+        """
+        When passed the file descriptor of a socket created with the C{AF_UNIX}
+        address family, L{getSocketFamily} returns C{AF_UNIX}.
+        """
+        self.assertEqual(AF_UNIX, getSocketFamily(self._socket(AF_UNIX)))
     if nonUNIXSkip is not None:
         test_unix.skip = nonUNIXSkip

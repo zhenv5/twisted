@@ -5,6 +5,9 @@
 sendmsg(2) and recvmsg(2) support for Python.
 """
 
+from __future__ import absolute_import, division
+
+from collections import namedtuple
 from twisted.python.compat import _PY3
 
 
@@ -16,14 +19,16 @@ if not _PY3:
     from twisted.python._sendmsg import getsockfam, SCM_RIGHTS
     __all__ += ["send1msg", "recv1msg", "getsockfam"]
 else:
-    from socket import SCM_RIGHTS
+    from socket import SCM_RIGHTS, CMSG_SPACE
+
+RecievedMessage = namedtuple('RecievedMessage', ['data', 'ancillary', 'flags'])
 
 
 
-def sendmsg(socket, data, flags=0, ancillary=None):
+def sendmsg(socket, data, ancillary=[], flags=0):
 
     if _PY3:
-        return socket.sendmsg([bytes([data])], flags, ancillary)
+        return socket.sendmsg([data], ancillary, flags)
     else:
         return send1msg(socket.fileno(), data, flags, ancillary)
 
@@ -49,7 +54,7 @@ def recvmsg(socket, maxSize=8192, cmsg_size=4096, flags=0):
         constants in the sendmsg(2) manual page. By default no flags are set.
     @type flags: L{int}
 
-    @return: A 3-tuple of the bytes recieved using the datagram/stream
+    @return: A named 3-tuple of the bytes recieved using the datagram/stream
         mechanism, a L{list} of L{tuples} giving ancillary recieved data, and
         flags as an L{int} describing the data recieved.
     """
@@ -61,12 +66,12 @@ def recvmsg(socket, maxSize=8192, cmsg_size=4096, flags=0):
         # Since the default in Python 3's socket is 0, we need to define our own
         # default of 4096. -hawkie
         data, ancillary, flags = socket.recvmsg(
-            maxSize, socket.CMSG_SPACE(csmg_size), flags)[0:3]
+            maxSize, CMSG_SPACE(cmsg_size), flags)[0:3]
     else:
         data, flags, ancillary = recv1msg(
-            socket.fileno(), flags, maxSize, csmg_size)
+            socket.fileno(), flags, maxSize, cmsg_size)
 
-    return data, ancillary, flags
+    return RecievedMessage(data=data, ancillary=ancillary, flags=flags)
 
 
 
