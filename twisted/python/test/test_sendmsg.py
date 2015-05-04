@@ -27,6 +27,7 @@ from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor
 from twisted.python.filepath import FilePath
 from twisted.python.runtime import platform
+from twisted.python.compat import _PY3
 
 from twisted.internet.protocol import ProcessProtocol
 
@@ -41,9 +42,9 @@ else:
 try:
     from twisted.python.sendmsg import SCM_RIGHTS, send1msg, recv1msg, getsockfam
 except ImportError:
-    importSkip = "Cannot import twisted.python.sendmsg"
+    CModuleImportSkip = "Cannot import twisted.python.sendmsg"
 else:
-    importSkip = None
+    CModuleImportSkip = None
 
 
 class ExitedWithStderr(Exception):
@@ -150,15 +151,15 @@ class WorseList(list):
 
 
 
-class SendmsgTests(TestCase):
+class CModuleSendmsgTests(TestCase):
     """
     Tests for sendmsg extension module and associated file-descriptor sending
     functionality.
     """
     if nonUNIXSkip is not None:
         skip = nonUNIXSkip
-    elif importSkip is not None:
-        skip = importSkip
+    elif CModuleImportSkip is not None:
+        skip = CModuleImportSkip
 
     def setUp(self):
         """
@@ -408,12 +409,12 @@ class SendmsgTests(TestCase):
 
 
 
-class RecvmsgTests(TestCase):
+class CModuleRecvmsgTests(TestCase):
     """
     Tests for L{recv1msg} (primarily error handling cases).
     """
-    if importSkip is not None:
-        skip = importSkip
+    if CModuleImportSkip is not None:
+        skip = CModuleImportSkip
 
     def test_badArguments(self):
         """
@@ -475,13 +476,13 @@ class RecvmsgTests(TestCase):
 
 
 
-class GetSocketFamilyTests(TestCase):
+class CModuleGetSocketFamilyTests(TestCase):
     """
     Tests for L{getsockfam}, a helper which reveals the address family of an
     arbitrary socket.
     """
-    if importSkip is not None:
-        skip = importSkip
+    if CModuleImportSkip is not None:
+        skip = CModuleImportSkip
 
     def _socket(self, addressFamily):
         """
