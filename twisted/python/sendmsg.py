@@ -74,7 +74,6 @@ def recvmsg(socket, maxSize=8192, cmsg_size=4096, flags=0):
         mechanism, a L{list} of L{tuples} giving ancillary recieved data, and
         flags as an L{int} describing the data recieved.
     """
-
     if _PY3:
         # In Twisted's sendmsg.c, the csmg_space is defined as:
         #     int cmsg_size = 4096;
