@@ -1,3 +1,4 @@
+# -*- test-case-name: twisted.test.test_sendmsg -*-
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
@@ -713,7 +714,9 @@ class NewSendmsgTests(TestCase):
 
 
 class GetSocketFamilyTests(TestCase):
-
+    """
+    Tests for L{getSocketFamily}.
+    """
     if importSkip is not None:
         skip = importSkip
 

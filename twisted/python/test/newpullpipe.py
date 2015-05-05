@@ -26,8 +26,8 @@ def recvfd(socketfd):
     """
     ourSocket = socket.fromfd(socketfd, socket.AF_UNIX, socket.SOCK_STREAM)
     data, ancillary, flags = recvmsg(ourSocket)
-    [(cmsg_level, cmsg_type, packedFD)] = ancillary
-    # cmsg_level and cmsg_type really need to be SOL_SOCKET / SCM_RIGHTS, but
+    [(cmsgLevel, cmsgType, packedFD)] = ancillary
+    # cmsgLevel and cmsgType really need to be SOL_SOCKET / SCM_RIGHTS, but
     # since those are the *only* standard values, there's not much point in
     # checking.
     [unpackedFD] = unpack("i", packedFD)
