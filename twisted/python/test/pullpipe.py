@@ -6,9 +6,6 @@
 import sys, os
 from struct import unpack
 
-# This makes me sad.  Why aren't things nice?
-sys.path.insert(0, __file__.rsplit('/', 4)[0])
-
 from twisted.python.sendmsg import recv1msg
 
 def recvfd(socketfd):

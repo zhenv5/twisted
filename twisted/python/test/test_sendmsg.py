@@ -5,10 +5,10 @@
 Tests for L{twisted.python.sendmsg}.
 """
 
-import os
 import sys
 import errno
-
+from os import devnull, pipe, read, close, pathsep
+from struct import pack
 from socket import SOL_SOCKET, AF_INET, AF_INET6, socket, error
 
 try:
@@ -18,19 +18,15 @@ except ImportError:
 else:
     nonUNIXSkip = None
 
-from struct import pack
-from os import devnull, pipe, read, close, environ
-
-from twisted.internet.defer import Deferred
-from twisted.internet.error import ProcessDone
-from twisted.trial.unittest import TestCase
-from twisted.internet.defer import inlineCallbacks
 from twisted.internet import reactor
+from twisted.internet.defer import Deferred, inlineCallbacks
+from twisted.internet.error import ProcessDone
+from twisted.internet.protocol import ProcessProtocol
+from twisted.python.compat import _PY3, intToBytes
 from twisted.python.filepath import FilePath
 from twisted.python.runtime import platform
-from twisted.python.compat import _PY3, intToBytes
 
-from twisted.internet.protocol import ProcessProtocol
+from twisted.trial.unittest import TestCase
 
 if platform.isLinux():
     from socket import MSG_DONTWAIT
@@ -394,7 +390,8 @@ class CModuleSendmsgTests(TestCase):
                 FilePath(__file__).sibling(script + ".py").path,
                 str(self.output.fileno()),
             ],
-            environ,
+            env = {b"PYTHONPATH": FilePath(
+                pathsep.join(sys.path)).asBytesMode().path},
             childFDs={0: "w", 1: "r", 2: "r",
                       self.output.fileno(): self.output.fileno()}
         )
@@ -684,7 +681,7 @@ class NewSendmsgTests(TestCase):
                 intToBytes(self.output.fileno()),
             ],
             env = {b"PYTHONPATH": FilePath(
-                os.pathsep.join(sys.path)).asBytesMode().path},
+                pathsep.join(sys.path)).asBytesMode().path},
             childFDs={0: "w", 1: "r", 2: "r",
                       self.output.fileno(): self.output.fileno()}
         )
