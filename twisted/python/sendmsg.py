@@ -10,8 +10,6 @@ from __future__ import absolute_import, division
 from collections import namedtuple
 from twisted.python.compat import _PY3
 
-
-
 __all__ = ["sendmsg", "recvmsg", "getSocketFamily", "SCM_RIGHTS"]
 
 if not _PY3:
@@ -26,7 +24,25 @@ RecievedMessage = namedtuple('RecievedMessage', ['data', 'ancillary', 'flags'])
 
 
 def sendmsg(socket, data, ancillary=[], flags=0):
+    """
+    Send a message on a socket.
 
+    @param socket: The socket to send the message on.
+    @type socket: L{socket.socket}
+
+    @param data: Bytes to write to the socket.
+    @type data: bytes
+
+    @param ancillary: Extra data to send over the socket outside of the normal
+        datagram or stream mechanism.  By default no ancillary data is sent.
+    @type ancillary: C{list} of C{tuple} of C{int}, C{int}, and C{bytes}.
+
+    @param flags: Flags to affect how the message is sent.  See the C{MSG_}
+        constants in the sendmsg(2) manual page.  By default no flags are set.
+    @type flags: C{int}
+
+    @return: The return value of the underlying syscall, if it succeeds.
+    """
     if _PY3:
         return socket.sendmsg([data], ancillary, flags)
     else:
@@ -75,9 +91,15 @@ def recvmsg(socket, maxSize=8192, cmsg_size=4096, flags=0):
 
 
 
-
 def getSocketFamily(socket):
+    """
+    Return the family of the given socket.
 
+    @param socket: The socket to get the family of.
+    @type socket: L{socket.socket}
+
+    @rtype: L{int}
+    """
     if _PY3:
         return socket.family
     else:

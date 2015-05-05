@@ -714,6 +714,7 @@ class NewSendmsgTests(TestCase):
         self.assertEqual(read(pipeOut, 1024), b"")
 
 
+
 class GetSocketFamilyTests(TestCase):
 
     if importSkip is not None:
