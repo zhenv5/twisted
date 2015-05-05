@@ -8,14 +8,12 @@ import os
 import socket
 from struct import unpack
 
-# This makes me sad.  Why aren't things nice?
-sys.path.insert(0, __file__.rsplit('/', 4)[0])
-
 from twisted.python.sendmsg import recvmsg
+
 
 def recvfd(socketfd):
     """
-    Receive a file descriptor from a L{send1msg} message on the given C{AF_UNIX}
+    Receive a file descriptor from a L{sendmsg} message on the given C{AF_UNIX}
     socket.
 
     @param socketfd: An C{AF_UNIX} socket, attached to another process waiting
@@ -24,10 +22,10 @@ def recvfd(socketfd):
     @param fd: C{int}
 
     @return: a 2-tuple of (new file descriptor, description).
-
     @rtype: 2-tuple of (C{int}, C{bytes})
     """
-    data, ancillary, flags = recvmsg(socket.fromfd(socketfd, socket.AF_UNIX, socket.SOCK_STREAM))
+    ourSocket = socket.fromfd(socketfd, socket.AF_UNIX, socket.SOCK_STREAM)
+    data, ancillary, flags = recvmsg(ourSocket)
     [(cmsg_level, cmsg_type, packedFD)] = ancillary
     # cmsg_level and cmsg_type really need to be SOL_SOCKET / SCM_RIGHTS, but
     # since those are the *only* standard values, there's not much point in
