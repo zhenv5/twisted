@@ -71,7 +71,7 @@ def recvmsg(socket, maxSize=8192, cmsg_size=4096, flags=0):
     @type flags: L{int}
 
     @return: A named 3-tuple of the bytes recieved using the datagram/stream
-        mechanism, a L{list} of L{tuples} giving ancillary recieved data, and
+        mechanism, a L{list} of L{tuple}s giving ancillary recieved data, and
         flags as an L{int} describing the data recieved.
     """
     if _PY3:
