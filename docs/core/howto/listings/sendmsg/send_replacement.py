@@ -15,7 +15,7 @@ def main():
     foo, bar = socketpair()
     sent = sendmsg(foo, b"Hello, world")
     print("Sent", sent, "bytes")
-    (received, flags, ancillary) = recvmsg(bar, 1024)
+    (received, ancillary, flags) = recvmsg(bar, 1024)
     print("Received", repr(received))
     print("Extra stuff, boring in this case", flags, ancillary)
 
