@@ -557,8 +557,11 @@ def bytesEnviron():
         # On py2, nothing to do.
         return dict(os.environ)
 
-    return {os.environ.encodekey(x):os.environ.encodevalue(y)
-            for x,y in os.environ.items()}
+    target = dict()
+    for x, y in os.environ.items():
+        target[os.environ.encodekey(x)] = os.environ.encodevalue(y)
+
+    return target
 
 
 
