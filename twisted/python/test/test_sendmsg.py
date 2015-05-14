@@ -22,7 +22,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import Deferred, inlineCallbacks
 from twisted.internet.error import ProcessDone
 from twisted.internet.protocol import ProcessProtocol
-from twisted.python.compat import _PY3, intToBytes
+from twisted.python.compat import _PY3, intToBytes, bytesEnviron
 from twisted.python.filepath import FilePath
 from twisted.python.runtime import platform
 
@@ -65,10 +65,11 @@ class ExitedWithStderr(Exception):
         """
         Dump the errors in a pretty way in the event of a subprocess traceback.
         """
+        result = b'\n'.join([b''] + list(self.args))
         if _PY3:
-            return b'\n'.join([b''] + list(self.args)).decode()
-        else:
-            return '\n'.join([''] + list(self.args))
+            result = repr(result)
+        return result
+
 
 
 class StartStopProcessProtocol(ProcessProtocol):
@@ -322,7 +323,9 @@ class CModuleSendmsgTests(TestCase):
         message = "x" * 1024 * 1024
         self.input.setblocking(False)
         sent = send1msg(self.input.fileno(), message)
-        # Sanity check - make sure we did fill the send buffer and then some
+        # Sanity check - make sure the amount of data we sent was less than the
+        # message, but not the whole message, as we should have filled the send
+        # buffer. This won't work if the send buffer is more than 1MB, though.
         self.assertTrue(sent < len(message))
         received = recv1msg(self.output.fileno(), 0, len(message))
         self.assertEqual(len(received[0]), sent)
@@ -384,14 +387,16 @@ class CModuleSendmsgTests(TestCase):
         @rtype: L{StartStopProcessProtocol}
         """
         sspp = StartStopProcessProtocol()
+        env = bytesEnviron()
+        env[b"PYTHONPATH"] = FilePath(
+            pathsep.join(sys.path)).asBytesMode().path
         reactor.spawnProcess(
             sspp, sys.executable, [
                 sys.executable,
                 FilePath(__file__).sibling(script + ".py").path,
                 str(self.output.fileno()),
             ],
-            env = {b"PYTHONPATH": FilePath(
-                pathsep.join(sys.path)).asBytesMode().path},
+            env=env,
             childFDs={0: "w", 1: "r", 2: "r",
                       self.output.fileno(): self.output.fileno()}
         )
@@ -405,7 +410,7 @@ class CModuleSendmsgTests(TestCase):
         packed file descriptor number should send that file descriptor to a
         different process, where it can be retrieved by using L{recv1msg}.
         """
-        sspp = self.spawn("pullpipe")
+        sspp = self.spawn("cmodulepullpipe")
         yield sspp.started
         pipeOut, pipeIn = pipe()
         self.addCleanup(close, pipeOut)
@@ -515,7 +520,6 @@ class CModuleGetSocketFamilyTests(TestCase):
         """
         self.assertRaises(TypeError, getsockfam)
         self.assertRaises(TypeError, getsockfam, 1, 2)
-
         self.assertRaises(TypeError, getsockfam, object())
 
 
@@ -558,9 +562,9 @@ class CModuleGetSocketFamilyTests(TestCase):
 
 
 
-class NewSendmsgTests(TestCase):
+class SendmsgTests(TestCase):
     """
-    Tests for the new L{sendmsg} interface.
+    Tests for the Python2/3 compatible L{sendmsg} interface.
     """
     if importSkip is not None:
         skip = importSkip
@@ -623,7 +627,9 @@ class NewSendmsgTests(TestCase):
         message = b"x" * 1024 * 1024
         self.input.setblocking(False)
         sent = sendmsg(self.input, message)
-        # Sanity check - make sure we did fill the send buffer and then some
+        # Sanity check - make sure the amount of data we sent was less than the
+        # message, but not the whole message, as we should have filled the send
+        # buffer. This won't work if the send buffer is more than 1MB, though.
         self.assertTrue(sent < len(message))
         received = recvmsg(self.output, len(message))
         self.assertEqual(len(received[0]), sent)
@@ -673,6 +679,9 @@ class NewSendmsgTests(TestCase):
         @rtype: L{StartStopProcessProtocol}
         """
         pyExe = FilePath(sys.executable).asBytesMode().path
+        env = bytesEnviron()
+        env[b"PYTHONPATH"] = FilePath(
+            pathsep.join(sys.path)).asBytesMode().path
         sspp = StartStopProcessProtocol()
         reactor.spawnProcess(
             sspp, pyExe, [
@@ -680,8 +689,7 @@ class NewSendmsgTests(TestCase):
                 FilePath(__file__).sibling(script + ".py").asBytesMode().path,
                 intToBytes(self.output.fileno()),
             ],
-            env = {b"PYTHONPATH": FilePath(
-                pathsep.join(sys.path)).asBytesMode().path},
+            env=env,
             childFDs={0: "w", 1: "r", 2: "r",
                       self.output.fileno(): self.output.fileno()}
         )
@@ -695,7 +703,7 @@ class NewSendmsgTests(TestCase):
         packed file descriptor number should send that file descriptor to a
         different process, where it can be retrieved by using L{recv1msg}.
         """
-        sspp = self.spawn("newpullpipe")
+        sspp = self.spawn("pullpipe")
         yield sspp.started
         pipeOut, pipeIn = pipe()
         self.addCleanup(close, pipeOut)
