@@ -728,6 +728,20 @@ class NewRenderTests(unittest.TestCase):
         req.requestReceived(b'hlalauguG', b'/newrender', b'HTTP/1.0')
         self.assertEqual(req.code, 501)
 
+    def testNotAllowedMethod(self):
+        """
+        Verify that we get a not allowed, when trying a to invoke a
+        method not on the supported method list
+
+        """
+        req = self._getReq()
+        req.requestReceived(b'POST', b'/newrender', b'HTTP/1.0')
+        self.assertEqual(req.code, 405)
+        self.assertTrue(req.responseHeaders.hasHeader(b"allow"))
+        raw_header = req.responseHeaders.getRawHeaders(b'allow')[0]
+        allowed = sorted([h.strip() for h in raw_header.split(b",")])
+        self.assertEqual([b'GET', b'HEAD', b'HEH'], allowed)
+
     def testImplicitHead(self):
         req = self._getReq()
         req.requestReceived(b'HEAD', b'/newrender', b'HTTP/1.0')

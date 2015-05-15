@@ -162,6 +162,8 @@ modules = [
     "twisted.web.static",
     "twisted.web.test",
     "twisted.web.test.requesthelper",
+    "twisted.web._version",
+    "twisted.web.xmlrpc",
 ]
 
 
@@ -285,6 +287,7 @@ testModules = [
     "twisted.web.test.test_static",
     "twisted.web.test.test_web",
     "twisted.web.test.test_webclient",
+    "twisted.web.test.test_xmlrpc",
 ]
 
 
