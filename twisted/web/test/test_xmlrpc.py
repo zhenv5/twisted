@@ -9,7 +9,6 @@ Tests for  XML-RPC support in L{twisted.web.xmlrpc}.
 from __future__ import division, absolute_import
 
 from twisted.python.compat import nativeString, networkString, NativeStringIO
-from twisted.python.compat import intToBytes
 
 import datetime
 
@@ -17,8 +16,7 @@ from twisted.trial import unittest
 from twisted.web import xmlrpc
 from twisted.web.xmlrpc import XMLRPC, payloadTemplate, addIntrospection
 from twisted.web.xmlrpc import _QueryFactory, withRequest, xmlrpclib
-from twisted.web import server, client, error, http, resource as Resource
-from twisted.web import static
+from twisted.web import server, client, error, http, static
 from twisted.internet import reactor, defer
 from twisted.internet.error import ConnectionDone
 from twisted.python import failure
