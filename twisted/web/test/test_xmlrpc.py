@@ -141,7 +141,7 @@ class Test(XMLRPC):
 
     def xmlrpc_snowman(self, payload):
         """
-        Used to test that we can pass unicode
+        Used to test that we can pass Unicode.
         """
         snowman = u"\u2603"
         if snowman != payload:
@@ -232,6 +232,7 @@ class TestAuthHeader(Test):
         return self.request.getUser(), self.request.getPassword()
 
 
+
 class TestQueryProtocol(xmlrpc.QueryProtocol):
     """
     QueryProtocol for tests that saves headers received and sent,
@@ -247,10 +248,12 @@ class TestQueryProtocol(xmlrpc.QueryProtocol):
 
     def sendHeader(self, key, val):
         """
-        Keep sent headers so we can inspect them later
+        Keep sent headers so we can inspect them later.
         """
         self.factory.sent_headers[key.lower()] = val
         xmlrpc.QueryProtocol.sendHeader(self, key, val)
+
+
 
 class TestQueryFactory(xmlrpc._QueryFactory):
     """

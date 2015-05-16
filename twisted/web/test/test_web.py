@@ -728,11 +728,10 @@ class NewRenderTests(unittest.TestCase):
         req.requestReceived(b'hlalauguG', b'/newrender', b'HTTP/1.0')
         self.assertEqual(req.code, 501)
 
-    def testNotAllowedMethod(self):
+    def test_notAllowedMethod(self):
         """
-        Verify that we get a not allowed, when trying a to invoke a
-        method not on the supported method list
-
+        When trying to invoke a method not in the allowed method list, we get
+        a response saying it is not allowed.
         """
         req = self._getReq()
         req.requestReceived(b'POST', b'/newrender', b'HTTP/1.0')
