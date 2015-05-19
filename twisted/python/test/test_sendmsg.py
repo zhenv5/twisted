@@ -56,22 +56,32 @@ else:
     CModuleImportSkip = None
 
 
+
 class _FDHolder(object):
     """
-    A wrapper around a FD.
+    A wrapper around a FD that will remember if it has been closed or not.
     """
     def __init__(self, fd):
         self._fd = fd
 
     def fileno(self):
+        """
+        Return the fileno of this FD.
+        """
         return self._fd
 
     def close(self):
+        """
+        Close the FD. If it's already been closed, do nothing.
+        """
         if self._fd:
             close(self._fd)
-        self._fd = None
+            self._fd = None
 
     def __del__(self):
+        """
+        If C{self._fd} is unclosed, raise a warning.
+        """
         if self._fd:
             if not _PY3:
                 ResourceWarning = Warning
@@ -87,6 +97,7 @@ def _makePipe():
     """
     r, w = pipe()
     return (_FDHolder(r), _FDHolder(w))
+
 
 
 class ExitedWithStderr(Exception):
