@@ -7,6 +7,7 @@ Tests for L{twisted.python.sendmsg}.
 
 import sys
 import errno
+import warnings
 from os import devnull, pipe, read, close, pathsep
 from struct import pack
 from socket import SOL_SOCKET, AF_INET, AF_INET6, socket, error
@@ -32,8 +33,8 @@ if platform.isLinux():
     from socket import MSG_DONTWAIT
     dontWaitSkip = None
 else:
-    # It would be nice to be able to test flags on more platforms, but finding a
-    # flag that works *at all* is somewhat challenging.
+    # It would be nice to be able to test flags on more platforms, but finding
+    # a flag that works *at all* is somewhat challenging.
     dontWaitSkip = "MSG_DONTWAIT is only known to work as intended on Linux"
 
 
@@ -54,6 +55,38 @@ except ImportError:
 else:
     CModuleImportSkip = None
 
+
+class _FDHolder(object):
+    """
+    A wrapper around a FD.
+    """
+    def __init__(self, fd):
+        self._fd = fd
+
+    def fileno(self):
+        return self._fd
+
+    def close(self):
+        if self._fd:
+            close(self._fd)
+        self._fd = None
+
+    def __del__(self):
+        if self._fd:
+            if not _PY3:
+                ResourceWarning = Warning
+            warnings.warn("FD %s was not closed!" % (self._fd,),
+                          ResourceWarning)
+            self.close()
+
+
+
+def _makePipe():
+    """
+    Create a pipe, and return the two FDs wrapped in L{_FDHolders}.
+    """
+    r, w = pipe()
+    return (_FDHolder(r), _FDHolder(w))
 
 
 class ExitedWithStderr(Exception):
@@ -115,18 +148,46 @@ class StartStopProcessProtocol(ProcessProtocol):
 
 
 
+def _spawn(script, outputFD):
+    """
+    Start a script that is a peer of this test as a subprocess.
+
+    @param script: the module name of the script in this directory (no
+        package prefix, no '.py')
+    @type script: C{str}
+
+    @rtype: L{StartStopProcessProtocol}
+    """
+    pyExe = FilePath(sys.executable).asBytesMode().path
+    env = bytesEnviron()
+    env[b"PYTHONPATH"] = FilePath(
+        pathsep.join(sys.path)).asBytesMode().path
+    sspp = StartStopProcessProtocol()
+    reactor.spawnProcess(
+        sspp, pyExe, [
+            pyExe,
+            FilePath(__file__).sibling(script + ".py").asBytesMode().path,
+            intToBytes(outputFD),
+        ],
+        env=env,
+        childFDs={0: "w", 1: "r", 2: "r", outputFD: outputFD}
+    )
+    return sspp
+
+
+
 class BadList(list):
     """
     A list which cannot be iterated sometimes.
 
-    This is a C{list} subclass to get past the type check in L{send1msg}, not as
-    an example of how real programs might want to interact with L{send1msg} (or
-    anything else).  A custom C{list} subclass makes it easier to trigger
+    This is a C{list} subclass to get past the type check in L{send1msg}, not
+    as an example of how real programs might want to interact with L{send1msg}
+    (or anything else).  A custom C{list} subclass makes it easier to trigger
     certain error cases in the implementation.
 
-    @ivar iterate: A flag which indicates whether an instance of L{BadList} will
-        allow iteration over itself or not.  If C{False}, an attempt to iterate
-        over the instance will raise an exception.
+    @ivar iterate: A flag which indicates whether an instance of L{BadList}
+        will allow iteration over itself or not.  If C{False}, an attempt to
+        iterate over the instance will raise an exception.
     """
     iterate = True
 
@@ -205,7 +266,8 @@ class CModuleSendmsgTests(TestCase):
         # Exercise the wrong number of arguments cases
         self.assertRaises(TypeError, send1msg)
         self.assertRaises(TypeError, send1msg, 1)
-        self.assertRaises(TypeError, send1msg, 1, "hello world", 2, [], object())
+        self.assertRaises(TypeError, send1msg,
+                          1, "hello world", 2, [], object())
 
         # Exercise the wrong type of arguments cases
         self.assertRaises(TypeError, send1msg, object(), "hello world", 2, [])
@@ -238,7 +300,8 @@ class CModuleSendmsgTests(TestCase):
         caller of L{send1msg}.
         """
         worseList = WorseList()
-        self.assertRaises(RuntimeError, send1msg, 1, "hello world", 2, worseList)
+        self.assertRaises(RuntimeError, send1msg,
+                          1, "hello world", 2,worseList)
 
 
     def test_sendmsgBadAncillaryItem(self):
@@ -345,9 +408,10 @@ class CModuleSendmsgTests(TestCase):
     def test_flags(self):
         """
         The C{flags} argument to L{send1msg} is passed on to the underlying
-        C{sendmsg} call, to affect it in whatever way is defined by those flags.
+        C{sendmsg} call, to affect it in whatever way is defined by those
+        flags.
         """
-        # Just exercise one flag with simple, well-known behavior.  MSG_DONTWAIT
+        # Just exercise one flag with simple, well-known behavior. MSG_DONTWAIT
         # makes the send a non-blocking call, even if the socket is in blocking
         # mode.  See also test_flags in RecvmsgTests
         for i in range(1024):
@@ -376,33 +440,6 @@ class CModuleSendmsgTests(TestCase):
                          "send1msg argument 3 expected list, got int")
 
 
-    def spawn(self, script):
-        """
-        Start a script that is a peer of this test as a subprocess.
-
-        @param script: the module name of the script in this directory (no
-            package prefix, no '.py')
-        @type script: C{str}
-
-        @rtype: L{StartStopProcessProtocol}
-        """
-        sspp = StartStopProcessProtocol()
-        env = bytesEnviron()
-        env[b"PYTHONPATH"] = FilePath(
-            pathsep.join(sys.path)).asBytesMode().path
-        reactor.spawnProcess(
-            sspp, sys.executable, [
-                sys.executable,
-                FilePath(__file__).sibling(script + ".py").path,
-                str(self.output.fileno()),
-            ],
-            env=env,
-            childFDs={0: "w", 1: "r", 2: "r",
-                      self.output.fileno(): self.output.fileno()}
-        )
-        return sspp
-
-
     @inlineCallbacks
     def test_sendSubProcessFD(self):
         """
@@ -410,20 +447,22 @@ class CModuleSendmsgTests(TestCase):
         packed file descriptor number should send that file descriptor to a
         different process, where it can be retrieved by using L{recv1msg}.
         """
-        sspp = self.spawn("cmodulepullpipe")
+        sspp = _spawn("cmodulepullpipe", self.output.fileno())
         yield sspp.started
-        pipeOut, pipeIn = pipe()
-        self.addCleanup(close, pipeOut)
+        pipeOut, pipeIn = _makePipe()
+        self.addCleanup(pipeOut.close)
+        self.addCleanup(pipeIn.close)
 
         send1msg(
             self.input.fileno(), "blonk", 0,
-            [(SOL_SOCKET, SCM_RIGHTS, pack("i", pipeIn))])
+            [(SOL_SOCKET, SCM_RIGHTS, pack("i", pipeIn.fileno()))])
 
-        close(pipeIn)
+        pipeIn.close()
         yield sspp.stopped
-        self.assertEqual(read(pipeOut, 1024), "Test fixture data: blonk.\n")
+        self.assertEqual(read(pipeOut.fileno(), 1024),
+                         "Test fixture data: blonk.\n")
         # Make sure that the pipe is actually closed now.
-        self.assertEqual(read(pipeOut, 1024), "")
+        self.assertEqual(read(pipeOut.fileno(), 1024), "")
 
 
 
@@ -482,7 +521,8 @@ class CModuleRecvmsgTests(TestCase):
     def test_flags(self):
         """
         The C{flags} argument to L{recv1msg} is passed on to the underlying
-        C{recvmsg} call, to affect it in whatever way is defined by those flags.
+        C{recvmsg} call, to affect it in whatever way is defined by those
+        flags.
         """
         # See test_flags in SendmsgTests
         reader, writer = socketpair(AF_UNIX)
@@ -515,8 +555,8 @@ class CModuleGetSocketFamilyTests(TestCase):
 
     def test_badArguments(self):
         """
-        L{getsockfam} accepts a single C{int} argument.  If it is called in some
-        other way, L{TypeError} is raised.
+        L{getsockfam} accepts a single C{int} argument.  If it is called in
+        some other way, L{TypeError} is raised.
         """
         self.assertRaises(TypeError, getsockfam)
         self.assertRaises(TypeError, getsockfam, 1, 2)
@@ -545,8 +585,8 @@ class CModuleGetSocketFamilyTests(TestCase):
 
     def test_inet6(self):
         """
-        When passed the file descriptor of a socket created with the C{AF_INET6}
-        address family, L{getsockfam} returns C{AF_INET6}.
+        When passed the file descriptor of a socket created with the
+        C{AF_INET6} address family, L{getsockfam} returns C{AF_INET6}.
         """
         self.assertEqual(AF_INET6, getsockfam(self._socket(AF_INET6)))
 
@@ -649,9 +689,10 @@ class SendmsgTests(TestCase):
     def test_flags(self):
         """
         The C{flags} argument to L{sendmsg} is passed on to the underlying
-        C{sendmsg} call, to affect it in whatever way is defined by those flags.
+        C{sendmsg} call, to affect it in whatever way is defined by those
+        flags.
         """
-        # Just exercise one flag with simple, well-known behavior.  MSG_DONTWAIT
+        # Just exercise one flag with simple, well-known behavior. MSG_DONTWAIT
         # makes the send a non-blocking call, even if the socket is in blocking
         # mode.  See also test_flags in RecvmsgTests
         for i in range(1024):
@@ -668,34 +709,6 @@ class SendmsgTests(TestCase):
         test_flags.skip = dontWaitSkip
 
 
-    def spawn(self, script):
-        """
-        Start a script that is a peer of this test as a subprocess.
-
-        @param script: the module name of the script in this directory (no
-            package prefix, no '.py')
-        @type script: C{str}
-
-        @rtype: L{StartStopProcessProtocol}
-        """
-        pyExe = FilePath(sys.executable).asBytesMode().path
-        env = bytesEnviron()
-        env[b"PYTHONPATH"] = FilePath(
-            pathsep.join(sys.path)).asBytesMode().path
-        sspp = StartStopProcessProtocol()
-        reactor.spawnProcess(
-            sspp, pyExe, [
-                pyExe,
-                FilePath(__file__).sibling(script + ".py").asBytesMode().path,
-                intToBytes(self.output.fileno()),
-            ],
-            env=env,
-            childFDs={0: "w", 1: "r", 2: "r",
-                      self.output.fileno(): self.output.fileno()}
-        )
-        return sspp
-
-
     @inlineCallbacks
     def test_sendSubProcessFD(self):
         """
@@ -703,20 +716,22 @@ class SendmsgTests(TestCase):
         packed file descriptor number should send that file descriptor to a
         different process, where it can be retrieved by using L{recv1msg}.
         """
-        sspp = self.spawn("pullpipe")
+        sspp = _spawn("pullpipe", self.output.fileno())
         yield sspp.started
-        pipeOut, pipeIn = pipe()
-        self.addCleanup(close, pipeOut)
+        pipeOut, pipeIn = _makePipe()
+        self.addCleanup(pipeOut.close)
+        self.addCleanup(pipeIn.close)
 
         sendmsg(
             self.input, b"blonk",
-            [(SOL_SOCKET, SCM_RIGHTS, pack("i", pipeIn))])
+            [(SOL_SOCKET, SCM_RIGHTS, pack("i", pipeIn.fileno()))])
 
-        close(pipeIn)
+        pipeIn.close()
         yield sspp.stopped
-        self.assertEqual(read(pipeOut, 1024), b"Test fixture data: blonk.\n")
+        self.assertEqual(read(pipeOut.fileno(), 1024),
+                         b"Test fixture data: blonk.\n")
         # Make sure that the pipe is actually closed now.
-        self.assertEqual(read(pipeOut, 1024), b"")
+        self.assertEqual(read(pipeOut.fileno(), 1024), b"")
 
 
 
@@ -748,8 +763,8 @@ class GetSocketFamilyTests(TestCase):
 
     def test_inet6(self):
         """
-        When passed the file descriptor of a socket created with the C{AF_INET6}
-        address family, L{getSocketFamily} returns C{AF_INET6}.
+        When passed the file descriptor of a socket created with the
+        C{AF_INET6} address family, L{getSocketFamily} returns C{AF_INET6}.
         """
         self.assertEqual(AF_INET6, getSocketFamily(self._socket(AF_INET6)))
 
