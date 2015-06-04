@@ -31,6 +31,7 @@ class AlmostService(object):
         """
         pass
 
+
     def setServiceParent(self, parent):
         """
         Do nothing
@@ -39,11 +40,13 @@ class AlmostService(object):
         """
         pass
 
+
     def disownServiceParent(self):
         """
         Do nothing
         """
         pass
+
 
     def privilegedStartService(self):
         """
@@ -51,11 +54,13 @@ class AlmostService(object):
         """
         pass
 
+
     def startService(self):
         """
         Do nothing
         """
         pass
+
 
     def stopService(self):
         """
@@ -78,6 +83,7 @@ class ServiceInterfaceTests(TestCase):
         self.almostService.running = False
         self.almostService.name = None
 
+
     def test_realService(self):
         """
         Service implements IService
@@ -85,11 +91,13 @@ class ServiceInterfaceTests(TestCase):
         myService = Service()
         verifyObject(IService, myService)
 
+
     def test_hasAll(self):
         """
         AlmostService implements IService
         """
         verifyObject(IService, self.almostService)
+
 
     def test_noName(self):
         """
@@ -99,6 +107,7 @@ class ServiceInterfaceTests(TestCase):
         with self.assertRaises(BrokenImplementation):
             verifyObject(IService, self.almostService)
 
+
     def test_noParent(self):
         """
         AlmostService with no parent does not implement IService
@@ -106,6 +115,7 @@ class ServiceInterfaceTests(TestCase):
         del self.almostService.parent
         with self.assertRaises(BrokenImplementation):
             verifyObject(IService, self.almostService)
+
 
     def test_noRunning(self):
         """
