@@ -18,6 +18,7 @@ from twisted.trial.unittest import TestCase
 @implementer(IService)
 class AlmostService(object):
 
+
     def setName(self, name):
         pass
 
@@ -35,6 +36,7 @@ class AlmostService(object):
 
     def stopService(self):
         pass
+
 
 
 class ServiceInterfaceTests(TestCase):
@@ -66,6 +68,8 @@ class ServiceInterfaceTests(TestCase):
         del self.almostService.running
         with self.assertRaises(BrokenImplementation):
             verifyObject(IService, self.almostService)
+
+
 
 class ApplicationTests(TestCase):
     """
