@@ -509,6 +509,9 @@ class ApplicationRunnerTests(unittest.TestCase):
         class FakeService(object):
             implements(service.IService, service.IProcess)
 
+            parent = None
+            running = None
+            name = None
             processName = None
             uid = None
             gid = None
