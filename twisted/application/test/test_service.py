@@ -20,8 +20,7 @@ class AlmostService(object):
     """
     Almost implement IService.
 
-    Implement IService except for the
-    attributes.
+    Implement IService except for the attributes.
     """
     def setName(self, name):
         """
