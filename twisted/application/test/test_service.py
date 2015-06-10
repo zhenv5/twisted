@@ -18,14 +18,14 @@ from twisted.trial.unittest import TestCase
 @implementer(IService)
 class AlmostService(object):
     """
-    Almost implement IService
+    Almost implement IService.
 
     Implement IService except for the
     attributes.
     """
     def setName(self, name):
         """
-        Do nothing
+        Do nothing.
 
         @param name: ignored
         """
@@ -34,7 +34,7 @@ class AlmostService(object):
 
     def setServiceParent(self, parent):
         """
-        Do nothing
+        Do nothing.
 
         @param parent: ignored
         """
@@ -43,28 +43,28 @@ class AlmostService(object):
 
     def disownServiceParent(self):
         """
-        Do nothing
+        Do nothing.
         """
         pass
 
 
     def privilegedStartService(self):
         """
-        Do nothing
+        Do nothing.
         """
         pass
 
 
     def startService(self):
         """
-        Do nothing
+        Do nothing.
         """
         pass
 
 
     def stopService(self):
         """
-        Do nothing
+        Do nothing.
         """
         pass
 
@@ -72,11 +72,11 @@ class AlmostService(object):
 
 class ServiceInterfaceTests(TestCase):
     """
-    Tests for IService implementation
+    Tests for IService implementation.
     """
     def setUp(self):
         """
-        Build something that implements IService
+        Build something that implements IService.
         """
         self.almostService = AlmostService()
         self.almostService.parent = None
@@ -86,7 +86,7 @@ class ServiceInterfaceTests(TestCase):
 
     def test_realService(self):
         """
-        Service implements IService
+        Service implements IService.
         """
         myService = Service()
         verifyObject(IService, myService)
@@ -94,14 +94,14 @@ class ServiceInterfaceTests(TestCase):
 
     def test_hasAll(self):
         """
-        AlmostService implements IService
+        AlmostService implements IService.
         """
         verifyObject(IService, self.almostService)
 
 
     def test_noName(self):
         """
-        AlmostService with no name does not implement IService
+        AlmostService with no name does not implement IService.
         """
         del self.almostService.name
         with self.assertRaises(BrokenImplementation):
@@ -110,7 +110,7 @@ class ServiceInterfaceTests(TestCase):
 
     def test_noParent(self):
         """
-        AlmostService with no parent does not implement IService
+        AlmostService with no parent does not implement IService.
         """
         del self.almostService.parent
         with self.assertRaises(BrokenImplementation):
@@ -119,7 +119,7 @@ class ServiceInterfaceTests(TestCase):
 
     def test_noRunning(self):
         """
-        AlmostService with no running does not implement IService
+        AlmostService with no running does not implement IService.
         """
         del self.almostService.running
         with self.assertRaises(BrokenImplementation):
