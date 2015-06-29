@@ -299,7 +299,7 @@ testModules = [
     "twisted.trial.test.test_deferred",
     "twisted.trial.test.test_doctest",
     "twisted.trial.test.test_keyboard",
-    "twisted.trial.test.test_log",
+    "twisted.trial.test.test_loader",
     "twisted.trial.test.test_log",
     "twisted.trial.test.test_output",
     "twisted.trial.test.test_plugins",
@@ -362,9 +362,7 @@ testDataFiles = [
     "twisted.trial.test.ordertests",
     "twisted.trial.test.moduletest",
     "twisted.trial.test.scripttest",
-    "twisted.trial.test.novars",
-    # Not running, but something else imports it
-    "twisted.trial.test.test_loader",
+    "twisted.trial.test.novars"
 ]
 
 
@@ -390,8 +388,6 @@ almostModules = [
     "twisted.test.reflect_helper_IE",
     "twisted.test.reflect_helper_VE",
     "twisted.test.reflect_helper_ZDE",
-    # Required by some of the ported trial tests:
-    "twisted.trial.reporter",
     # Required by twisted.web.template
     "twisted.web._element",
     "twisted.web._flatten",
