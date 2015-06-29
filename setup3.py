@@ -47,11 +47,7 @@ def main():
     args['data_files'] = getDataFiles('twisted') + _dataFiles
     args['zip_safe'] = False
     args['cmdclass'] = {'sdist': DisabledSdist}
-    args['entry_points'] = {
-        'console_scripts': [
-            'trial3=twisted.scripts._bin.trial:run'
-        ]
-    }
+    args['scripts'] = ['bin/trial3']
 
     setup(**args)
 

@@ -830,7 +830,7 @@ class UnhandledDeferredTests(unittest.SynchronousTestCase):
         self.flushLoggedErrors() # test1 logs errors that get caught be us.
         # test1 created unreachable cycle.
         # it & all others should have been collected by now.
-        n = gc.collect()
+        n = len(gc.garbage)
         self.assertEqual(n, 0, 'unreachable cycle still existed')
         # check that last gc.collect didn't log more errors
         x = self.flushLoggedErrors()

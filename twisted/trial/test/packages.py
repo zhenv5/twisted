@@ -9,8 +9,19 @@ and L{twisted.trial.test.test_loader}.
 
 from __future__ import division, absolute_import
 
-import sys, os
+import sys
+import os
+
+from twisted.python.compat import _PY3
 from twisted.trial import unittest
+
+if _PY3:
+    from importlib import invalidate_caches as invalidateImportCaches
+else:
+    def invalidateImportCaches():
+        """
+        On python 2, import caches don't need to be invalidated.
+        """
 
 testModule = """
 from twisted.trial import unittest
@@ -148,6 +159,7 @@ class PackageTest(unittest.SynchronousTestCase):
 
 
     def setUp(self, parentDir=None):
+        invalidateImportCaches()
         if parentDir is None:
             parentDir = self.mktemp()
         self.parent = parentDir
@@ -161,6 +173,7 @@ class PackageTest(unittest.SynchronousTestCase):
 
 class SysPathManglingTest(PackageTest):
     def setUp(self, parent=None):
+        invalidateImportCaches()
         self.oldPath = sys.path[:]
         self.newPath = sys.path[:]
         if parent is None:

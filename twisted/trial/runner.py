@@ -94,6 +94,11 @@ def filenameToModule(fn):
     except (ValueError, AttributeError):
         # Couldn't find module.  The file 'fn' is not in PYTHONPATH
         return _importFromFile(fn)
+
+    if not hasattr(ret, "__file__"):
+        # This isn't a Python module in a package, so import it from a file
+        return _importFromFile(fn)
+
     # ensure that the loaded module matches the file
     retFile = os.path.splitext(ret.__file__)[0] + '.py'
     # not all platforms (e.g. win32) have os.path.samefile
@@ -631,8 +636,10 @@ class Py3TestLoader(TestLoader):
         if os.sep in _name:
             # Looks like a file, and therefore must be a module
             name = reflect.filenameToModuleName(_name)
+            wasFile = True
         else:
             name = _name
+            wasFile = False
 
         qualParts = name.split(".")
         obj = None
@@ -671,7 +678,7 @@ class Py3TestLoader(TestLoader):
             # If it's none here, we didn't get to import anything.
             # Try something drastic.
             try:
-                obj = filenameToModule(_name)
+                obj = reflect.namedAny(_name)
                 remaining = qualParts[len(".".split(obj.__name__))+1:]
             except Exception:
                 # Reflect will give a better understanding of what went wrong
@@ -684,7 +691,10 @@ class Py3TestLoader(TestLoader):
                 # class from just holding onto the method.
                 parent, obj = obj, getattr(obj, part)
         except AttributeError:
-            raise reflect.ObjectNotFound("{} does not exist.".format(_name))
+            if wasFile:
+                raise ValueError("{} does not exist.".format(_name))
+            else:
+                raise AttributeError("{} does not exist.".format(_name))
 
         if isinstance(obj, types.ModuleType):
             # It looks like a module
@@ -706,7 +716,7 @@ class Py3TestLoader(TestLoader):
             if not isinstance(getattr(inst, name), types.FunctionType):
                 # If it's still a function, and not a bound method, then it's a
                 # callable that we take care of later.
-                return self.suiteFactory([inst])
+                return inst
         elif isinstance(obj, TestSuite):
             # We've found a test suite.
             return obj
@@ -718,7 +728,7 @@ class Py3TestLoader(TestLoader):
             if isinstance(test, TestSuite):
                 return test
             elif isinstance(test, pyunit.TestCase):
-                return self.suiteFactory([test])
+                return test
             else:
                 raise TypeError("calling %s returned %s, not a test" %
                                 (obj, test))
@@ -729,10 +739,9 @@ class Py3TestLoader(TestLoader):
     def loadByName(self, name, recurse=False):
 
         try:
-            thing = self.findByName(name)
+            return self.suiteFactory([self.findByName(name)])
         except:
-            return ErrorHolder(name, failure.Failure())
-        return thing
+            return self.suiteFactory([ErrorHolder(name, failure.Failure())])
 
 
     def loadByNames(self, names, recurse=False):
@@ -741,17 +750,16 @@ class Py3TestLoader(TestLoader):
         errors = []
         for name in names:
             try:
-                things.append(self.findByName(name))
+                things.append(self.loadByName(name))
             except:
-                errors.append(self.suiteFactory([
-                    ErrorHolder(name, failure.Failure())]))
+                errors.append(ErrorHolder(name, failure.Failure()))
         things.extend(errors)
         return self.suiteFactory(self._uniqueTests(things))
 
 
     def loadClass(self, klass):
         """
-        Given a class which contains test cases, return a L{TestSuite}.
+        Given a class which contains test cases, return a list of L{TestCase}s..
         """
         if not isinstance(klass, type):
             raise TypeError("%r is not a class" % (klass,))
@@ -762,8 +770,30 @@ class Py3TestLoader(TestLoader):
                            for name in names])
         return self.suiteFactory(tests)
 
+
+    def loadAnything(self, thing, recurse=False):
+        """
+        Given a Python object, return whatever tests that are in it. Whatever
+        'in' might mean.
+
+        @param thing: A Python object. A module, class or package.
+        @param recurse: Whether or not to look in subpackages of packages.
+        Defaults to False.
+
+        @return: A C{TestCase} or C{TestSuite}.
+        """
+        if isinstance(thing, types.ModuleType):
+            if isPackage(thing):
+                return self.loadPackage(thing, recurse)
+            return self.loadModule(thing)
+        elif isinstance(thing, type):
+            return self.loadClass(thing)
+        raise TypeError("No loader for %r. Unrecognized type" % (thing,))
+
+
     def loadMethod(self, method):
         raise NotImplementedError("Can't happen on Py3")
+
 
     def _uniqueTests(self, things):
         """
@@ -780,6 +810,8 @@ class Py3TestLoader(TestLoader):
                 if str(thing) not in seen:
                     yield thing
                     seen.add(str(thing))
+
+
 
 if _PY3:
     del TestLoader

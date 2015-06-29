@@ -39,6 +39,9 @@ class FinderTests(packages.PackageTest):
     """
     Tests for L{runner.TestLoader.findByName}.
     """
+    if _PY3:
+        skip = "Only relevant on Python 3."
+
     def setUp(self):
         packages.PackageTest.setUp(self)
         self.loader = runner.TestLoader()
@@ -226,7 +229,6 @@ class LoaderTests(packages.SysPathManglingTest):
     """
     Tests for L{trial.TestLoader}.
     """
-
     def setUp(self):
         self.loader = runner.TestLoader()
         packages.SysPathManglingTest.setUp(self)
@@ -262,6 +264,18 @@ class LoaderTests(packages.SysPathManglingTest):
         self.assertEqual(len(result.failures), 1)
 
 
+    def test_loadFailure(self):
+        """
+        Load a test that fails.
+        """
+        suite = self.loader.loadByName(
+            "twisted.trial.test.erroneous.TestRegularFail.test_fail")
+        result = reporter.TestResult()
+        suite.run(result)
+        self.assertEqual(result.testsRun, 1)
+        self.assertEqual(len(result.failures), 1)
+
+
     def test_loadNonMethod(self):
         from twisted.trial.test import sample
         self.failUnlessRaises(TypeError, self.loader.loadMethod, sample)
@@ -278,8 +292,8 @@ class LoaderTests(packages.SysPathManglingTest):
         method's __name__ correctly is loaded and its name in the class scope
         discovered.
         """
-        from twisted.trial.test import sample
-        suite = self.loader.loadMethod(sample.DecorationTest.test_badDecorator)
+        suite = self.loader.findByName(
+            "twisted.trial.test.sample.DecorationTest.test_badDecorator")
         self.assertEqual(1, suite.countTestCases())
         self.assertEqual('test_badDecorator', suite._testMethodName)
 
@@ -289,9 +303,8 @@ class LoaderTests(packages.SysPathManglingTest):
         A decorated test method for which the decorator has set the method's
         __name__ correctly is loaded and the only name by which it goes is used.
         """
-        from twisted.trial.test import sample
-        suite = self.loader.loadMethod(
-            sample.DecorationTest.test_goodDecorator)
+        suite = self.loader.findByName(
+            "twisted.trial.test.sample.DecorationTest.test_goodDecorator")
         self.assertEqual(1, suite.countTestCases())
         self.assertEqual('test_goodDecorator', suite._testMethodName)
 
@@ -302,9 +315,8 @@ class LoaderTests(packages.SysPathManglingTest):
         class.  Thus its __name__ and its key in the class's __dict__ no
         longer match.
         """
-        from twisted.trial.test import sample
-        suite = self.loader.loadMethod(
-            sample.DecorationTest.test_renamedDecorator)
+        suite = self.loader.findByName(
+            "twisted.trial.test.sample.DecorationTest.test_renamedDecorator")
         self.assertEqual(1, suite.countTestCases())
         self.assertEqual('test_renamedDecorator', suite._testMethodName)
 
@@ -554,6 +566,19 @@ class LoaderTests(packages.SysPathManglingTest):
         suite1 = self.loader.loadByNames(methods)
         suite2 = runner.TestSuite(map(self.loader.loadByName, methods))
         self.assertSuitesEqual(suite1, suite2)
+
+
+    if _PY3:
+        """
+        These tests are unable to work on Python 3, as Python 3 has no concept
+        of "unbound methods".
+        """
+        _msg = "Not possible on Python 3."
+        test_loadMethod.skip = _msg
+        test_loadNonMethod.skip = _msg
+        test_loadFailingMethod.skip = _msg
+        test_loadAnythingOnMethod.skip = _msg
+        del _msg
 
 
 
