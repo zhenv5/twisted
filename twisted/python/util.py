@@ -1046,8 +1046,7 @@ __all__ = [
 
 
 if _PY3:
-    __notported__ = ["SubclassableCStringIO", "LineLog", "spewer",
-                     "makeStatBar"]
+    __notported__ = ["SubclassableCStringIO", "LineLog", "makeStatBar"]
     for name in __all__[:]:
         if name in __notported__:
             __all__.remove(name)
