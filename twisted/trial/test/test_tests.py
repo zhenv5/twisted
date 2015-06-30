@@ -26,7 +26,7 @@ from __future__ import division, absolute_import
 import gc, sys, weakref
 import unittest as pyunit
 
-from twisted.python.compat import NativeStringIO
+from twisted.python.compat import NativeStringIO, _PY3
 from twisted.python.reflect import namedAny
 from twisted.internet import defer, reactor
 from twisted.trial import unittest, reporter, util
@@ -830,7 +830,10 @@ class UnhandledDeferredTests(unittest.SynchronousTestCase):
         self.flushLoggedErrors() # test1 logs errors that get caught be us.
         # test1 created unreachable cycle.
         # it & all others should have been collected by now.
-        n = len(gc.garbage)
+        if _PY3:
+            n = len(gc.garbage)
+        else:
+            n = gc.collect()
         self.assertEqual(n, 0, 'unreachable cycle still existed')
         # check that last gc.collect didn't log more errors
         x = self.flushLoggedErrors()

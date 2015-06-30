@@ -292,8 +292,11 @@ class LoaderTests(packages.SysPathManglingTest):
         method's __name__ correctly is loaded and its name in the class scope
         discovered.
         """
-        suite = self.loader.findByName(
-            "twisted.trial.test.sample.DecorationTest.test_badDecorator")
+        from twisted.trial.test import sample
+        suite = self.loader.loadAnything(
+            sample.DecorationTest.test_badDecorator,
+            parent=sample.DecorationTest,
+            qualName=["sample", "DecorationTest", "test_badDecorator"])
         self.assertEqual(1, suite.countTestCases())
         self.assertEqual('test_badDecorator', suite._testMethodName)
 
@@ -303,8 +306,11 @@ class LoaderTests(packages.SysPathManglingTest):
         A decorated test method for which the decorator has set the method's
         __name__ correctly is loaded and the only name by which it goes is used.
         """
-        suite = self.loader.findByName(
-            "twisted.trial.test.sample.DecorationTest.test_goodDecorator")
+        from twisted.trial.test import sample
+        suite = self.loader.loadAnything(
+            sample.DecorationTest.test_goodDecorator,
+            parent=sample.DecorationTest,
+            qualName=["sample", "DecorationTest", "test_goodDecorator"])
         self.assertEqual(1, suite.countTestCases())
         self.assertEqual('test_goodDecorator', suite._testMethodName)
 
@@ -315,8 +321,11 @@ class LoaderTests(packages.SysPathManglingTest):
         class.  Thus its __name__ and its key in the class's __dict__ no
         longer match.
         """
-        suite = self.loader.findByName(
-            "twisted.trial.test.sample.DecorationTest.test_renamedDecorator")
+        from twisted.trial.test import sample
+        suite = self.loader.loadAnything(
+            sample.DecorationTest.test_renamedDecorator,
+            parent=sample.DecorationTest,
+            qualName=["sample", "DecorationTest", "test_renamedDecorator"])
         self.assertEqual(1, suite.countTestCases())
         self.assertEqual('test_renamedDecorator', suite._testMethodName)
 

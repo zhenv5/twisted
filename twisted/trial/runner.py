@@ -544,7 +544,7 @@ class TestLoader(object):
             extraArgs['setUp'] = saveGlobals
         return doctest.DocTestSuite(module, **extraArgs)
 
-    def loadAnything(self, thing, recurse=False):
+    def loadAnything(self, thing, recurse=False, parent=None, qualName=None):
         """
         Given a Python object, return whatever tests that are in it. Whatever
         'in' might mean.
@@ -552,6 +552,11 @@ class TestLoader(object):
         @param thing: A Python object. A module, method, class or package.
         @param recurse: Whether or not to look in subpackages of packages.
         Defaults to False.
+
+        @param parent: For compatibility with the Python 3 loader, does
+            nothing.
+        @param qualname: For compatibility with the Python 3 loader, does
+            nothing.
 
         @return: A C{TestCase} or C{TestSuite}.
         """
@@ -583,6 +588,7 @@ class TestLoader(object):
         except:
             return ErrorHolder(name, failure.Failure())
         return self.loadAnything(thing, recurse)
+
     loadTestsFromName = loadByName
 
     def loadByNames(self, names, recurse=False):
@@ -627,6 +633,18 @@ class TestLoader(object):
 
 class Py3TestLoader(TestLoader):
 
+
+    def loadFile(self, fileName, recurse=False):
+        """
+        Load a file, and then the tests in that file.
+        """
+        from importlib.machinery import SourceFileLoader
+
+        name = reflect.filenameToModuleName(fileName)
+        module = SourceFileLoader(name, fileName).load_module()
+        return self.loadAnything(module, recurse=recurse)
+
+
     def findByName(self, _name, recurse=False):
         """
         Find and load tests, given C{name}.
@@ -634,15 +652,13 @@ class Py3TestLoader(TestLoader):
         This partially duplicates the logic in L{unittest.loader.TestLoader}.
         """
         if os.sep in _name:
-            # Looks like a file, and therefore must be a module
-            name = reflect.filenameToModuleName(_name)
-            wasFile = True
+            # It's a file, load it instead
+            return self.loadFile(_name, recurse=recurse)
         else:
             name = _name
-            wasFile = False
 
         qualParts = name.split(".")
-        obj = None
+        obj = parent = None
 
         for item in range(len(qualParts)):
             # FIXME: jml pointed out that this code is confusing, and it's true
@@ -659,12 +675,12 @@ class Py3TestLoader(TestLoader):
             # This gets us the highest level thing which is a module.
             try:
                 if item == 0:
-                    name = ".".join(qualParts)
+                    searchName = ".".join(qualParts)
                 else:
-                    name = ".".join(qualParts[:-item])
+                    searchName = ".".join(qualParts[:-item])
 
                 remaining = qualParts[len(qualParts)-item:]
-                obj = reflect.namedModule(name)
+                obj = reflect.namedModule(searchName)
                 # If we reach here, we have successfully found a module.
                 # obj will be the module, and remaining will be the remaining
                 # part of the qualified name.
@@ -677,12 +693,8 @@ class Py3TestLoader(TestLoader):
         if obj is None:
             # If it's none here, we didn't get to import anything.
             # Try something drastic.
-            try:
-                obj = reflect.namedAny(_name)
-                remaining = qualParts[len(".".split(obj.__name__))+1:]
-            except Exception:
-                # Reflect will give a better understanding of what went wrong
-                reflect.namedAny(_name)
+            obj = reflect.namedAny(_name)
+            remaining = qualParts[len(".".split(obj.__name__))+1:]
 
         try:
             for part in remaining:
@@ -691,16 +703,23 @@ class Py3TestLoader(TestLoader):
                 # class from just holding onto the method.
                 parent, obj = obj, getattr(obj, part)
         except AttributeError:
-            if wasFile:
-                raise ValueError("{} does not exist.".format(_name))
-            else:
-                raise AttributeError("{} does not exist.".format(_name))
+            raise AttributeError("{} does not exist.".format(_name))
 
+        return self.loadAnything(obj, parent=parent, qualName=remaining)
+
+
+    def loadAnything(self, obj, recurse=False, parent=None, qualName=None):
+        """
+        Load a thing.
+
+        To load a method, you need to give the function, its parent, and its
+        name.
+        """
         if isinstance(obj, types.ModuleType):
             # It looks like a module
             if isPackage(obj):
                 # It's a package, so recurse down it.
-                return self.loadPackage(obj, recurse=True)
+                return self.loadPackage(obj, recurse=recurse)
             # Otherwise get all the tests in the module.
             return self.loadTestsFromModule(obj)
         elif isinstance(obj, type) and issubclass(obj, pyunit.TestCase):
@@ -711,7 +730,7 @@ class Py3TestLoader(TestLoader):
               issubclass(parent, pyunit.TestCase)):
             # We've found a method, and its parent is a TestCase. Instantiate
             # it.
-            name = remaining[-1]
+            name = qualName[-1]
             inst = parent(name)
             if not isinstance(getattr(inst, name), types.FunctionType):
                 # If it's still a function, and not a bound method, then it's a
@@ -728,7 +747,7 @@ class Py3TestLoader(TestLoader):
             if isinstance(test, TestSuite):
                 return test
             elif isinstance(test, pyunit.TestCase):
-                return test
+                return self.suiteFactory([test])
             else:
                 raise TypeError("calling %s returned %s, not a test" %
                                 (obj, test))
@@ -769,26 +788,6 @@ class Py3TestLoader(TestLoader):
         tests = self.sort([self._makeCase(klass, self.methodPrefix+name)
                            for name in names])
         return self.suiteFactory(tests)
-
-
-    def loadAnything(self, thing, recurse=False):
-        """
-        Given a Python object, return whatever tests that are in it. Whatever
-        'in' might mean.
-
-        @param thing: A Python object. A module, class or package.
-        @param recurse: Whether or not to look in subpackages of packages.
-        Defaults to False.
-
-        @return: A C{TestCase} or C{TestSuite}.
-        """
-        if isinstance(thing, types.ModuleType):
-            if isPackage(thing):
-                return self.loadPackage(thing, recurse)
-            return self.loadModule(thing)
-        elif isinstance(thing, type):
-            return self.loadClass(thing)
-        raise TypeError("No loader for %r. Unrecognized type" % (thing,))
 
 
     def loadMethod(self, method):
