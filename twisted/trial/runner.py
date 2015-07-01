@@ -632,11 +632,21 @@ class TestLoader(object):
 
 
 class Py3TestLoader(TestLoader):
+    """
+    A test loader finds tests from the functions, modules, and files that is
+    asked to and loads them into a L{TestSuite} or L{TestCase}.
 
+    See L{TestLoader} for further details.
+    """
 
     def loadFile(self, fileName, recurse=False):
         """
         Load a file, and then the tests in that file.
+
+        @param fileName: The file name to load.
+        @param recurse: A boolean. If True, inspect modules within packages
+            within the given package (and so on), otherwise, only inspect
+            modules in the package itself.
         """
         from importlib.machinery import SourceFileLoader
 
@@ -645,17 +655,20 @@ class Py3TestLoader(TestLoader):
         return self.loadAnything(module, recurse=recurse)
 
 
-    def findByName(self, _name, recurse=False):
+    def findByName(self, name, recurse=False):
         """
         Find and load tests, given C{name}.
 
-        This partially duplicates the logic in L{unittest.loader.TestLoader}.
+        This partially duplicates the logic in C{unittest.loader.TestLoader}.
+
+        @param name: The qualified name of the thing to load.
+        @param recurse: A boolean. If True, inspect modules within packages
+            within the given package (and so on), otherwise, only inspect
+            modules in the package itself.
         """
-        if os.sep in _name:
+        if os.sep in name:
             # It's a file, load it instead
-            return self.loadFile(_name, recurse=recurse)
-        else:
-            name = _name
+            return self.loadFile(name, recurse=recurse)
 
         qualParts = name.split(".")
         obj = parent = None
@@ -688,12 +701,12 @@ class Py3TestLoader(TestLoader):
 
             except ImportError:
                 if item == len(qualParts):
-                    raise reflect.ModuleNotFound("The module {} does not exist.".format(_name))
+                    raise reflect.ModuleNotFound("The module {} does not exist.".format(name))
 
         if obj is None:
             # If it's none here, we didn't get to import anything.
             # Try something drastic.
-            obj = reflect.namedAny(_name)
+            obj = reflect.namedAny(name)
             remaining = qualParts[len(".".split(obj.__name__))+1:]
 
         try:
@@ -703,17 +716,25 @@ class Py3TestLoader(TestLoader):
                 # class from just holding onto the method.
                 parent, obj = obj, getattr(obj, part)
         except AttributeError:
-            raise AttributeError("{} does not exist.".format(_name))
+            raise AttributeError("{} does not exist.".format(name))
 
-        return self.loadAnything(obj, parent=parent, qualName=remaining)
+        return self.loadAnything(obj, parent=parent, qualName=remaining,
+                                 recurse=recurse)
 
 
     def loadAnything(self, obj, recurse=False, parent=None, qualName=None):
         """
-        Load a thing.
+        Load absolutely anything (as long as that anything is a module,
+        package, class, or method (with associated parent class and qualname).
 
-        To load a method, you need to give the function, its parent, and its
-        name.
+        @param obj: The object to load.
+        @param recurse: A boolean. If True, inspect modules within packages
+            within the given package (and so on), otherwise, only inspect
+            modules in the package itself.
+        @param parent: If C{obj} is a method, this is the parent class of the
+            method. C{qualName} is also required.
+        @param qualName: If C{obj} is a method, this a list containing is the
+            qualified name of the method. C{parent} is also required.
         """
         if isinstance(obj, types.ModuleType):
             # It looks like a module
@@ -747,20 +768,34 @@ class Py3TestLoader(TestLoader):
 
 
     def loadByName(self, name, recurse=False):
+        """
+        Load some tests by name.
 
+        @param name: The qualified name for the test to load.
+        @param recurse: A boolean. If True, inspect modules within packages
+            within the given package (and so on), otherwise, only inspect
+            modules in the package itself.
+        """
         try:
-            return self.suiteFactory([self.findByName(name)])
+            return self.suiteFactory([self.findByName(name, recurse=recurse)])
         except:
             return self.suiteFactory([ErrorHolder(name, failure.Failure())])
 
 
     def loadByNames(self, names, recurse=False):
+        """
+        Load some tests by a list of names.
 
+        @param names: A L{list} of qualified names.
+        @param recurse: A boolean. If True, inspect modules within packages
+            within the given package (and so on), otherwise, only inspect
+            modules in the package itself.
+        """
         things = []
         errors = []
         for name in names:
             try:
-                things.append(self.loadByName(name))
+                things.append(self.loadByName(name, recurse=recurse))
             except:
                 errors.append(ErrorHolder(name, failure.Failure()))
         things.extend(errors)
@@ -769,7 +804,9 @@ class Py3TestLoader(TestLoader):
 
     def loadClass(self, klass):
         """
-        Given a class which contains test cases, return a list of L{TestCase}s..
+        Given a class which contains test cases, return a list of L{TestCase}s.
+
+        @param klass: The class to load tests from.
         """
         if not isinstance(klass, type):
             raise TypeError("%r is not a class" % (klass,))

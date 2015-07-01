@@ -497,7 +497,7 @@ def _initialDebugSetup(config):
 def _getSuite(config):
     loader = _getLoader(config)
     recurse = not config['no-recurse']
-    return loader.loadByNames(config['tests'], recurse)
+    return loader.loadByNames(config['tests'], recurse=recurse)
 
 
 
