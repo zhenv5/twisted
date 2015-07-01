@@ -729,30 +729,21 @@ class Py3TestLoader(TestLoader):
               isinstance(parent, type) and
               issubclass(parent, pyunit.TestCase)):
             # We've found a method, and its parent is a TestCase. Instantiate
-            # it.
+            # it with the name of the method we want.
             name = qualName[-1]
             inst = parent(name)
-            if not isinstance(getattr(inst, name), types.FunctionType):
-                # If it's still a function, and not a bound method, then it's a
-                # callable that we take care of later.
-                return inst
+
+            # Sanity check to make sure that the method we have got from the
+            # test case is the same one as was passed in. This doesn't actually
+            # use the function we passed in, because reasons.
+            assert getattr(inst, inst._testMethodName).__func__ == obj
+
+            return inst
         elif isinstance(obj, TestSuite):
             # We've found a test suite.
             return obj
-
-        if callable(obj):
-            # It looks callable, so, see if it returns a TestSuite or a
-            # TestCase.
-            test = obj()
-            if isinstance(test, TestSuite):
-                return test
-            elif isinstance(test, pyunit.TestCase):
-                return self.suiteFactory([test])
-            else:
-                raise TypeError("calling %s returned %s, not a test" %
-                                (obj, test))
         else:
-            raise TypeError("don't know how to make test from: %s" % obj)
+            raise TypeError("don't know how to make test from: %s" % (obj,))
 
 
     def loadByName(self, name, recurse=False):
