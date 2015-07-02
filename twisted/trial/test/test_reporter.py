@@ -13,8 +13,6 @@ import os
 import re
 import sys
 
-from io import BytesIO
-
 from inspect import getmro
 
 from twisted.python import log
