@@ -160,7 +160,7 @@ def _selectVerifyImplementation(lib):
         "rejected."
     )
 
-    major, minor = list(int(part) for part in lib.__version__.split("."))[:2]
+    major, minor = list(int(part) for part in lib.__version__.split(".")[:2])
 
     if (major, minor) >= (0, 12):
         try:
