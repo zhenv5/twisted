@@ -27,7 +27,7 @@ else:
     if getattr(SSL.Context, "set_tlsext_servername_callback", None) is None:
         skipSNI = "PyOpenSSL 0.13 or greater required for SNI support."
 
-from twisted.test.test_twisted import SetAsideModule
+from twisted.test.test_twisted import SetAsideModule, TemporaryImports
 from twisted.test.iosim import connectedServerAndClient
 
 from twisted.internet.error import ConnectionClosed
@@ -113,7 +113,7 @@ class DummyOpenSSL(object):
         """
         self.__version__ = "%d.%d" % (major, minor)
         if patch is not None:
-            self.__version__ += ".%d" % (patch,)
+            self.__version__ += ".%s" % (patch,)
 
 _preTwelveOpenSSL = DummyOpenSSL(0, 11)
 _postTwelveOpenSSL = DummyOpenSSL(0, 13, 1)
@@ -2350,6 +2350,28 @@ class SelectVerifyImplementationTests(unittest.SynchronousTestCase):
     """
     if skipSSL is not None:
         skip = skipSSL
+
+    def test_inDevelopmentPyOpenSSL(self):
+        """
+        If the version of I{pyOpenSSL} installed is an in-development version
+        (such as C{"0.16.dev0"}) we will evaluate that as more recent than
+        0.12.
+        """
+        class FakeServiceIdentity(object):
+            class pyopenssl(object):
+                verify_hostname = object()
+            class VerificationError(object):
+                pass
+
+        developmentOpenSSL = DummyOpenSSL(0, 16, "dev0")
+
+        with TemporaryImports({"service_identity": FakeServiceIdentity,
+                               "service_identity.pyopenssl":
+                               FakeServiceIdentity.pyopenssl}):
+            self.assertIdentical(
+                sslverify._selectVerifyImplementation(developmentOpenSSL)[0],
+                FakeServiceIdentity.pyopenssl.verify_hostname,
+            )
 
     def test_pyOpenSSLTooOld(self):
         """
