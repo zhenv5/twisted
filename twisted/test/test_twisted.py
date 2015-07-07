@@ -56,6 +56,48 @@ class SetAsideModule(object):
 
 
 
+class TemporaryImports(object):
+    """
+    L{TemporaryImports} is a context manager for temporarily adding some
+    modules to L{sys.modules}.  Note that this only affects 'import' statements
+    run during the duration of the context manager.  All unrelated modules
+    during this context will be un-imported.
+
+    This should also be moved somewhere more central; see
+    U{https://twistedmatrix.com/trac/ticket/5977}.
+
+    @ivar _modules: a dictionary mapping module name to temporary stand-in for
+        that module.
+
+    @ivar _toRestore: the contents of L{sys.modules} at the time the context
+        manager begins.
+    """
+
+    def __init__(self, modules):
+        """
+        Create a L{TemporaryImports} with a dictionary mapping names to module
+        replacement objects.
+        """
+        self._modules = modules
+
+
+    def __enter__(self):
+        """
+        Activate the temporary modules.
+        """
+        self._toRestore = sys.modules.copy()
+        sys.modules.update(self._modules)
+
+
+    def __exit__(self, excType, excValue, traceback):
+        """
+        Activate the temporary modules.
+        """
+        sys.modules.clear()
+        sys.modules.update(self._toRestore)
+
+
+
 # Copied from 2.7 stdlib.  Delete after Python 2.6 is no longer a
 # requirement.  See #5976.
 class _AssertRaisesContext(object):
