@@ -2358,10 +2358,11 @@ class SelectVerifyImplementationTests(unittest.SynchronousTestCase):
         0.12.
         """
         class FakeServiceIdentity(object):
-            class pyopenssl(object):
-                verify_hostname = object()
+            def pyopenssl():
+                "Fake pyOpenSSL module."
+            pyopenssl.verify_hostname = object()
             class VerificationError(object):
-                pass
+                "Fake verification error."
 
         developmentOpenSSL = DummyOpenSSL(0, 16, "dev0")
 
