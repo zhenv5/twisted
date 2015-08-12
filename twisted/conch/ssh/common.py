@@ -9,7 +9,7 @@ Common functions for the SSH classes.
 Maintainer: Paul Swartz
 """
 
-import struct, warnings, __builtin__
+import struct, warnings
 
 try:
     from Crypto import Util
@@ -38,11 +38,11 @@ def getNS(s, count=1):
     return tuple(ns) + (s[c:],)
 
 def MP(number):
-    if number==0: return '\000'*4
+    if number==0: return b'\000'*4
     assert number>0
     bn = Util.number.long_to_bytes(number)
-    if ord(bn[0])&128:
-        bn = '\000' + bn
+    if ord(bn[0:1])&128:
+        bn = b'\000' + bn
     return struct.pack('>L',len(bn)) + bn
 
 def getMP(data, count=1):
@@ -106,11 +106,10 @@ def install():
         if type(x) in (long, int):
             x = mpz(x)
         return pyPow(x, y, z)
-    __builtin__.pow = _fastpow # evil evil
+    globals["pow"] = _fastpow # evil evil
 
 try:
     import gmpy
     install()
 except ImportError:
     pass
-
