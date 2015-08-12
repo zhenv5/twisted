@@ -39,7 +39,7 @@ class HelpersTests(unittest.TestCase):
 
     def setUp(self):
         self._secureRandom = randbytes.secureRandom
-        randbytes.secureRandom = lambda x: '\x55' * x
+        randbytes.secureRandom = lambda x: b'\x55' * x
 
     def tearDown(self):
         randbytes.secureRandom = self._secureRandom
@@ -49,14 +49,14 @@ class HelpersTests(unittest.TestCase):
         """
         Test Public Key Cryptographic Standard #1 functions.
         """
-        data = 'ABC'
+        data = b'ABC'
         messageSize = 6
         self.assertEqual(keys.pkcs1Pad(data, messageSize),
-                '\x01\xff\x00ABC')
+                b'\x01\xff\x00ABC')
         hash = sha1().digest()
         messageSize = 40
-        self.assertEqual(keys.pkcs1Digest('', messageSize),
-                '\x01\xff\xff\xff\x00' + keys.ID_SHA1 + hash)
+        self.assertEqual(keys.pkcs1Digest(b'', messageSize),
+                b'\x01\xff\xff\xff\x00' + keys.ID_SHA1 + hash)
 
     def _signRSA(self, data):
         key = keys.Key.fromString(keydata.privateRSA_openssh)
@@ -72,22 +72,22 @@ class HelpersTests(unittest.TestCase):
         """
         Test that RSA keys return appropriate signatures.
         """
-        data = 'data'
+        data = b'data'
         key, sig = self._signRSA(data)
         sigData = keys.pkcs1Digest(data, keys.lenSig(key))
-        v = key.sign(sigData, '')[0]
-        self.assertEqual(sig, common.NS('ssh-rsa') + common.MP(v))
+        v = key.sign(sigData, b'')[0]
+        self.assertEqual(sig, common.NS(b'ssh-rsa') + common.MP(v))
         return key, sig
 
     def test_signDSA(self):
         """
         Test that DSA keys return appropriate signatures.
         """
-        data = 'data'
+        data = b'data'
         key, sig = self._signDSA(data)
         sigData = sha1(data).digest()
-        v = key.sign(sigData, '\x55' * 19)
-        self.assertEqual(sig, common.NS('ssh-dss') + common.NS(
+        v = key.sign(sigData, b'\x55' * 19)
+        self.assertEqual(sig, common.NS(b'ssh-dss') + common.NS(
             Crypto.Util.number.long_to_bytes(v[0], 20) +
             Crypto.Util.number.long_to_bytes(v[1], 20)))
         return key, sig

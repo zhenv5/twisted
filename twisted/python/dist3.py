@@ -45,6 +45,12 @@ modules = [
     "twisted.application.reactors",
     "twisted.application.service",
     "twisted.application.test",
+    "twisted.conch",
+    "twisted.conch.ssh",
+    "twisted.conch.ssh.common",
+    "twisted.conch.ssh.keys",
+    "twisted.conch.ssh.sexpy",
+    "twisted.conch.test",
     "twisted.copyright",
     "twisted.cred",
     "twisted.cred._digest",
@@ -225,6 +231,7 @@ modules = [
 testModules = [
     "twisted.application.test.test_internet",
     "twisted.application.test.test_service",
+    "twisted.conch.test.test_keys",
     "twisted.cred.test.test_cramauth",
     "twisted.cred.test.test_cred",
     "twisted.cred.test.test_digestauth",
@@ -382,6 +389,7 @@ testModules = [
 
 
 testDataFiles = [
+    "twisted.conch.test.keydata",
     "twisted.internet.test.process_cli",
     "twisted.internet.test.process_helper",
     "twisted.positioning.test.receiver",

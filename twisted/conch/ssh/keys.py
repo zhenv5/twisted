@@ -24,12 +24,8 @@ from pyasn1.type import univ
 from pyasn1.codec.ber import decoder as berDecoder
 from pyasn1.codec.ber import encoder as berEncoder
 
-# twisted
 from twisted.python import randbytes
-
-# sibling imports
 from twisted.conch.ssh import common, sexpy
-
 from twisted.python.compat import iterbytes, long, izip, nativeString
 
 
