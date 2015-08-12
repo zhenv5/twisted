@@ -86,7 +86,8 @@ def _fastgetMP(data, count=1):
     c = 0
     for i in range(count):
         length = struct.unpack('!L', data[c:c+4])[0]
-        mp.append(long(gmpy.mpz(data[c + 4:c + 4 + length][::-1] + b'\x00', 256)))
+        mp.append(long(
+            gmpy.mpz(data[c + 4:c + 4 + length][::-1] + b'\x00', 256)))
         c += length + 4
     return tuple(mp) + (data[c:],)
 

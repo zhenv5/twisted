@@ -678,7 +678,8 @@ class Key(object):
             asn1Data = berEncoder.encode(asn1Sequence)
             if extra:
                 iv = randbytes.secureRandom(8)
-                hexiv = ''.join(['%02X' % ord(x) for x in iterbytes(iv)]).encode('ascii')
+                hexiv = ''.join(['%02X' % ord(x)
+                                 for x in iterbytes(iv)]).encode('ascii')
                 lines.append(b'Proc-Type: 4,ENCRYPTED')
                 lines.append(b'DEK-Info: DES-EDE3-CBC,' + hexiv + b'\n')
                 ba = md5(extra + iv).digest()
@@ -702,13 +703,14 @@ class Key(object):
         @rtype: C{str}
         """
         data = self.data()
+        type = self.type()
         if self.isPublic():
-            if self.type() == b'RSA':
+            if type == b'RSA':
                 keyData = sexpy.pack([[b'public-key',
                                        [b'rsa-pkcs1-sha1',
                                         [b'n', common.MP(data['n'])[4:]],
                                         [b'e', common.MP(data['e'])[4:]]]]])
-            elif self.type() == b'DSA':
+            elif type == b'DSA':
                 keyData = sexpy.pack([[b'public-key',
                                        [b'dsa',
                                         [b'p', common.MP(data['p'])[4:]],
@@ -716,10 +718,11 @@ class Key(object):
                                         [b'g', common.MP(data['g'])[4:]],
                                         [b'y', common.MP(data['y'])[4:]]]]])
             else:
-                raise BadKeyError("%s is not b'RSA' or b'DSA'" % (self.type(),))
-            return b'{' + base64.encodestring(keyData).replace(b'\n', b'') + b'}'
+                raise BadKeyError("%s is not b'RSA' or b'DSA'" % (type,))
+            return (b'{' + base64.encodestring(keyData).replace(b'\n', b'') +
+                    b'}')
         else:
-            if self.type() == b'RSA':
+            if type == b'RSA':
                 p, q = data['p'], data['q']
                 return sexpy.pack([[b'private-key',
                                     [b'rsa-pkcs1',
@@ -728,10 +731,12 @@ class Key(object):
                                      [b'd', common.MP(data['d'])[4:]],
                                      [b'p', common.MP(q)[4:]],
                                      [b'q', common.MP(p)[4:]],
-                                     [b'a', common.MP(data['d'] % (q - 1))[4:]],
-                                     [b'b', common.MP(data['d'] % (p - 1))[4:]],
+                                     [b'a', common.MP(
+                                         data['d'] % (q - 1))[4:]],
+                                     [b'b', common.MP(
+                                         data['d'] % (p - 1))[4:]],
                                      [b'c', common.MP(data['u'])[4:]]]]])
-            elif self.type() == b'DSA':
+            elif type == b'DSA':
                 return sexpy.pack([[b'private-key',
                                     [b'dsa',
                                      [b'p', common.MP(data['p'])[4:]],
@@ -740,7 +745,7 @@ class Key(object):
                                      [b'y', common.MP(data['y'])[4:]],
                                      [b'x', common.MP(data['x'])[4:]]]]])
             else:
-                raise BadKeyError("%s is not b'RSA' or b'DSA'" % (self.type(),))
+                raise BadKeyError("%s is not b'RSA' or b'DSA'" % (type,))
 
 
     def _toString_AGENTV3(self):
