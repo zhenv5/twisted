@@ -3,7 +3,7 @@
 
 from __future__ import absolute_import, division
 
-from twisted.python.compat import intToBytes, iterbytes
+from twisted.python.compat import intToBytes
 
 
 def parse(s):
