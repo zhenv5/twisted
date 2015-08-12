@@ -11,6 +11,8 @@ Maintainer: Paul Swartz
 
 import struct, warnings
 
+from twisted.python.compat import _PY3, long
+
 try:
     from Crypto import Util
 except ImportError:
@@ -84,7 +86,7 @@ def _fastgetMP(data, count=1):
     c = 0
     for i in range(count):
         length = struct.unpack('!L', data[c:c+4])[0]
-        mp.append(long(gmpy.mpz(data[c + 4:c + 4 + length][::-1] + '\x00', 256)))
+        mp.append(long(gmpy.mpz(data[c + 4:c + 4 + length][::-1] + b'\x00', 256)))
         c += length + 4
     return tuple(mp) + (data[c:],)
 
@@ -106,7 +108,11 @@ def install():
         if type(x) in (long, int):
             x = mpz(x)
         return pyPow(x, y, z)
-    globals["pow"] = _fastpow # evil evil
+    if not _PY3:
+        import __builtin__
+        __builtin__.pow = _fastpow # evil evil
+    else:
+        __builtins__['pow'] = _fastpow # also evil
 
 try:
     import gmpy
