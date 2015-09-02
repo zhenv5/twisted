@@ -41,9 +41,9 @@ class ZipPath(AbstractFilePath):
 
     def __init__(self, archive, pathInArchive):
         """
-        Don't construct me directly.  Use ZipArchive.child().
+        Don't construct me directly.  Use C{ZipArchive.child()}.
 
-        @param archive: a ZipArchive instance.
+        @param archive: a L{ZipArchive} instance.
 
         @param pathInArchive: a ZIP_PATH_SEP-separated string.
         """
@@ -58,6 +58,7 @@ class ZipPath(AbstractFilePath):
         self.path = os.path.join(archiveFilename,
                                  *(self.pathInArchive.split(sep)))
 
+
     def __cmp__(self, other):
         if not isinstance(other, ZipPath):
             return NotImplemented
@@ -66,18 +67,20 @@ class ZipPath(AbstractFilePath):
 
 
     def __repr__(self):
-        parts = [_coerceToFilesystemEncoding(self.sep, os.path.abspath(self.archive.path))]
+        parts = [_coerceToFilesystemEncoding(
+            self.sep,os.path.abspath(self.archive.path))]
         parts.extend(self.pathInArchive.split(self.sep))
         ossep = _coerceToFilesystemEncoding(self.sep, os.sep)
         path = _coerceToFilesystemEncoding('', ossep.join(parts))
         return "ZipPath('%s')" % (repr(path)[1:-1],)
 
+
     @property
     def sep(self):
         """
-        Return a filesystem separator.
+        Return a zip directory separator.
 
-        @return: The native filesystem separator.
+        @return: The zip directory separator.
         @returntype: The same type as C{self.path}.
         """
         return _coerceToFilesystemEncoding(self.path, ZIP_PATH_SEP)
@@ -110,19 +113,22 @@ class ZipPath(AbstractFilePath):
     def sibling(self, path):
         return self.parent().child(path)
 
-    # preauthChild = child
 
     def exists(self):
         return self.isdir() or self.isfile()
 
+
     def isdir(self):
         return self.pathInArchive in self.archive.childmap
+
 
     def isfile(self):
         return self.pathInArchive in self.archive.zipfile.NameToInfo
 
+
     def islink(self):
         return False
+
 
     def listdir(self):
         if self.exists():
@@ -136,7 +142,7 @@ class ZipPath(AbstractFilePath):
 
     def splitext(self):
         """
-        Return a value similar to that returned by os.path.splitext.
+        Return a value similar to that returned by C{os.path.splitext}.
         """
         # This happens to work out because of the fact that we use OS-specific
         # path separators in the constructor to construct our fake 'path'
@@ -147,17 +153,21 @@ class ZipPath(AbstractFilePath):
     def basename(self):
         return self.pathInArchive.split(self.sep)[-1]
 
+
     def dirname(self):
         # XXX NOTE: This API isn't a very good idea on filepath, but it's even
         # less meaningful here.
         return self.parent().path
 
+
     def open(self, mode="r"):
         pathInArchive = _coerceToFilesystemEncoding('', self.pathInArchive)
         return self.archive.zipfile.open(pathInArchive, mode=mode)
 
+
     def changed(self):
         pass
+
 
     def getsize(self):
         """
@@ -167,6 +177,7 @@ class ZipPath(AbstractFilePath):
         """
         pathInArchive = _coerceToFilesystemEncoding("", self.pathInArchive)
         return self.archive.zipfile.NameToInfo[pathInArchive].file_size
+
 
     def getAccessTime(self):
         """
@@ -204,8 +215,15 @@ class ZipPath(AbstractFilePath):
 
 class ZipArchive(ZipPath):
     """
-    I am a FilePath-like object which can wrap a zip archive as if it were a
+    I am a L{FilePath}-like object which can wrap a zip archive as if it were a
     directory.
+
+    It works similarly to L{FilePath} in L{bytes} and L{unicode} handling --
+    instantiating with a L{bytes} will return a "bytes mode" L{ZipArchive},
+    and instantiating with a L{unicode} will return a "text mode"
+    L{ZipArchive}. Methods that return new L{ZipArchive} or L{ZipPath}
+    instances will be in the mode of the argument to the creator method,
+    converting if required.
     """
     archive = property(lambda self: self)
 
@@ -214,10 +232,12 @@ class ZipArchive(ZipPath):
         Create a ZipArchive, treating the archive at archivePathname as a zip
         file.
 
-        @param archivePathname: a str, naming a path in the filesystem.
+        @param archivePathname: a L{bytes} or L{unicode}, naming a path in the
+            filesystem.
         """
         self.path = archivePathname
-        self.zipfile = ZipFile(_coerceToFilesystemEncoding('', archivePathname))
+        self.zipfile = ZipFile(_coerceToFilesystemEncoding('',
+                                                           archivePathname))
         self.pathInArchive = _coerceToFilesystemEncoding(archivePathname, '')
         # zipfile is already wasting O(N) memory on cached ZipInfo instances,
         # so there's no sense in trying to do this lazily or intelligently
@@ -238,15 +258,15 @@ class ZipArchive(ZipPath):
         """
         Create a ZipPath pointing at a path within the archive.
 
-        @param path: a str with no path separators in it, either '/' or the
-        system path separator, if it's different.
+        @param path: a L{bytes} or L{unicode} with no path separators in it
+            (either '/' or the system path separator, if it's different).
         """
         return ZipPath(self, path)
 
 
     def exists(self):
         """
-        Returns true if the underlying archive exists.
+        Returns C{True} if the underlying archive exists.
         """
         return FilePath(self.zipfile.filename).exists()
 
