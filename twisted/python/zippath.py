@@ -10,6 +10,7 @@ See the constructor of L{ZipArchive} for use.
 
 from __future__ import absolute_import, division
 
+import codecs
 import os
 import time
 import errno
@@ -62,11 +63,10 @@ class ZipPath(AbstractFilePath):
 
     def __repr__(self):
         parts = [_coerceToFilesystemEncoding(
-            self.sep,os.path.abspath(self.archive.path))]
+            self.sep, os.path.abspath(self.archive.path))]
         parts.extend(self.pathInArchive.split(self.sep))
         ossep = _coerceToFilesystemEncoding(self.sep, os.sep)
-        path = _coerceToFilesystemEncoding('', ossep.join(parts))
-        return "ZipPath('%s')" % (repr(path)[1:-1],)
+        return "ZipPath(%r)" % (ossep.join(parts),)
 
 
     @property

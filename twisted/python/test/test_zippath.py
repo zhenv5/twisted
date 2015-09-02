@@ -82,17 +82,6 @@ class ZipFilePathTests(AbstractFilePathTests):
         self.assertEqual(repr(child), pathRepr)
 
 
-    def test_zipPathReprEscaping(self):
-        """
-        Bytes in the ZipPath path which have special meaning in Python
-        string literals are escaped in the ZipPath repr.
-        """
-        child = self.path.child("'")
-        path = self.nativecmn + ".zip" + os.sep.join(["", "'"])
-        pathRepr = "ZipPath('%s')" % (path,)
-        self.assertEqual(repr(child), pathRepr)
-
-
     def test_zipArchiveRepr(self):
         """
         Make sure that invoking ZipArchive's repr prints the correct class
