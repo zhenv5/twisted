@@ -22,8 +22,6 @@ from twisted.python.filepath import _coerceToFilesystemEncoding
 
 from zope.interface import implementer
 
-from twisted.python.util import FancyEqMixin
-
 ZIP_PATH_SEP = '/'              # In zipfiles, "/" is universally used as the
                                 # path separator, regardless of platform.
 

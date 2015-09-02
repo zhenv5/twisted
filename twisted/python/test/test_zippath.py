@@ -61,7 +61,8 @@ class ZipFilePathTests(AbstractFilePathTests):
         self.assertEqual(repr(child), pathRepr)
 
         # Create a path to the file rooted in the current working directory
-        relativeCommon = self.nativecmn.replace(os.getcwd() + os.sep, "", 1) + ".zip"
+        relativeCommon = self.nativecmn.replace(os.getcwd() + os.sep,
+                                                "", 1) + ".zip"
         relpath = ZipArchive(relativeCommon)
         child = relpath.child("foo")
 
@@ -98,13 +99,15 @@ class ZipFilePathTests(AbstractFilePathTests):
         name and an absolute path to the zip file.
         """
         path = ZipArchive(self.nativecmn + '.zip')
-        pathRepr = 'ZipArchive(%r)' % (os.path.abspath(self.nativecmn + '.zip'),)
+        pathRepr = 'ZipArchive(%r)' % (os.path.abspath(
+            self.nativecmn + '.zip'),)
 
         # Check for an absolute path
         self.assertEqual(repr(path), pathRepr)
 
         # Create a path to the file rooted in the current working directory
-        relativeCommon = self.nativecmn.replace(os.getcwd() + os.sep, "", 1) + ".zip"
+        relativeCommon = self.nativecmn.replace(os.getcwd() + os.sep,
+                                                "", 1) + ".zip"
         relpath = ZipArchive(relativeCommon)
 
         # Check using a path without the cwd prepended
