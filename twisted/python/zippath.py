@@ -10,7 +10,6 @@ See the constructor of L{ZipArchive} for use.
 
 from __future__ import absolute_import, division
 
-import codecs
 import os
 import time
 import errno
