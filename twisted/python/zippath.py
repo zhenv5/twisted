@@ -3,9 +3,9 @@
 # See LICENSE for details.
 
 """
-This module contains implementations of IFilePath for zip files.
+This module contains implementations of L{IFilePath} for zip files.
 
-See the constructor for ZipArchive for use.
+See the constructor of L{ZipArchive} for use.
 """
 
 from __future__ import absolute_import, division
@@ -23,10 +23,6 @@ from twisted.python.filepath import _coerceToFilesystemEncoding
 from zope.interface import implementer
 
 from twisted.python.util import FancyEqMixin
-
-
-# using FilePath here exclusively rather than os to make sure that we don't do
-# anything OS-path-specific here.
 
 ZIP_PATH_SEP = '/'              # In zipfiles, "/" is universally used as the
                                 # path separator, regardless of platform.

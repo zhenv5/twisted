@@ -5,7 +5,7 @@
 Test cases covering L{twisted.python.zippath}.
 """
 
-from __future__ import absolute_import, division, print_function
+from __future__ import absolute_import, division
 
 import os
 import zipfile
