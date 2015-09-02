@@ -16,6 +16,7 @@ import errno
 
 from zipfile import ZipFile
 
+from twisted.python.compat import comparable, cmp
 from twisted.python.filepath import IFilePath, FilePath, AbstractFilePath
 from twisted.python.filepath import _coerceToFilesystemEncoding
 
@@ -31,6 +32,7 @@ ZIP_PATH_SEP = '/'              # In zipfiles, "/" is universally used as the
                                 # path separator, regardless of platform.
 
 
+@comparable
 @implementer(IFilePath)
 class ZipPath(AbstractFilePath):
     """

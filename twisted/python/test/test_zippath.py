@@ -12,15 +12,15 @@ import zipfile
 
 from twisted.test.test_paths import AbstractFilePathTests
 from twisted.python.zippath import ZipArchive
-from twisted.python.filepath import FilePath
+from twisted.python.filepath import _coerceToFilesystemEncoding
 
 
 def zipit(dirname, zfname):
     """
     Create a zipfile on zfname, containing the contents of dirname'
     """
-    dirname = FilePath(dirname)._getPathAsSameTypeAs('')
-    zfname = FilePath(zfname)._getPathAsSameTypeAs('')
+    dirname = _coerceToFilesystemEncoding('', dirname)
+    zfname = _coerceToFilesystemEncoding('', zfname)
 
     zf = zipfile.ZipFile(zfname, "w")
 
@@ -41,10 +41,11 @@ class ZipFilePathTests(AbstractFilePathTests):
     def setUp(self):
         AbstractFilePathTests.setUp(self)
         zipit(self.cmn, self.cmn + b'.zip')
+        self.nativecmn = _coerceToFilesystemEncoding('', self.cmn)
         self.path = ZipArchive(self.cmn + b'.zip')
         self.root = self.path
-        self.all = [x.replace(self.cmn, self.cmn + b'.zip') for x in self.all]
-        self.nativecmn = FilePath(self.cmn)._getPathAsSameTypeAs('')
+        self.all = [x.replace(self.cmn, self.cmn + b'.zip')
+                    for x in self.all]
 
 
     def test_zipPathRepr(self):
@@ -96,10 +97,11 @@ class ZipFilePathTests(AbstractFilePathTests):
         Make sure that invoking ZipArchive's repr prints the correct class
         name and an absolute path to the zip file.
         """
+        path = ZipArchive(self.nativecmn + '.zip')
         pathRepr = 'ZipArchive(%r)' % (os.path.abspath(self.nativecmn + '.zip'),)
 
         # Check for an absolute path
-        self.assertEqual(repr(self.path), pathRepr)
+        self.assertEqual(repr(path), pathRepr)
 
         # Create a path to the file rooted in the current working directory
         relativeCommon = self.nativecmn.replace(os.getcwd() + os.sep, "", 1) + ".zip"
