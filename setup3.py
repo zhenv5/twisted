@@ -26,7 +26,7 @@ class DisabledSdist(sdist):
 
 
 def main():
-    from setuptools import setup
+    from setuptools import setup, find_packages
 
     # Make sure the to-be-installed version of Twisted is used, if available,
     # since we're importing from it:
@@ -40,10 +40,11 @@ def main():
     _dataFiles = _processDataFileList(testDataFiles)
     args = STATIC_PACKAGE_METADATA.copy()
     args['install_requires'] = ["zope.interface >= 4.0.2"]
+    args['include_package_data'] = True
     args['py_modules'] = modulesToInstall
-    args['data_files'] = getDataFiles('twisted') + _dataFiles
+    args['data_files'] = _dataFiles
     args['zip_safe'] = False
-    args['cmdclass'] = {'sdist': DisabledSdist}
+    #args['cmdclass'] = {'sdist': DisabledSdist}
     args['scripts'] = ['bin/trial', 'bin/twistd']
 
     setup(**args)
