@@ -36,7 +36,7 @@ def main(args):
         sys.path.insert(0, '.')
 
     setup_args = {}
-    requirements = ["zope.interface >= 4.0.2"]
+    requirements = ["zope.interface >= 3.6.0"]
 
     setup_args['install_requires'] = requirements
     setup_args['include_package_data'] = True
