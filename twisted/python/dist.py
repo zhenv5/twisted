@@ -255,9 +255,8 @@ def getDataFiles(dname, ignore=None, parent=None):
         for filename in _filterNames(filenames):
             resultfiles.append(filename)
         if resultfiles:
-            result.append((relativeTo(parent, directory),
-                           [relativeTo(parent,
-                                       os.path.join(directory, filename))
+            result.append((directory,
+                           [os.path.join(directory, filename)
                             for filename in resultfiles]))
     return result
 
