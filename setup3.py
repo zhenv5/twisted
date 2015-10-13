@@ -44,7 +44,7 @@ def main():
     args['py_modules'] = modulesToInstall
     args['data_files'] = _dataFiles
     args['zip_safe'] = False
-    #args['cmdclass'] = {'sdist': DisabledSdist}
+    args['cmdclass'] = {'sdist': DisabledSdist}
     args['scripts'] = ['bin/trial', 'bin/twistd']
 
     setup(**args)
