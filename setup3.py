@@ -34,13 +34,12 @@ def main():
         sys.path.insert(0, '.')
 
     from twisted.python.dist3 import modulesToInstall
-    from twisted.python.dist3 import testDataFiles, _processDataFileList
+    from twisted.python.dist3 import dataFiles, _processDataFileList
     from twisted.python.dist import STATIC_PACKAGE_METADATA, getDataFiles
 
-    _dataFiles = _processDataFileList(testDataFiles)
+    _dataFiles = _processDataFileList(dataFiles)
     args = STATIC_PACKAGE_METADATA.copy()
     args['install_requires'] = ["zope.interface >= 4.0.2"]
-    args['include_package_data'] = True
     args['py_modules'] = modulesToInstall
     args['data_files'] = _dataFiles
     args['zip_safe'] = False

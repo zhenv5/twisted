@@ -391,42 +391,43 @@ testModules = [
 ]
 
 
-testDataFiles = [
-    "twisted.internet.test.process_cli",
-    "twisted.internet.test.process_helper",
-    "twisted.positioning.test.receiver",
-    "twisted.python.test.pullpipe",
-    "twisted.python.test.pullpipe",
-    "twisted.test._preamble",
-    "twisted.test.plugin_basic",
-    "twisted.test.plugin_extra1",
-    "twisted.test.plugin_extra2",
-    "twisted.test.process_cmdline",
-    "twisted.test.process_echoer",
-    "twisted.test.process_fds",
-    "twisted.test.process_linger",
-    "twisted.test.process_reader",
-    "twisted.test.process_signal",
-    "twisted.test.process_stdinreader",
-    "twisted.test.process_tester",
-    "twisted.test.process_tty",
-    "twisted.test.process_twisted",
-    "twisted.test.stdio_test_consumer",
-    "twisted.test.stdio_test_halfclose",
-    "twisted.test.stdio_test_hostpeer",
-    "twisted.test.stdio_test_lastwrite",
-    "twisted.test.stdio_test_loseconn",
-    "twisted.test.stdio_test_producer",
-    "twisted.test.stdio_test_write",
-    "twisted.test.stdio_test_writeseq",
-    "twisted.trial.test.mockdoctest",
-    "twisted.trial.test.moduleself",
-    "twisted.trial.test.moduletest",
-    "twisted.trial.test.novars",
-    "twisted.trial.test.ordertests",
-    "twisted.trial.test.packages",
-    "twisted.trial.test.sample",
-    "twisted.trial.test.scripttest",
+dataFiles = [
+    "twisted/internet/test/process_cli.py",
+    "twisted/internet/test/process_helper.py",
+    "twisted/positioning/test/receiver.py",
+    "twisted/python/test/pullpipe.py",
+    "twisted/python/test/pullpipe.py",
+    "twisted/test/_preamble.py",
+    "twisted/test/plugin_basic.py",
+    "twisted/test/plugin_extra1.py",
+    "twisted/test/plugin_extra2.py",
+    "twisted/test/process_cmdline.py",
+    "twisted/test/process_echoer.py",
+    "twisted/test/process_fds.py",
+    "twisted/test/process_linger.py",
+    "twisted/test/process_reader.py",
+    "twisted/test/process_signal.py",
+    "twisted/test/process_stdinreader.py",
+    "twisted/test/process_tester.py",
+    "twisted/test/process_tty.py",
+    "twisted/test/process_twisted.py",
+    "twisted/test/stdio_test_consumer.py",
+    "twisted/test/stdio_test_halfclose.py",
+    "twisted/test/stdio_test_hostpeer.py",
+    "twisted/test/stdio_test_lastwrite.py",
+    "twisted/test/stdio_test_loseconn.py",
+    "twisted/test/stdio_test_producer.py",
+    "twisted/test/stdio_test_write.py",
+    "twisted/test/stdio_test_writeseq.py",
+    "twisted/trial/test/mockdoctest.py",
+    "twisted/trial/test/moduleself.py",
+    "twisted/trial/test/moduletest.py",
+    "twisted/trial/test/novars.py",
+    "twisted/trial/test/ordertests.py",
+    "twisted/trial/test/packages.py",
+    "twisted/trial/test/sample.py",
+    "twisted/trial/test/scripttest.py",
+    "twisted/web/failure.xhtml",
 ]
 
 
@@ -484,12 +485,12 @@ def _processDataFileList(dataFiles):
     files = {}
 
     for file in dataFiles:
-        pathFragments = file.split(".")
+        pathFragments = file.split("/")
         targetDir = path.sep.join(pathFragments[:-1])
 
         if not files.get(targetDir):
             files[targetDir] = []
-        files[targetDir].append(path.sep.join(pathFragments) + ".py")
+        files[targetDir].append(path.sep.join(pathFragments))
 
     return list(files.items())
 
