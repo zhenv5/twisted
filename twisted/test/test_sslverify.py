@@ -1818,7 +1818,8 @@ class NPNOrALPNTests(unittest.TestCase):
     elif skipNPN:
         skip = skipNPN
 
-    serverPort = clientConn = None
+    serverPort = None
+    clientConn = None
 
     sKey = None
     sCert = None

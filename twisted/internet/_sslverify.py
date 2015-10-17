@@ -1282,7 +1282,8 @@ class OpenSSLCertificateOptions(object):
                  acceptableCiphers=None,
                  dhParameters=None,
                  trustRoot=None,
-                 nextProtocols=None):
+                 nextProtocols=None,
+                 ):
         """
         Create an OpenSSL context SSL connection context factory.
 
@@ -1379,7 +1380,7 @@ class OpenSSLCertificateOptions(object):
             with the other peer, the connection will fail to be established.
             Protocols earlier in the list are preferred over those later in
             the list.
-        @type nextProtocols: C{list} of C{bytestring}s
+        @type nextProtocols: C{list} of C{bytes}
 
         @raise ValueError: when C{privateKey} or C{certificate} are set without
             setting the respective other.
@@ -1476,7 +1477,7 @@ class OpenSSLCertificateOptions(object):
             trustRoot = IOpenSSLTrustRoot(trustRoot)
         self.trustRoot = trustRoot
 
-        self.nextProtocols = nextProtocols
+        self._nextProtocols = nextProtocols
 
 
     def __getstate__(self):
@@ -1498,7 +1499,6 @@ class OpenSSLCertificateOptions(object):
 
         @raises NotImplementedError: If nextProtocols were provided, but NPN is
             not supported by OpenSSL (requires OpenSSL 1.0.1 or later).
-        @raises Attribute
         """
         if self._context is None:
             self._context = self._makeContext()
@@ -1551,29 +1551,52 @@ class OpenSSLCertificateOptions(object):
             except BaseException:
                 pass  # ECDHE support is best effort only.
 
-        if self.nextProtocols:
-            # Set both NPN and ALPN. Configure both the server and client
-            # side logic.
-            def _protoSelectCallback(conn, protocols):
-                overlap = set(protocols) & set(self.nextProtocols)
+        if self._nextProtocols:
+            # Try to set both NPN and ALPN.
+            def protoSelectCallback(conn, protocols):
+                """
+                NPN client-side and ALPN server-side callback used to select
+                the next protocol.
 
-                for p in self.nextProtocols:
+                @param conn:  ???
+                @type conn: ???
+
+                @param protocol: List of protoccols supported by the other side.
+                @type protocols: C{sequence} of C{bytes} 
+
+                @return: The selected next protocol or empty string.
+                @rtype: C{bypes}
+                """
+                overlap = set(protocols) & set(self._nextProtocols)
+
+                for p in self._nextProtocols:
                     if p in overlap:
                         return p
                 else:
                     return b''
 
-            def _npnAdvertiseCallback(conn):
-                return self.nextProtocols
+            def npnAdvertiseCallback(conn):
+                """
+                Server-side NPN callback used to advertise the supported
+                protocols.
 
-            # Now, attach all the things.
+                @param conn:  ???
+                @type conn: ???
+
+                @return: List with supported protocols.
+                @rtype: C{list} of C{bypes}.
+                """
+                return self._nextProtocols
+
             # If NPN is not supported this will raise a NotImplementedError,
             # which is ideal.
             # If PyOpenSSL is too old, this will raise an AttributeError: we
             # catch it and re-raise a handy NotImplementedError instead.
             try:
-                ctx.set_npn_advertise_callback(_npnAdvertiseCallback)
-                ctx.set_npn_select_callback(_protoSelectCallback)
+                # Server-side callback.
+                ctx.set_npn_advertise_callback(npnAdvertiseCallback)
+                # Client-side callback.
+                ctx.set_npn_select_callback(protoSelectCallback)
             except AttributeError:
                 raise NotImplementedError(
                     "nextProtocols requires PyOpenSSL 0.15 or later"
@@ -1584,8 +1607,10 @@ class OpenSSLCertificateOptions(object):
             # is too old this will throw an AttributeError, but that cannot
             # happen because it would have happened just above!
             try:
-                ctx.set_alpn_select_callback(_protoSelectCallback)
-                ctx.set_alpn_protos(self.nextProtocols)
+                # Server-side callback.
+                ctx.set_alpn_select_callback(protoSelectCallback)
+                # Client-side callback.
+                ctx.set_alpn_protos(self._nextProtocols)
             except NotImplementedError:
                 pass
 

@@ -592,21 +592,24 @@ class TLSMemoryBIOProtocol(ProtocolWrapper):
         function prefers the result from ALPN. If no protocol was chosen,
         returns C{None}.
 
-        @return: the selected protocol, or None if none is chosen.
-        @rtype: C{str}
+        @return: The selected protocol, or C{None} if none is chosen.
+        @rtype: C{str} or C{None}
         """
+        protocolName = None
         try:
             # If ALPN is not implemented that's ok, NPN might be.
-            proto = self._tlsConnection.get_alpn_proto_negotiated()
+            protocolName = self._tlsConnection.get_alpn_proto_negotiated()
         except NotImplementedError:
             pass
-        else:
-            if proto:
-                return proto
 
-        proto = self._tlsConnection.get_next_proto_negotiated()
-        if proto:
-            return proto
+        if protocolName != b'':
+            # A protocol was selected using ALPN.
+            return protocolName
+
+        protocolName = self._tlsConnection.get_next_proto_negotiated()
+        if protocolName != b'':
+            # A protocol was selected using NPN.
+            return protocolName
 
         return None
 

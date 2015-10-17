@@ -5,13 +5,12 @@
 tls_alpn_npn
 ~~~~~~~~~~~~
 
-A test script that can be used to connect to a server on the internet and
-perform next protocol negotiation using NPN and ALPN. Demonstrates the correct
-usage of the nextProtocols API.
+It demonstrates the usage of the nextProtocols API as a client peer.
 
-To use this, simple execute it from the command-line. It should print out what
-protocol was negotiated, and then exit. You can tweak the global variables in
-this file to vary certain aspects of the testing.
+It performs next protocol negotiation using NPN and ALPN.
+
+It will print what protocol was negotiated, and then exit.
+The global variables are provided as input values.
 """
 from twisted.internet import ssl, protocol, defer, endpoints, task
 
@@ -27,26 +26,31 @@ TARGET_PORT = 443
 # attempt to respect our preferences when doing the negotiation. This indicates
 # that we'd prefer to use HTTP/2 if possible (where HTTP/2 is using the token
 # 'h2'), but would also accept HTTP/1.1.
-# Note that these are bytestrings: this is because the bytes here are sent
-# literally on the wire, and so there is no room for ambiguity about text
-# encodings.
+# The bytes here are sent literally on the wire, and so there is no room for
+# ambiguity about text encodings.
 # Try changing this list by adding, removing, and reordering protocols to see
 # how it affects the result.
 NEXT_PROTOCOLS = [b'h2', b'http/1.1']
 
+# ??? add some info about this data ??? 
+TLS_TRIGER_DATA = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
 
 def main(reactor):
     options = ssl.optionsForClientTLS(
         hostname=TARGET_HOST,
+        # `nextProtocols` is the targetd option of this example.
         extraCertificateOptions={'nextProtocols': NEXT_PROTOCOLS}
     )
 
     class BasicH2Request(protocol.Protocol):
         def connectionMade(self):
             print("Connection made")
+            # ??? Why do we need this deferred ???
             self.complete = defer.Deferred()
-            # Write some data to trigger the SSL handshake.
-            self.transport.write(b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n')
+            # Write some data to trigger the TLS handshake.
+            # ??? this does not make sense for me.
+            # ??? how can we sent data without knowing the protocol?
+            self.transport.write(TLS_TRIGER_DATA)
 
         def dataReceived(self, data):
             # We can only safely be sure what the next protocol is when we know
@@ -55,6 +59,8 @@ def main(reactor):
             # back.
             print('Next protocol is: %s' % (self.transport.getNextProtocol(),))
             self.transport.loseConnection()
+
+            # ?? what is this ????
             if self.complete is not None:
                 self.complete.callback(None)
                 self.complete = None
