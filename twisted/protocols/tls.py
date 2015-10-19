@@ -586,6 +586,34 @@ class TLSMemoryBIOProtocol(ProtocolWrapper):
         return self._tlsConnection.get_peer_certificate()
 
 
+    def getNextProtocol(self):
+        """
+        Returns the protocol selected to be spoken using ALPN/NPN. This
+        function prefers the result from ALPN. If no protocol was chosen,
+        returns C{None}.
+
+        @return: The selected protocol, or C{None} if none is chosen.
+        @rtype: C{str} or C{None}
+        """
+        protocolName = None
+
+        try:
+            # If ALPN is not implemented that's ok, NPN might be.
+            protocolName = self._tlsConnection.get_alpn_proto_negotiated()
+        except NotImplementedError:
+            pass
+
+        if protocolName != b'':
+            # A protocol was selected using ALPN.
+            return protocolName
+
+        protocolName = self._tlsConnection.get_next_proto_negotiated()
+        if protocolName != b'':
+            return protocolName
+
+        return None
+
+
     def registerProducer(self, producer, streaming):
         # If we've already disconnected, nothing to do here:
         if self._lostTLSConnection:
