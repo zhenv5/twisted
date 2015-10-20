@@ -1281,7 +1281,9 @@ class OpenSSLCertificateOptions(object):
                  extraCertChain=None,
                  acceptableCiphers=None,
                  dhParameters=None,
-                 trustRoot=None):
+                 trustRoot=None,
+                 nextProtocols=None,
+                 ):
         """
         Create an OpenSSL context SSL connection context factory.
 
@@ -1371,6 +1373,14 @@ class OpenSSLCertificateOptions(object):
             L{TypeError}.
 
         @type trustRoot: L{IOpenSSLTrustRoot}
+
+        @param nextProtocols: The protocols this peer is willing to speak after
+            the TLS negotation has completed, advertised over both ALPN and
+            NPN. If this argument is specified, and no overlap can be found
+            with the other peer, the connection will fail to be established.
+            Protocols earlier in the list are preferred over those later in
+            the list.
+        @type nextProtocols: C{list} of C{bytes}
 
         @raise ValueError: when C{privateKey} or C{certificate} are set without
             setting the respective other.
@@ -1467,6 +1477,8 @@ class OpenSSLCertificateOptions(object):
             trustRoot = IOpenSSLTrustRoot(trustRoot)
         self.trustRoot = trustRoot
 
+        self._nextProtocols = nextProtocols
+
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -1484,6 +1496,9 @@ class OpenSSLCertificateOptions(object):
     def getContext(self):
         """
         Return an L{OpenSSL.SSL.Context} object.
+
+        @raises NotImplementedError: If nextProtocols were provided, but NPN is
+            not supported by OpenSSL (requires OpenSSL 1.0.1 or later).
         """
         if self._context is None:
             self._context = self._makeContext()
@@ -1535,6 +1550,82 @@ class OpenSSLCertificateOptions(object):
                 self._ecCurve.addECKeyToContext(ctx)
             except BaseException:
                 pass  # ECDHE support is best effort only.
+
+        if self._nextProtocols:
+            # Try to set NPN and ALPN.
+            def protoSelectCallback(conn, protocols):
+                """
+                NPN client-side and ALPN server-side callback used to select
+                the next protocol.
+
+                @param conn: The PyOpenSSL connection object.
+                @type conn: L{OpenSSL.SSL.Connection}
+
+                @param protocols: List of protocols supported by the remote
+                    peer.
+                @type protocols: C{sequence} of C{bytes}
+
+                @return: The selected next protocol or the empty string.
+                @rtype: C{bytes}
+                """
+                overlap = set(protocols) & set(self._nextProtocols)
+
+                for p in self._nextProtocols:
+                    if p in overlap:
+                        return p
+                else:
+                    return b''
+
+            def npnAdvertiseCallback(conn):
+                """
+                Server-side NPN callback used to advertise the supported
+                protocols.
+
+                @param conn: The PyOpenSSL connection object.
+                @type conn: L{OpenSSL.SSL.Connection}
+
+                @return: List of supported protocols.
+                @rype: C{list} of C{bytes}.
+                """
+                return self._nextProtocols
+
+            # If NPN is not supported this will raise a NotImplementedError,
+            # which is ideal.
+            # If PyOpenSSL is too old, this will raise an AttributeError: we
+            # catch it and re-raise a handy NotImplementedError instead.
+            try:
+                ctx.set_npn_advertise_callback(npnAdvertiseCallback)
+                ctx.set_npn_select_callback(protoSelectCallback)
+            except AttributeError:
+                raise NotImplementedError(
+                    "nextProtocols requires PyOpenSSL 0.15 or later"
+                )
+
+            try:
+                # Server side callback
+                ctx.set_alpn_select_callback(protoSelectCallback)
+                # Client side advertisement.
+                ctx.set_alpn_protos(self._nextProtocols)
+            except NotImplementedError:
+                # ALPN is supported by OpenSSL 1.0.2 or later. NPN is supported
+                # by OpenSSL 1.0.1 or later. As a result, if ALPN is not
+                # implemented, either:
+                #
+                # 1. NPN is not supported (OpenSSL < 1.0.1), and so we
+                #    shouldn't even get to this block because the above block
+                #    would have failed; or
+                # 2. NPN *is* supported. In that case, we reach this block. The
+                #    way we support NPN and ALPN is that so long as at least
+                #    NPN is available we will proceed with the negotiation.
+                #
+                # In principle, this could also throw AttributeError for
+                # PyOpenSSL < 0.15, but in that case we should have had it
+                # happen above when we did NPN, and so we shouldn't be able
+                # to reach this block.
+                #
+                # In summary: we don't care about NotImplementedError here,
+                # because to have gotten here we must have set NPN.
+                pass
 
         return ctx
 
