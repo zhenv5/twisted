@@ -204,7 +204,6 @@ def _selectVerifyImplementation(lib):
 verifyHostname, VerificationError = _selectVerifyImplementation(OpenSSL)
 
 
-
 from zope.interface import Interface, implementer
 
 from twisted.internet.defer import Deferred
@@ -216,6 +215,7 @@ from twisted.internet.interfaces import (
 from twisted.python import reflect, util
 from twisted.python.deprecate import _mutuallyExclusiveArguments
 from twisted.python.compat import nativeString, networkString, unicode
+from twisted.python.constants import Flags, FlagConstant
 from twisted.python.failure import Failure
 from twisted.python.util import FancyEqMixin
 
@@ -229,6 +229,78 @@ def _sessionCounter(counter=itertools.count()):
     provide a unique session id for each context.
     """
     return next(counter)
+
+
+
+class ProtocolNegotiationSupport(Flags):
+    """
+    L{ProtocolNegotiationSupport} defines flags which are used to indicate the
+    level of NPN/ALPN support provided by the TLS backend.
+
+    @cvar NOSUPPORT: There is no support for NPN or ALPN. This is exclusive
+        with both L{NPN} and L{ALPN}.
+    @cvar NPN: The implementation supports Next Protocol Negotiation.
+    @cvar ALPN: The implementation supports Application Layer Protocol
+        Negotiation.
+    """
+    NPN = FlagConstant(0x0001)
+    ALPN = FlagConstant(0x0002)
+
+# This is a workaround for #8074: remove when that issue is fixed.
+ProtocolNegotiationSupport.NOSUPPORT = (
+    ProtocolNegotiationSupport.NPN ^ ProtocolNegotiationSupport.NPN
+)
+
+
+def nextProtocolMechanisms(whyNot=None):
+    """
+    Checks whether your versions of PyOpenSSL and OpenSSL are recent enough to
+    support protocol negotiation, and if they are, what kind of protocol
+    negotiation is supported.
+
+    @param whyNot: An optional callable that will be called with a dictionary
+        of {flag: string}. This provides a string for each flag that explains
+        why the mechanism associated with that flag is not supported. If the
+        mechanism is supported, no such key will exist.
+    @type whyNot: Callable.
+    @return: A combination of flags from L{ProtocolNegotiationSupport} that
+        indicate which mechanisms for protocol negotiation are supported.
+    @rtype: L{FlagConstant}
+    """
+    support = ProtocolNegotiationSupport.NOSUPPORT
+    ctx = SSL.Context(SSL.SSLv23_METHOD)
+    reasons = {}
+
+    try:
+        ctx.set_npn_advertise_callback(lambda c: None)
+    except AttributeError:
+        reasons[ProtocolNegotiationSupport.NPN] = (
+            "PyOpenSSL 0.15 or later required for NPN"
+        )
+    except NotImplementedError:
+        reasons[ProtocolNegotiationSupport.NPN] = (
+            "OpenSSL 1.0.1 or later required for NPN."
+        )
+    else:
+        support |= ProtocolNegotiationSupport.NPN
+
+    try:
+        ctx.set_alpn_select_callback(lambda c: None)
+    except AttributeError:
+        reasons[ProtocolNegotiationSupport.ALPN] = (
+            "PyOpenSSL 0.15 or later required for ALPN"
+        )
+    except NotImplementedError:
+        reasons[ProtocolNegotiationSupport.ALPN] = (
+            "OpenSSL 1.0.2 or later required for ALPN."
+        )
+    else:
+        support |= ProtocolNegotiationSupport.ALPN
+
+    if whyNot is not None:
+        whyNot(reasons)
+
+    return support
 
 
 
@@ -1172,7 +1244,7 @@ class ClientTLSOptions(object):
 
 
 def optionsForClientTLS(hostname, trustRoot=None, clientCertificate=None,
-                         **kw):
+                        nextProtocols=None, **kw):
     """
     Create a L{client connection creator <IOpenSSLClientConnectionCreator>} for
     use with APIs such as L{SSL4ClientEndpoint
@@ -1203,6 +1275,13 @@ def optionsForClientTLS(hostname, trustRoot=None, clientCertificate=None,
         will use to authenticate to the server.  If unspecified, the client
         will not authenticate.
     @type clientCertificate: L{PrivateCertificate}
+
+    @param nextProtocols: The protocols this peer is willing to speak after the
+        TLS negotation has completed, advertised over both ALPN and NPN. If
+        this argument is specified, and no overlap can be found with the other
+        peer, the connection will fail to be established. Protocols earlier in
+        the list are preferred over those later in the list.
+    @type nextProtocols: C{list} of C{bytes}
 
     @param extraCertificateOptions: keyword-only argument; this is a dictionary
         of additional keyword arguments to be presented to
@@ -1240,6 +1319,7 @@ def optionsForClientTLS(hostname, trustRoot=None, clientCertificate=None,
         )
     certificateOptions = OpenSSLCertificateOptions(
         trustRoot=trustRoot,
+        nextProtocols=nextProtocols,
         **extraCertificateOptions
     )
     return ClientTLSOptions(hostname, certificateOptions.getContext())
@@ -1293,7 +1373,9 @@ class OpenSSLCertificateOptions(object):
                  extraCertChain=None,
                  acceptableCiphers=None,
                  dhParameters=None,
-                 trustRoot=None):
+                 trustRoot=None,
+                 nextProtocols=None,
+                 ):
         """
         Create an OpenSSL context SSL connection context factory.
 
@@ -1383,6 +1465,14 @@ class OpenSSLCertificateOptions(object):
             L{TypeError}.
 
         @type trustRoot: L{IOpenSSLTrustRoot}
+
+        @param nextProtocols: The protocols this peer is willing to speak after
+            the TLS negotation has completed, advertised over both ALPN and
+            NPN. If this argument is specified, and no overlap can be found
+            with the other peer, the connection will fail to be established.
+            Protocols earlier in the list are preferred over those later in
+            the list.
+        @type nextProtocols: C{list} of C{bytes}
 
         @raise ValueError: when C{privateKey} or C{certificate} are set without
             setting the respective other.
@@ -1479,6 +1569,13 @@ class OpenSSLCertificateOptions(object):
             trustRoot = IOpenSSLTrustRoot(trustRoot)
         self.trustRoot = trustRoot
 
+        if nextProtocols is not None and nextProtocolMechanisms():
+            self._nextProtocols = nextProtocols
+        else:
+            raise NotImplementedError(
+                "No support for protocol negotiation on this platform."
+            )
+
 
     def __getstate__(self):
         d = self.__dict__.copy()
@@ -1496,6 +1593,9 @@ class OpenSSLCertificateOptions(object):
     def getContext(self):
         """
         Return an L{OpenSSL.SSL.Context} object.
+
+        @raises NotImplementedError: If nextProtocols were provided, but NPN is
+            not supported by OpenSSL (requires OpenSSL 1.0.1 or later).
         """
         if self._context is None:
             self._context = self._makeContext()
@@ -1547,6 +1647,36 @@ class OpenSSLCertificateOptions(object):
                 self._ecCurve.addECKeyToContext(ctx)
             except BaseException:
                 pass  # ECDHE support is best effort only.
+
+        if self._nextProtocols:
+            # Try to set NPN and ALPN. _nextProtocols cannot be set by the
+            # constructor unless at least one mechanism is supported.
+            supported = nextProtocolMechanisms()
+
+            def protoSelectCallback(conn, protocols):
+                """
+                NPN client-side and ALPN server-side callback used to select
+                the next protocol. Prefers protocols found earlier in
+                C{_nextProtocols}.
+                """
+                overlap = set(protocols) & set(self._nextProtocols)
+
+                for p in self._nextProtocols:
+                    if p in overlap:
+                        return p
+                else:
+                    return b''
+
+            if supported & ProtocolNegotiationSupport.NPN:
+                def npnAdvertiseCallback(conn):
+                    return self._nextProtocols
+
+                ctx.set_npn_advertise_callback(npnAdvertiseCallback)
+                ctx.set_npn_select_callback(protoSelectCallback)
+
+            if supported & ProtocolNegotiationSupport.ALPN:
+                ctx.set_alpn_select_callback(protoSelectCallback)
+                ctx.set_alpn_protos(self._nextProtocols)
 
         return ctx
 

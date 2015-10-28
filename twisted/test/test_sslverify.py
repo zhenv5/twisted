@@ -15,17 +15,37 @@ from zope.interface import implementer
 
 skipSSL = None
 skipSNI = None
+skipNPN = None
+skipALPN = None
 try:
     import OpenSSL
 except ImportError:
     skipSSL = "OpenSSL is required for SSL tests."
     skipSNI = skipSSL
+    skipNPN = skipSSL
+    skipALPN = skipSSL
 else:
     from OpenSSL import SSL
     from OpenSSL.crypto import PKey, X509
     from OpenSSL.crypto import TYPE_RSA, FILETYPE_PEM
     if getattr(SSL.Context, "set_tlsext_servername_callback", None) is None:
         skipSNI = "PyOpenSSL 0.13 or greater required for SNI support."
+
+    try:
+        ctx = SSL.Context(SSL.SSLv23_METHOD)
+        ctx.set_npn_advertise_callback(lambda c: None)
+    except AttributeError:
+        skipNPN = "PyOpenSSL 0.15 or greater is required for NPN support"
+    except NotImplementedError:
+        skipNPN = "OpenSSL 1.0.1 or greater required for NPN support"
+
+    try:
+        ctx = SSL.Context(SSL.SSLv23_METHOD)
+        ctx.set_alpn_select_callback(lambda c: None)
+    except AttributeError:
+        skipALPN = "PyOpenSSL 0.15 or greater is required for ALPN support"
+    except NotImplementedError:
+        skipALPN = "OpenSSL 1.0.2 or greater required for ALPN support"
 
 from twisted.test.test_twisted import SetAsideModule
 from twisted.test.iosim import connectedServerAndClient
@@ -177,7 +197,45 @@ def certificatesForAuthorityAndServer(commonName=b'example.com'):
 
 
 
-def loopbackTLSConnection(trustRoot, privateKeyFile, chainedCertFile=None):
+def _loopbackTLSConnection(serverOpts, clientOpts):
+    """
+    Common implementation code for both L{loopbackTLSConnection} and
+    L{loopbackTLSConnectionWithoutFiles}. Creates a loopback TLS connection
+    using the provided server and client context factories.
+    """
+    class GreetingServer(protocol.Protocol):
+        greeting = b"greetings!"
+        def connectionMade(self):
+            self.transport.write(self.greeting)
+
+    class ListeningClient(protocol.Protocol):
+        data = b''
+        lostReason = None
+        def dataReceived(self, data):
+            self.data += data
+        def connectionLost(self, reason):
+            self.lostReason = reason
+
+    clientFactory = TLSMemoryBIOFactory(
+        clientOpts, isClient=True,
+        wrappedFactory=protocol.Factory.forProtocol(GreetingServer)
+    )
+    serverFactory = TLSMemoryBIOFactory(
+        serverOpts, isClient=False,
+        wrappedFactory=protocol.Factory.forProtocol(ListeningClient)
+    )
+
+    sProto, cProto, pump = connectedServerAndClient(
+        lambda: serverFactory.buildProtocol(None),
+        lambda: clientFactory.buildProtocol(None)
+    )
+    return sProto, cProto, pump
+
+
+
+def loopbackTLSConnection(trustRoot, privateKeyFile, chainedCertFile=None,
+                          clientNextProtocols=None, serverNextProtocols=None,
+                          clientOptionsClass=None, serverOptionsClass=None):
     """
     Create a loopback TLS connection with the given trust and keys.
 
@@ -210,36 +268,58 @@ def loopbackTLSConnection(trustRoot, privateKeyFile, chainedCertFile=None):
             ctx.check_privatekey()
             return ctx
 
-    class GreetingServer(protocol.Protocol):
-        greeting = b"greetings!"
-        def connectionMade(self):
-            self.transport.write(self.greeting)
-
-    class ListeningClient(protocol.Protocol):
-        data = b''
-        lostReason = None
-        def dataReceived(self, data):
-            self.data += data
-        def connectionLost(self, reason):
-            self.lostReason = reason
-
     serverOpts = ContextFactory()
     clientOpts = sslverify.OpenSSLCertificateOptions(trustRoot=trustRoot)
 
-    clientFactory = TLSMemoryBIOFactory(
-        clientOpts, isClient=True,
-        wrappedFactory=protocol.Factory.forProtocol(GreetingServer)
+    return _loopbackTLSConnection(serverOpts, clientOpts)
+
+
+
+def loopbackTLSConnectionWithoutFiles(trustRoot, privateKey,
+                                      serverCertificate, clientProtocols=None,
+                                      serverProtocols=None,
+                                      clientOptions=None):
+    """
+    Create a loopback TLS connection with the given trust and keys. Like
+    L{loopbackTLSConnection}, but using in-memory certificates and keys rather
+    than writing them to disk.
+
+    @param trustRoot: the C{trustRoot} argument for the client connection's
+        context.
+    @type trustRoot: L{sslverify.IOpenSSLTrustRoot}
+
+    @param privateKey: The private key.
+    @type privateKey: L{str} (native string)
+
+    @param serverCertificate: The certificate used by the server.
+    @type chainedCertFile: L{str} (native string)
+
+    @param clientProtocols: The protocols the client is willing to negotiate
+        using NPN/ALPN.
+
+    @param serverProtocols: The protocols the server is willing to negotiate
+        using NPN/ALPN.
+
+    @param clientOptions: The type of C{OpenSSLCertificateOptions} class to
+        use for the client. Defaults to C{OpenSSLCertificateOptions}.
+
+    @return: 3-tuple of server-protocol, client-protocol, and L{IOPump}
+    @rtype: L{tuple}
+    """
+    if clientOptions is None:
+        clientOptions = sslverify.OpenSSLCertificateOptions
+
+    clientCertOpts = clientOptions(
+        trustRoot=trustRoot,
+        nextProtocols=clientProtocols
     )
-    serverFactory = TLSMemoryBIOFactory(
-        serverOpts, isClient=False,
-        wrappedFactory=protocol.Factory.forProtocol(ListeningClient)
+    serverCertOpts = sslverify.OpenSSLCertificateOptions(
+        privateKey=privateKey,
+        certificate=serverCertificate,
+        nextProtocols=serverProtocols,
     )
 
-    sProto, cProto, pump = connectedServerAndClient(
-        lambda: serverFactory.buildProtocol(None),
-        lambda: clientFactory.buildProtocol(None)
-    )
-    return sProto, cProto, pump
+    return _loopbackTLSConnection(serverCertOpts, clientCertOpts)
 
 
 
@@ -287,6 +367,62 @@ class WritingProtocol(protocol.Protocol):
 
     def connectionLost(self, reason):
         self.factory.onLost.errback(reason)
+
+
+
+if not skipSSL:
+    class ALPNOnlyOptions(sslverify.OpenSSLCertificateOptions):
+        """
+        An OpenSSLCertificateOptions subclass that only sets ALPN.
+        """
+        def getContext(self):
+            """
+            Gets a SSL Context that does not do NPN.
+
+            There are two things to do here: override the advertise callback to
+            advertise no protocols, and override the select callback to select
+            no protocols in case NPN was advertised.
+            """
+            ctx = super(ALPNOnlyOptions, self).getContext()
+
+            def _advertiseCallback(conn):
+                return []
+
+            def _selectCallback(conn, protocols):
+                return b''
+
+            ctx.set_npn_advertise_callback(_advertiseCallback)
+            ctx.set_npn_select_callback(_selectCallback)
+
+            return ctx
+
+
+    class NPNOnlyOptions(sslverify.OpenSSLCertificateOptions):
+        """
+        An OpenSSLCertificateOptions subclass that only sets NPN.
+        """
+        def getContext(self):
+            """
+            Gets a SSL Context that does not do ALPN.
+
+            There are two things to do here: advertise no protocols, and
+            override the select callback to select no protocols in case ALPN
+            was advertised.
+            """
+            ctx = super(NPNOnlyOptions, self).getContext()
+
+            def _selectCallback(conn, protocols):
+                return b''
+
+            # If ALPN doesn't exist, we can't get it wrong anyway, so who
+            # cares?
+            try:
+                ctx.set_alpn_protos([])
+                ctx.set_alpn_select_callback(_selectCallback)
+            except NotImplementedError:
+                pass
+
+            return ctx
 
 
 
@@ -1707,6 +1843,197 @@ class ServiceIdentityTests(unittest.SynchronousTestCase):
         self.assertIsInstance(sErr, ConnectionClosed)
         errors = self.flushLoggedErrors(ZeroDivisionError)
         self.assertTrue(errors)
+
+
+
+def negotiateProtocol(serverProtocols,
+                      clientProtocols,
+                      clientOptions=None):
+    """
+    Create the TLS connection and negotiate a next protocol.
+
+    @param serverProtocols: The protocols the server is willing to negotiate.
+    @param clientProtocols: The protocols the client is willing to negotiate.
+    @param clientOptions: The type of C{OpenSSLCertificateOptions} class to
+        use for the client. Defaults to C{OpenSSLCertificateOptions}.
+    @return: The negotiated protocol.
+    """
+    caCertificate, serverCertificate = certificatesForAuthorityAndServer()
+    trustRoot = sslverify.OpenSSLCertificateAuthorities([
+        caCertificate.original,
+    ])
+
+    sProto, cProto, pump = loopbackTLSConnectionWithoutFiles(
+        trustRoot=trustRoot,
+        privateKey=serverCertificate.privateKey.original,
+        serverCertificate=serverCertificate.original,
+        clientProtocols=clientProtocols,
+        serverProtocols=serverProtocols,
+        clientOptions=clientOptions,
+    )
+    pump.flush()
+
+    return cProto.nextProtocol
+
+
+
+class NPNOrALPNTests(unittest.TestCase):
+    """
+    NPN and ALPN protocol selection.
+
+    These tests only run on platforms that have a PyOpenSSL version >= 0.15,
+    and OpenSSL version 1.0.1 or later.
+    """
+    if skipSSL:
+        skip = skipSSL
+    elif skipNPN:
+        skip = skipNPN
+
+    def test_NPNIsSupported(self):
+        supportedProtocols = sslverify.supportedProtocolNegotiationMechanisms()
+        self.assertTrue(
+            sslverify.ProtocolNegotiationSupportFlags.NPN in supportedProtocols
+        )
+
+
+    def test_NPNAndALPNSuccess(self):
+        """
+        When both ALPN and NPN are used, and both the client and server have
+        overlapping protocol choices, a protocol is successfully negotiated.
+        Further, the negotiated protocol is the first one in the list.
+        """
+        protocols = [b'h2', b'http/1.1']
+        nextProtocol = negotiateProtocol(
+            clientProtocols=protocols,
+            serverProtocols=protocols,
+        )
+        self.assertEqual(nextProtocol, b'h2')
+
+
+    def test_NPNAndALPNDifferent(self):
+        """
+        Client and server have different protocol lists: only the common
+        element is chosen.
+        """
+        serverProtocols = [b'h2', b'http/1.1', b'spdy/2']
+        clientProtocols = [b'spdy/3', b'http/1.1']
+        nextProtocol = negotiateProtocol(
+            clientProtocols=clientProtocols,
+            serverProtocols=serverProtocols,
+        )
+        self.assertEqual(nextProtocol, b'http/1.1')
+
+
+    def test_NPNAndALPNFailure(self):
+        """
+        When the client and server have no overlap of protocols, no protocol is
+        negotiated.
+        """
+        protocols = [b'h2', b'http/1.1']
+        nextProtocol = negotiateProtocol(
+            clientProtocols=[],
+            serverProtocols=protocols,
+        )
+        self.assertEqual(nextProtocol, None)
+
+
+    def test_NPNRespectsClientPreference(self):
+        """
+        When NPN is used, the client's protocol preference is preferred.
+        """
+        serverProtocols = [b'http/1.1', b'h2']
+        clientProtocols = [b'h2', b'http/1.1']
+        nextProtocol = negotiateProtocol(
+            clientProtocols=clientProtocols,
+            serverProtocols=serverProtocols,
+            clientOptions=NPNOnlyOptions
+        )
+        self.assertEqual(nextProtocol, b'h2')
+
+
+
+class ALPNTests(unittest.TestCase):
+    """
+    ALPN protocol selection.
+
+    These tests only run on platforms that have a PyOpenSSL version >= 0.15,
+    and OpenSSL version 1.0.2 or later.
+
+    This covers only the ALPN specific logic, as any platform that has ALPN
+    will also have NPN and so will run the NPNAndALPNTest suite as well.
+    """
+    if skipSSL:
+        skip = skipSSL
+    elif skipALPN:
+        skip = skipALPN
+
+
+    def test_ALPNIsSupported(self):
+        supportedProtocols = sslverify.supportedProtocolNegotiationMechanisms()
+        self.assertTrue(
+            sslverify.ProtocolNegotiationSupportFlags.ALPN in
+            supportedProtocols
+        )
+
+
+    def test_ALPNRespectsServerPreference(self):
+        """
+        When ALPN is used, the server's protocol preference is preferred.
+        """
+        serverProtocols = [b'http/1.1', b'h2']
+        clientProtocols = [b'h2', b'http/1.1']
+        nextProtocol = negotiateProtocol(
+            clientProtocols=clientProtocols,
+            serverProtocols=serverProtocols,
+            clientOptions=ALPNOnlyOptions
+        )
+        self.assertEqual(nextProtocol, b'http/1.1')
+
+
+
+class NPNAndALPNAbsentTests(unittest.TestCase):
+    """
+    NPN/ALPN operations fail on platforms that do not support them.
+
+    These tests only run on platforms that have a PyOpenSSL version < 0.15,
+    or an OpenSSL version earlier than 1.0.1
+    """
+    if skipSSL:
+        skip = skipSSL
+    elif not skipNPN:
+        skip = "NPN/ALPN is present on this platform"
+
+
+    def test_NoNegotiationSupported(self):
+        supportedProtocols = sslverify.supportedProtocolNegotiationMechanisms()
+        self.assertFalse(supportedProtocols)
+
+
+    def test_NPNAndALPNNotImplemented(self):
+        """
+        A NotImplementedError is raised when using nextProtocols on a platform
+        that does not support either NPN or ALPN.
+        """
+        protocols = [b'h2', b'http/1.1']
+        self.assertRaises(
+            NotImplementedError,
+            negotiateProtocol,
+            serverProtocols=protocols,
+            clientProtocols=protocols,
+        )
+
+
+    def test_NextProtocolReturnsNone(self):
+        """
+        nextProtocol should return None even when NPN/ALPN aren't supported.
+        """
+        serverProtocols = None
+        clientProtocols = None
+        nextProtocol = negotiateProtocol(
+            clientProtocols=clientProtocols,
+            serverProtocols=serverProtocols,
+        )
+        self.assertEqual(nextProtocol, None)
 
 
 
