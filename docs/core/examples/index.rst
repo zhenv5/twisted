@@ -106,3 +106,4 @@ Miscellaneous
 - :download:`wxacceptance.py` - acceptance tests for wxreactor
 - :download:`postfix.py` - test application for PostfixTCPMapServer
 - :download:`udpbroadcast.py` - broadcasting using UDP
+- :download:`tls_alpn_npn_client.py` - example of TLS next-protocol negotiation using NPN and ALPN.
