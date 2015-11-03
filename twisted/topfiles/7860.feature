@@ -1,0 +1,1 @@
+twisted.internet.ssl.CertificateOptions now takes a nextProtocols parameter that enables negotiation of the next protocol to speak after the TLS handshake has completed. This field advertises protocols over both NPN and ALPN.
