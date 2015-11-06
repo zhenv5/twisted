@@ -178,7 +178,7 @@ TLS
 
      wrapped = HostnameEndpoint('example.com', 443)
      contextEndpoint = CertificateOptions(hostname=u'example.com')
-     endpoint = TLSWrapperClientEndpoint(contextFactory, wrapped)
+     endpoint = wrapClientTLS(contextFactory, wrapped)
      conn = endpoint.connect(Factory.forProtocol(Protocol))
 
 TLS wrapper
@@ -194,7 +194,7 @@ TLS wrapper
    Or, from python code::
 
      wrapped = TCP4ClientEndpoint('example.com', 443)
-     endpoint = TLSWrapperClientEndpoint(contextFactory, wrapped)
+     endpoint = wrapClientTLS(contextFactory, wrapped)
      conn = endpoint.connect(Factory.forProtocol(Protocol))
 
 TCP (Hostname)

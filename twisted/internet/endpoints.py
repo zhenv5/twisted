@@ -45,7 +45,7 @@ from twisted.python.systemd import ListenFDs
 
 try:
     from twisted.protocols.tls import TLSMemoryBIOFactory
-    from twisted.internet._sslverify import _idnaBytes
+    from twisted.internet._sslverify import _idnaBytes, _idnaText
 except ImportError:
     TLSMemoryBIOFactory = None
 
@@ -57,7 +57,7 @@ __all__ = ["clientFromString", "serverFromString",
            "AdoptedStreamServerEndpoint", "StandardIOEndpoint",
            "ProcessEndpoint", "HostnameEndpoint",
            "StandardErrorBehavior", "connectProtocol",
-           "TLSWrapperClientEndpoint"]
+           "wrapClientTLS"]
 
 
 
@@ -1275,7 +1275,7 @@ def _tokenize(description):
     @return: an iterable of 2-tuples of (L{_OP} or L{_STRING}, string).  Tuples
         starting with L{_OP} will contain a second element of either ':' (i.e.
         'next parameter') or '=' (i.e. 'assign parameter value').  For example,
-        the string 'hello:greet\=ing=world' would result in a generator
+        the string 'hello:greeting=world' would result in a generator
         yielding these values::
 
             _STRING, 'hello'
@@ -1559,7 +1559,7 @@ def _loadCAsFromDir(directoryPath):
     @param directoryPath: a L{FilePath} pointing at a directory to load .pem
         files from.
 
-    @return: a C{list} of L{OpenSSL.crypto.X509} objects.
+    @return: an L{IOpenSSLTrustRoot} provider.
     """
     from twisted.internet import ssl
 
@@ -1579,7 +1579,8 @@ def _loadCAsFromDir(directoryPath):
             pass
         else:
             caCerts[theCert.digest()] = theCert.original
-    return caCerts.values()
+    from twisted.internet._sslverify import OpenSSLCertificateAuthorities
+    return OpenSSLCertificateAuthorities(caCerts.values())
 
 
 
@@ -1601,29 +1602,33 @@ def _parseClientSSLOptions(kwargs):
     privateKey = kwargs.pop('privateKey', None)
     caCertsDir = kwargs.pop('caCertsDir', None)
     hostname = kwargs.pop('hostname', None)
-    if certKey is not None:
-        certx509 = ssl.Certificate.loadPEM(
-            FilePath(certKey).getContent()).original
-    else:
-        certx509 = None
-    if privateKey is not None:
-        privateKey = ssl.PrivateCertificate.loadPEM(
-            FilePath(privateKey).getContent()).privateKey.original
-    else:
-        privateKey = None
+    clientCertificate = None
+    trustRoot = None
+    if privateKey is not None and certKey is not None:
+        clientCertificate = ssl.PrivateCertificate.loadPEM(
+            b"\n".join([FilePath(privateKey).getContent(),
+                        FilePath(certKey).getContent()]))
     if caCertsDir is not None:
-        verify = True
-        caCerts = _loadCAsFromDir(FilePath(caCertsDir))
+        trustRoot = _loadCAsFromDir(FilePath(caCertsDir))
+    if hostname is not None:
+        configuration = ssl.optionsForClientTLS(
+            _idnaText(hostname), trustRoot=trustRoot,
+            clientCertificate=clientCertificate
+        )
     else:
-        verify = False
-        caCerts = None
-    kwargs['sslContextFactory'] = ssl.CertificateOptions(
-        certificate=certx509,
-        privateKey=privateKey,
-        verify=verify,
-        caCerts=caCerts,
-        hostname=hostname,
-    )
+        # _really_ though, you should specify a hostname.
+        if clientCertificate is not None:
+            privateKeyOpenSSL = clientCertificate.privateKey.original
+            certificateOpenSSL = clientCertificate.original
+        else:
+            privateKeyOpenSSL = None
+            certificateOpenSSL = None
+        configuration = ssl.CertificateOptions(
+            trustRoot=trustRoot,
+            privateKey=privateKeyOpenSSL,
+            certificate=certificateOpenSSL,
+        )
+    kwargs['sslContextFactory'] = configuration
     return kwargs
 
 
@@ -1804,53 +1809,55 @@ def connectProtocol(endpoint, protocol):
 
 
 @implementer(interfaces.IStreamClientEndpoint)
-class TLSWrapperClientEndpoint(object):
+class _WrapperEndpoint(object):
     """
-    A wrapper endpoint which upgrades to TLS as soon as the connection is
+    An endpoint that wraps another endpoint.
+    """
+
+    def __init__(self, wrappedEndpoint, wrapperFactory):
+        """
+        Construct a L{_WrapperEndpoint}.
+        """
+        self._wrappedEndpoint = wrappedEndpoint
+        self._wrapperFactory = wrapperFactory
+
+
+    def connect(self, protocolFactory):
+        """
+        Connect the given protocol factory and unwrap its result.
+        """
+        return self._wrappedEndpoint.connect(
+            self._wrapperFactory(protocolFactory)
+        ).addCallback(lambda protocol: protocol.wrappedProtocol)
+
+
+
+def wrapClientTLS(contextFactory, wrappedEndpoint):
+    """
+    Wrap an endpoint which upgrades to TLS as soon as the connection is
     established.
 
-    @since: 14.1
+    @since: 15.5
+
+    @param contextFactory: The TLS context factory which will be used when
+        upgrading to TLS.
+    @type contextFactory: L{twisted.internet.ssl.ClientContextFactory}
+
+    @param endpoint: The endpoint to wrap.
+    @type endpoint: An L{IStreamClientEndpoint} provider.
     """
-
-    def __init__(self, contextFactory, wrappedEndpoint,
-                 _wrapper=TLSMemoryBIOFactory):
-        """
-        @param contextFactory: The TLS context factory which will be used when
-            upgrading to TLS.
-        @type contextFactory: L{twisted.internet.ssl.ClientContextFactory}
-
-        @param endpoint: The endpoint to wrap.
-        @type endpoint: An L{IStreamClientEndpoint} provider.
-        """
-        if _wrapper is None:
-            raise NotImplementedError('SSL support unavailable')
-        self._contextFactory = contextFactory
-        self._wrappedEndpoint = wrappedEndpoint
-        self._wrapper = _wrapper
-
-
-    def connect(self, fac):
-        """
-        Connect to the wrapped endpoint, then start TLS.
-
-        @param fac: The factory to use in the connection.
-        @type: An L{IProtocolFactory} provider.
-
-        @return: A L{Deferred} which fires with the same L{Protocol} as
-            C{wrappedEndpoint.connect(fac)} fires with. If that L{Deferred}
-            errbacks, so will the returned deferred.
-        """
-        fac = self._wrapper(self._contextFactory, True, fac)
-        d = self._wrappedEndpoint.connect(fac)
-        d.addCallback(lambda proto: proto.wrappedProtocol)
-        return d
+    return _WrapperEndpoint(
+        wrappedEndpoint,
+        lambda protocolFactory:
+        TLSMemoryBIOFactory(contextFactory, True, protocolFactory)
+    )
 
 
 
 @implementer(IPlugin, IStreamClientEndpointStringParserWithReactor)
 class _TLSClientEndpointParser(object):
     """
-    Stream client endpoint string parser for L{TLSWrapperClientEndpoint} with
+    Stream client endpoint string parser for L{wrapClientTLS} with
     L{HostnameEndpoint}.
 
     @ivar prefix: See
@@ -1884,7 +1891,8 @@ class _TLSClientEndpointParser(object):
             L{ValueError} to be raised.
         @type kwargs: L{dict}
 
-        @return: An instance of L{TLSWrapperClientEndpoint}.
+        @return: a client TLS endpoint
+        @rtype: L{IStreamClientEndpoint}
         """
         host = host.decode('utf-8')
         wrappedEndpoint = HostnameEndpoint(
@@ -1895,7 +1903,7 @@ class _TLSClientEndpointParser(object):
         if kwargs:
             raise TypeError(
                 'extra keyword arguments present', list(kwargs.keys()))
-        return TLSWrapperClientEndpoint(contextFactory, wrappedEndpoint)
+        return wrapClientTLS(contextFactory, wrappedEndpoint)
 
 
     def parseStreamClient(self, reactor, *args, **kwargs):
@@ -1911,62 +1919,10 @@ class _TLSClientEndpointParser(object):
         @param kwargs: The named arguments in the endpoint description.
         @type kwargs: L{dict}
 
-        @return: An instance of L{TLSWrapperClientEndpoint}.
+        @return: a client TLS endpoint
+        @rtype: L{IStreamClientEndpoint}
         """
         return self._parseClient(reactor, *args, **kwargs)
 
 
 
-@implementer(IPlugin, IStreamClientEndpointStringParserWithReactor)
-class _TLSWrapperClientEndpointParser(object):
-    """
-    Stream client endpoint string parser for L{TLSWrapperClientEndpoint}.
-
-    @ivar prefix: See
-        L{IStreamClientEndpointStringParserWithReactor.prefix}.
-    """
-    prefix = 'tlswrap'
-
-    def _parseClient(self, reactor, wrappedEndpoint, **kwargs):
-        """
-        Internal method to construct an endpoint from string parameters.
-
-        @param reactor: The reactor passed to L{clientFromString}.
-
-        @param wrappedEndpoint: A string describing the endpoint to connect to
-            before starting TLS, which is passed to L{clientFromString}.
-        @type wrappedEndpoint: L{bytes}
-
-        @param kwargs: Extra arguments for creating the TLS context. This can
-            contain keys C{certKey}, C{privateKey}, and C{caCertsDir}. See
-            L{_parseClientSSL}. Passing arguments not listed will cause a
-            L{ValueError} to be raised.
-        @type kwargs: L{dict}
-
-        @return: An instance of L{TLSWrapperClientEndpoint}.
-        """
-        wrappedEndpoint = clientFromString(reactor, wrappedEndpoint)
-        kwargs = _parseClientSSLOptions(kwargs)
-        contextFactory = kwargs.pop('sslContextFactory')
-        if kwargs:
-            raise TypeError(
-                'extra keyword arguments present', list(kwargs.keys()))
-        return TLSWrapperClientEndpoint(contextFactory, wrappedEndpoint)
-
-
-    def parseStreamClient(self, reactor, *args, **kwargs):
-        """
-        Redirects to another function (self._parseClient); tricks
-        zope.interface into believing the interface is correctly implemented.
-
-        @param reactor: The reactor passed to L{clientFromString}.
-
-        @param args: The positional arguments in the endpoint description.
-        @type args: L{tuple}
-
-        @param kwargs: The named arguments in the endpoint description.
-        @type kwargs: L{dict}
-
-        @return: An instance of L{TLSWrapperClientEndpoint}.
-        """
-        return self._parseClient(reactor, *args, **kwargs)
