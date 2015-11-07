@@ -392,7 +392,6 @@ if not skipSSL:
             ctx.set_alpn_protos(self._nextProtocols)
 
 
-
     class NPNOnlyOptions(sslverify.OpenSSLCertificateOptions):
         """
         An OpenSSLCertificateOptions subclass that only sets NPN.
