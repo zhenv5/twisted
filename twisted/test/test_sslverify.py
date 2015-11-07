@@ -2041,7 +2041,7 @@ class NPNAndALPNAbsentTests(unittest.TestCase):
 
     def test_NextProtocolReturnsNone(self):
         """
-        nextProtocol return None even when NPN/ALPN aren't supported.
+        nextProtocol return C{None} even when NPN/ALPN aren't supported.
         This works because, as neither are supported, negotiation isn't even
         attempted.
         """

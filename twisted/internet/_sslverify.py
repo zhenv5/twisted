@@ -1471,7 +1471,7 @@ class OpenSSLCertificateOptions(object):
         @raise TypeError: if C{trustRoot} is passed in combination with
             C{caCert}, C{verify}, or C{requireCertificate}.  Please prefer
             C{trustRoot} in new code, as its semantics are less tricky.
-        @raises NotImplementedError: If nextProtocols were provided, but no
+        @raises NotImplementedError: If nextProtocols were provided but no
             negotiation mechanism is available.
         """
 

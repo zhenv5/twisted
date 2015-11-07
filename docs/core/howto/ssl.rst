@@ -259,7 +259,7 @@ To determine what protocol was negotiated, after the connection is done,  use :a
 It will return one of the protocol names passed to the ``nextProtocol`` parameter.
 It will return ``None`` if the peer did not offer ALPN or NPN.
 
-It can also return ``NOne`` if no overlap could be found and the connection was established regardless (some peers will do this: Twisted will not).
+It can also return ``None`` if no overlap could be found and the connection was established regardless (some peers will do this: Twisted will not).
 In this case, the protocol that should be used is whatever protocol would have been used if negotiation had not been attempted at all.
 
 .. warning::
