@@ -384,54 +384,28 @@ if not skipSSL:
         """
         An OpenSSLCertificateOptions subclass that only sets ALPN.
         """
-        def getContext(self):
+        def _setUpNextProtocolMechanisms(self, ctx):
             """
-            Gets a SSL Context that does not do NPN.
-
-            There are two things to do here: override the advertise callback to
-            advertise no protocols, and override the select callback to select
-            no protocols in case NPN was advertised.
+            Only set up ALPN.
             """
-            ctx = super(ALPNOnlyOptions, self).getContext()
+            ctx.set_alpn_select_callback(self._protoSelectCallback)
+            ctx.set_alpn_protos(self._nextProtocols)
 
-            def _advertiseCallback(conn):
-                return []
-
-            def _selectCallback(conn, protocols):
-                return b''
-
-            ctx.set_npn_advertise_callback(_advertiseCallback)
-            ctx.set_npn_select_callback(_selectCallback)
-
-            return ctx
 
 
     class NPNOnlyOptions(sslverify.OpenSSLCertificateOptions):
         """
         An OpenSSLCertificateOptions subclass that only sets NPN.
         """
-        def getContext(self):
+        def _setUpNextProtocolMechanisms(self, ctx):
             """
-            Gets a SSL Context that does not do ALPN.
-
-            There are two things to do here: advertise no protocols, and
-            override the select callback to select no protocols in case ALPN
-            was advertised.
+            Only set NPN.
             """
-            ctx = super(NPNOnlyOptions, self).getContext()
+            def npnAdvertiseCallback(conn):
+                return self._nextProtocols
 
-            def _selectCallback(conn, protocols):
-                return b''
-
-            # If ALPN doesn't exist, we can't get it wrong anyway, so who
-            # cares?
-            try:
-                ctx.set_alpn_protos([])
-                ctx.set_alpn_select_callback(_selectCallback)
-            except NotImplementedError:
-                pass
-
-            return ctx
+            ctx.set_npn_advertise_callback(npnAdvertiseCallback)
+            ctx.set_npn_select_callback(self._protoSelectCallback)
 
 
 
@@ -1899,7 +1873,7 @@ class NPNOrALPNTests(unittest.TestCase):
     elif skipNPN:
         skip = skipNPN
 
-    def test_NPNIsSupported(self):
+    def test_nextProtocolMechanismsNPNIsSupported(self):
         """
         When at least NPN is available on the platform, NPN is in the set of
         supported negotiation protocols.
@@ -2001,7 +1975,7 @@ class ALPNTests(unittest.TestCase):
         skip = skipALPN
 
 
-    def test_ALPNIsSupported(self):
+    def test_nextProtocolMechanismsALPNIsSupported(self):
         """
         When ALPN is available on a platform, nextProtocolMechanisms includes
         ALPN in the suported protocols.
@@ -2042,7 +2016,7 @@ class NPNAndALPNAbsentTests(unittest.TestCase):
         skip = "NPN/ALPN is present on this platform"
 
 
-    def test_NoNegotiationSupported(self):
+    def test_nextProtocolMechanismsNoNegotiationSupported(self):
         """
         When neither NPN or ALPN are available on a platform, there are no
         supported negotiation protocols.
@@ -2067,7 +2041,7 @@ class NPNAndALPNAbsentTests(unittest.TestCase):
 
     def test_NextProtocolReturnsNone(self):
         """
-        nextProtocol should return None even when NPN/ALPN aren't supported.
+        nextProtocol return None even when NPN/ALPN aren't supported.
         This works because, as neither are supported, negotiation isn't even
         attempted.
         """

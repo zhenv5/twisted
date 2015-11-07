@@ -229,33 +229,38 @@ This avoids the need for extra custom round trips once the encrypted connection 
 NPN is supported from OpenSSL version 1.0.1.
 ALPN is the newer of the two protocols, supported in OpenSSL versions 1.0.2 onward.
 These functions require pyOpenSSL version 0.15 or higher.
-To see what support your system has, you can call :api:`twisted.internet.ssl.nextProtocolMechanisms`, which will return a collection of flags indicating support for NPN and/or ALPN.
+To query the methods supported by your system,  use :api:`twisted.internet.ssl.nextProtocolMechanisms`.
+It will return a collection of flags indicating support for NPN and/or ALPN.
 
 :api:`twisted.internet.ssl.CertificateOptions` and :api:`twisted.internet.ssl.optionsForClientTLS` allow for selecting the protocols your program is willing to speak after the connection is established.
-Doing so is very simple:
+
+On the server=side you will have:
 
 .. code-block:: python
 
     from twisted.internet.ssl import CertificateOptions
     options = CertificateOptions(..., nextProtocols=[b'h2', b'http/1.1'])
 
-or, for clients:
+and for clients:
 
 .. code-block:: python
 
     from twisted.internet.ssl import optionsForClientTLS
     options = optionsForClientTLS(hostname=hostname, nextProtocols=[b'h2', b'http/1.1'])
 
-Twisted will attempt to use both ALPN and NPN if they're available, to maximise compatibility with peers.
-If both ALPN and NPN are supported by the peer, then the result from ALPN is preferred.
+Twisted will attempt to use both ALPN and NPN, if they're available, to maximise compatibility with peers.
+If both ALPN and NPN are supported by the peer, the result from ALPN is preferred.
 
 For NPN, the client selects the protocol to use;
 For ALPN, the server does.
 If Twisted is acting as the peer who is supposed to select the protocol, it will prefer the earliest protocol in the list that is supported by both peers.
 
-To determine what protocol was negotiated, use :api:`twisted.protocols.tls.TLSMemoryBIOProtocol.getNextProtocol <TLSMemoryBIOProtocol.getNextProtocol>`.
-It will return one of the strings passed to the ``nextProtocol`` parameter.
-It will return ``None`` if the peer did not offer ALPN or NPN, or if no overlap could be found and the connection was established regardless (some peers will do this: Twisted will not). In this case, the protocol that should be used is whatever protocol would have been used if negotiation had not been attempted at all.
+To determine what protocol was negotiated, after the connection is done,  use :api:`twisted.protocols.tls.TLSMemoryBIOProtocol.getNextProtocol <TLSMemoryBIOProtocol.getNextProtocol>`.
+It will return one of the protocol names passed to the ``nextProtocol`` parameter.
+It will return ``None`` if the peer did not offer ALPN or NPN.
+
+It can also return ``NOne`` if no overlap could be found and the connection was established regardless (some peers will do this: Twisted will not).
+In this case, the protocol that should be used is whatever protocol would have been used if negotiation had not been attempted at all.
 
 .. warning::
     If ALPN or NPN are used and no overlap can be found, then the remote peer may choose to terminate the connection.

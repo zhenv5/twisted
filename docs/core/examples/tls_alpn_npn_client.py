@@ -13,11 +13,14 @@ It performs next protocol negotiation using NPN and ALPN.
 It will print what protocol was negotiated and exit.
 The global variables are provided as input values.
 
-By default, this is set up to run against the server from
+This is set up to run against the server from
 tls_alpn_npn_server.py from the directory that contains this example.
+
+It assumes that you have a self-signed server certificate, named
+`server-cert.pem` and located in the working directory.
 """
 from twisted.internet import ssl, protocol, endpoints, task, defer
-from twisted.python.modules import getModule
+from twisted.python.filepath import FilePath
 
 # The hostname the remote server to contact.
 TARGET_HOST = u'localhost'
@@ -51,7 +54,7 @@ TLS_TRIGGER_DATA = b'PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n'
 
 
 def main(reactor):
-    certData = getModule(__name__).filePath.sibling('server.pem').getContent()
+    certData = FilePath('server-cert.pem').getContent()
     serverCertificate = ssl.Certificate.loadPEM(certData)
     options = ssl.optionsForClientTLS(
         hostname=TARGET_HOST,

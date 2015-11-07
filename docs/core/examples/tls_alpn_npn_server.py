@@ -15,10 +15,14 @@ it.
 
 To exit the server, use CTRL+C on the command-line.
 
-Before using this, you should generate a new OpenSSL certificate and place it
-at server.pem. To do so, run this command:
+Before using this, you should generate a new RSA private key and an associated
+X.509 certificate and place it in the working directory as `server-key.pem`
+and `server-cert.pem`.
 
-    openssl req -new -newkey rsa:2048 -days 365 -nodes -x509 -keyout server.pem -out server.pem
+You can generate a self signed certificate using OpenSSL:
+
+    openssl req -new -newkey rsa:2048 -days 3 -nodes -x509 \
+        -keyout server-key.pem -out server-cert.pem
 
 To test this, use OpenSSL's s_client command, with either or both of the
 -nextprotoneg and -alpn arguments. For example:
@@ -29,10 +33,12 @@ To test this, use OpenSSL's s_client command, with either or both of the
 Alternatively, use the tls_alpn_npn_client.py script found in the examples
 directory.
 """
+from OpenSSL import crypto
+
 from twisted.internet.endpoints import SSL4ServerEndpoint
 from twisted.internet.protocol import Protocol, Factory
 from twisted.internet import reactor, ssl
-from twisted.python.modules import getModule
+from twisted.python.filepath import FilePath
 
 
 # The list of protocols we'd be prepared to speak after the TLS negotiation is
@@ -85,12 +91,14 @@ class ResponderFactory(Factory):
 
 
 
-certData = getModule(__name__).filePath.sibling('server.pem').getContent()
-certificate = ssl.PrivateCertificate.loadPEM(certData)
+privateKeyData = FilePath('server-key.pem').getContent()
+privateKey = crypto.load_privatekey(crypto.FILETYPE_PEM, privateKeyData)
+certData = FilePath('server-cert.pem').getContent()
+certificate = crypto.load_certificate(crypto.FILETYPE_PEM, certData)
 
 options = ssl.CertificateOptions(
-    privateKey=certificate.privateKey.original,
-    certificate=certificate.original,
+    privateKey=privateKey,
+    certificate=certificate,
     nextProtocols=NEXT_PROTOCOLS,
 )
 endpoint = SSL4ServerEndpoint(reactor, LISTEN_PORT, options)

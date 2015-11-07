@@ -2250,7 +2250,7 @@ class ISSLTransport(ITCPTransport):
 
 class IALPNTransport(ISSLTransport):
     """
-    A SSL/TLS based transport that supports using NPN/ALPN to negotiate the
+    A TLS based transport that supports using NPN/ALPN to negotiate the
     protocol to be used inside the encrypted tunnel.
     """
     nextProtocol = Attribute(

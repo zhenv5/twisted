@@ -1471,6 +1471,8 @@ class OpenSSLCertificateOptions(object):
         @raise TypeError: if C{trustRoot} is passed in combination with
             C{caCert}, C{verify}, or C{requireCertificate}.  Please prefer
             C{trustRoot} in new code, as its semantics are less tricky.
+        @raises NotImplementedError: If nextProtocols were provided, but no
+            negotiation mechanism is available.
         """
 
         if (privateKey is None) != (certificate is None):
@@ -1578,9 +1580,6 @@ class OpenSSLCertificateOptions(object):
     def getContext(self):
         """
         Return an L{OpenSSL.SSL.Context} object.
-
-        @raises NotImplementedError: If nextProtocols were provided, but NPN is
-            not supported by OpenSSL (requires OpenSSL 1.0.1 or later).
         """
         if self._context is None:
             self._context = self._makeContext()
@@ -1636,36 +1635,51 @@ class OpenSSLCertificateOptions(object):
         if self._nextProtocols:
             # Try to set NPN and ALPN. _nextProtocols cannot be set by the
             # constructor unless at least one mechanism is supported.
-            supported = nextProtocolMechanisms()
-
-            def protoSelectCallback(conn, protocols):
-                """
-                NPN client-side and ALPN server-side callback used to select
-                the next protocol. Prefers protocols found earlier in
-                C{_nextProtocols}.
-                """
-                overlap = set(protocols) & set(self._nextProtocols)
-
-                for p in self._nextProtocols:
-                    if p in overlap:
-                        return p
-                else:
-                    return b''
-
-            if supported & ProtocolNegotiationSupport.NPN:
-                def npnAdvertiseCallback(conn):
-                    return self._nextProtocols
-
-                ctx.set_npn_advertise_callback(npnAdvertiseCallback)
-                ctx.set_npn_select_callback(protoSelectCallback)
-
-            if supported & ProtocolNegotiationSupport.ALPN:
-                ctx.set_alpn_select_callback(protoSelectCallback)
-                ctx.set_alpn_protos(self._nextProtocols)
+            self._setUpNextProtocolMechanisms(ctx)
 
         return ctx
 
 
+    def _setUpNextProtocolMechanisms(self, ctx):
+        """
+        Called to set up the C{ctx} for doing NPN and/or ALPN negotiation.
+
+        @param ctx: The context which is set up.
+        @type ctx: L{OpenSSL.SSL.Context}
+        """
+        supported = nextProtocolMechanisms()
+
+        if supported & ProtocolNegotiationSupport.NPN:
+            def npnAdvertiseCallback(conn):
+                return self._nextProtocols
+
+            ctx.set_npn_advertise_callback(npnAdvertiseCallback)
+            ctx.set_npn_select_callback(self._protoSelectCallback)
+
+        if supported & ProtocolNegotiationSupport.ALPN:
+            ctx.set_alpn_select_callback(self._protoSelectCallback)
+            ctx.set_alpn_protos(self._nextProtocols)
+
+
+    def _protoSelectCallback(self, conn, protocols):
+        """
+        NPN client-side and ALPN server-side callback used to select
+        the next protocol. Prefers protocols found earlier in
+        C{_nextProtocols}.
+
+        @param conn: The context which is set up.
+        @type conn: L{OpenSSL.SSL.Connection}
+
+        @param conn: Protocols advertised by the other side.
+        @type conn: C{list} of C{bytes}
+        """
+        overlap = set(protocols) & set(self._nextProtocols)
+
+        for p in self._nextProtocols:
+            if p in overlap:
+                return p
+        else:
+            return b''
 
 OpenSSLCertificateOptions.__getstate__ = deprecated(
         Version("Twisted", 15, 0, 0),
