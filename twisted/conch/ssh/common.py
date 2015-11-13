@@ -9,7 +9,9 @@ Common functions for the SSH classes.
 Maintainer: Paul Swartz
 """
 
-import struct, warnings, __builtin__
+import struct, warnings
+
+from twisted.python.compat import _PY3, long
 
 try:
     from Crypto import Util
@@ -38,11 +40,11 @@ def getNS(s, count=1):
     return tuple(ns) + (s[c:],)
 
 def MP(number):
-    if number==0: return '\000'*4
+    if number==0: return b'\000'*4
     assert number>0
     bn = Util.number.long_to_bytes(number)
-    if ord(bn[0])&128:
-        bn = '\000' + bn
+    if ord(bn[0:1])&128:
+        bn = b'\000' + bn
     return struct.pack('>L',len(bn)) + bn
 
 def getMP(data, count=1):
@@ -84,7 +86,8 @@ def _fastgetMP(data, count=1):
     c = 0
     for i in range(count):
         length = struct.unpack('!L', data[c:c+4])[0]
-        mp.append(long(gmpy.mpz(data[c + 4:c + 4 + length][::-1] + '\x00', 256)))
+        mp.append(long(
+            gmpy.mpz(data[c + 4:c + 4 + length][::-1] + b'\x00', 256)))
         c += length + 4
     return tuple(mp) + (data[c:],)
 
@@ -106,11 +109,14 @@ def install():
         if type(x) in (long, int):
             x = mpz(x)
         return pyPow(x, y, z)
-    __builtin__.pow = _fastpow # evil evil
+    if not _PY3:
+        import __builtin__
+        __builtin__.pow = _fastpow # evil evil
+    else:
+        __builtins__['pow'] = _fastpow # also evil
 
 try:
     import gmpy
     install()
 except ImportError:
     pass
-
