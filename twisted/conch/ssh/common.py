@@ -105,15 +105,16 @@ def install():
     MP = _fastMP
     _MPpow = _fastMPpow
     # XXX: We override builtin pow so that PyCrypto can benefit from gmpy too.
+    # This is monkeypatching, and therefore VERY BAD.
     def _fastpow(x, y, z=None, mpz=gmpy.mpz):
         if type(x) in (long, int):
             x = mpz(x)
         return pyPow(x, y, z)
     if not _PY3:
         import __builtin__
-        __builtin__.pow = _fastpow # evil evil
+        __builtin__.pow = _fastpow
     else:
-        __builtins__['pow'] = _fastpow # also evil
+        __builtins__['pow'] = _fastpow
 
 try:
     import gmpy
