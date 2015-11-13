@@ -114,9 +114,9 @@ class ObjectTypeTests(unittest.TestCase):
         from Crypto.PublicKey import RSA
 
         return RSA.construct((
-            keydata.RSAData['n'],
-            keydata.RSAData['e'],
-            keydata.RSAData['d'],
+            keydata.RSAData[b'n'],
+            keydata.RSAData[b'e'],
+            keydata.RSAData[b'd'],
             ))
 
 
@@ -131,11 +131,11 @@ class ObjectTypeTests(unittest.TestCase):
         from Crypto.PublicKey import DSA
 
         return DSA.construct((
-            keydata.DSAData['y'],
-            keydata.DSAData['g'],
-            keydata.DSAData['p'],
-            keydata.DSAData['q'],
-            keydata.DSAData['x'],
+            keydata.DSAData[b'y'],
+            keydata.DSAData[b'g'],
+            keydata.DSAData[b'p'],
+            keydata.DSAData[b'q'],
+            keydata.DSAData[b'x'],
             ))
 
 
@@ -578,9 +578,9 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         dsaKey = keys.Key.fromString(dsaBlob)
         badBlob = common.NS(b'ssh-bad')
         self.assertTrue(rsaKey.isPublic())
-        self.assertEqual(rsaKey.data(), {'e':2, 'n':3})
+        self.assertEqual(rsaKey.data(), {b'e': 2, b'n': 3})
         self.assertTrue(dsaKey.isPublic())
-        self.assertEqual(dsaKey.data(), {'p':2, 'q':3, 'g':4, 'y':5})
+        self.assertEqual(dsaKey.data(), {b'p': 2, b'q': 3, b'g': 4, b'y': 5})
         self.assertRaises(keys.BadKeyError,
                 keys.Key.fromString, badBlob)
 
@@ -598,9 +598,11 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         badBlob = common.NS(b'ssh-bad')
         self.assertFalse(rsaKey.isPublic())
         self.assertEqual(
-            rsaKey.data(), {'n':2, 'e':3, 'd':4, 'u':5, 'p':6, 'q':7})
+            rsaKey.data(), {b'n': 2, b'e': 3, b'd': 4, b'u': 5, b'p': 6,
+                            b'q': 7})
         self.assertFalse(dsaKey.isPublic())
-        self.assertEqual(dsaKey.data(), {'p':2, 'q':3, 'g':4, 'y':5, 'x':6})
+        self.assertEqual(dsaKey.data(), {b'p': 2, b'q': 3, b'g': 4, b'y': 5,
+                                         b'x': 6})
         self.assertRaises(
             keys.BadKeyError, keys.Key._fromString_PRIVATE_BLOB, badBlob)
 

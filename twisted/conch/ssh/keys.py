@@ -26,7 +26,7 @@ from pyasn1.codec.ber import encoder as berEncoder
 
 from twisted.conch.ssh import common, sexpy
 from twisted.python import randbytes
-from twisted.python.compat import iterbytes, long, izip, nativeString
+from twisted.python.compat import iterbytes, long, izip, nativeString, _PY3
 from twisted.python.deprecate import deprecated
 from twisted.python.versions import Version
 
@@ -278,7 +278,7 @@ class Key(object):
                 raise BadKeyError('DSA key failed to decode properly')
             return Class(DSA.construct((y, g, p, q, x)))
         else:
-            raise BadKeyError("%s is not b'RSA' or b'DSA'" % (kind,))
+            raise BadKeyError("unknown key type %s" % (kind,))
     _fromString_PRIVATE_OPENSSH = classmethod(_fromString_PRIVATE_OPENSSH)
 
 
@@ -456,6 +456,8 @@ class Key(object):
                 self.isPublic() and 'Public Key' or 'Private Key',
                 self.keyObject.size())]
         for k, v in sorted(self.data().items()):
+            if _PY3 and isinstance(k, bytes):
+                k = k.decode('ascii')
             lines.append('attr %s:' % k)
             by = common.MP(v)[4:]
             while by:
@@ -546,7 +548,7 @@ class Key(object):
         for name in self.keyObject.keydata:
             value = getattr(self.keyObject, name, None)
             if value is not None:
-                keyData[name] = value
+                keyData[name.encode('ascii')] = value
         return keyData
 
 
@@ -572,14 +574,14 @@ class Key(object):
         type = self.type()
         data = self.data()
         if type == b'RSA':
-            return (common.NS(b'ssh-rsa') + common.MP(data['e']) +
-                    common.MP(data['n']))
+            return (common.NS(b'ssh-rsa') + common.MP(data[b'e']) +
+                    common.MP(data[b'n']))
         elif type == b'DSA':
-            return (common.NS(b'ssh-dss') + common.MP(data['p']) +
-                    common.MP(data['q']) + common.MP(data['g']) +
-                    common.MP(data['y']))
+            return (common.NS(b'ssh-dss') + common.MP(data[b'p']) +
+                    common.MP(data[b'q']) + common.MP(data[b'g']) +
+                    common.MP(data[b'y']))
         else:
-            raise BadKeyError("%s is not one of b'RSA' or b'DSA'" % (type,))
+            raise BadKeyError("unknown key type %s" % (type,))
 
 
     def privateBlob(self):
@@ -607,16 +609,16 @@ class Key(object):
         type = self.type()
         data = self.data()
         if type == b'RSA':
-            return (common.NS(b'ssh-rsa') + common.MP(data['n']) +
-                    common.MP(data['e']) + common.MP(data['d']) +
-                    common.MP(data['u']) + common.MP(data['p']) +
-                    common.MP(data['q']))
+            return (common.NS(b'ssh-rsa') + common.MP(data[b'n']) +
+                    common.MP(data[b'e']) + common.MP(data[b'd']) +
+                    common.MP(data[b'u']) + common.MP(data[b'p']) +
+                    common.MP(data[b'q']))
         elif type == b'DSA':
-            return (common.NS(b'ssh-dss') + common.MP(data['p']) +
-                    common.MP(data['q']) + common.MP(data['g']) +
-                    common.MP(data['y']) + common.MP(data['x']))
+            return (common.NS(b'ssh-dss') + common.MP(data[b'p']) +
+                    common.MP(data[b'q']) + common.MP(data[b'g']) +
+                    common.MP(data[b'y']) + common.MP(data[b'x']))
         else:
-            raise BadKeyError("%s is not b'RSA' or b'DSA'" % (type,))
+            raise BadKeyError("unknown key type %s" % (type,))
 
 
     def toString(self, type, extra=None):
@@ -668,13 +670,13 @@ class Key(object):
         else:
             lines = [b'-----BEGIN ' + self.type() + b' PRIVATE KEY-----']
             if self.type() == b'RSA':
-                p, q = data['p'], data['q']
-                objData = (0, data['n'], data['e'], data['d'], q, p,
-                           data['d'] % (q - 1), data['d'] % (p - 1),
-                           data['u'])
+                p, q = data[b'p'], data[b'q']
+                objData = (0, data[b'n'], data[b'e'], data[b'd'], q, p,
+                           data[b'd'] % (q - 1), data[b'd'] % (p - 1),
+                           data[b'u'])
             else:
-                objData = (0, data['p'], data['q'], data['g'], data['y'],
-                           data['x'])
+                objData = (0, data[b'p'], data[b'q'], data[b'g'], data[b'y'],
+                           data[b'x'])
             asn1Sequence = univ.Sequence()
             for index, value in izip(itertools.count(), objData):
                 asn1Sequence.setComponentByPosition(index, univ.Integer(value))
@@ -711,44 +713,44 @@ class Key(object):
             if type == b'RSA':
                 keyData = sexpy.pack([[b'public-key',
                                        [b'rsa-pkcs1-sha1',
-                                        [b'n', common.MP(data['n'])[4:]],
-                                        [b'e', common.MP(data['e'])[4:]]]]])
+                                        [b'n', common.MP(data[b'n'])[4:]],
+                                        [b'e', common.MP(data[b'e'])[4:]]]]])
             elif type == b'DSA':
                 keyData = sexpy.pack([[b'public-key',
                                        [b'dsa',
-                                        [b'p', common.MP(data['p'])[4:]],
-                                        [b'q', common.MP(data['q'])[4:]],
-                                        [b'g', common.MP(data['g'])[4:]],
-                                        [b'y', common.MP(data['y'])[4:]]]]])
+                                        [b'p', common.MP(data[b'p'])[4:]],
+                                        [b'q', common.MP(data[b'q'])[4:]],
+                                        [b'g', common.MP(data[b'g'])[4:]],
+                                        [b'y', common.MP(data[b'y'])[4:]]]]])
             else:
-                raise BadKeyError("%s is not b'RSA' or b'DSA'" % (type,))
+                raise BadKeyError("unknown key type %s" % (type,))
             return (b'{' + base64.encodestring(keyData).replace(b'\n', b'') +
                     b'}')
         else:
             if type == b'RSA':
-                p, q = data['p'], data['q']
+                p, q = data[b'p'], data[b'q']
                 return sexpy.pack([[b'private-key',
                                     [b'rsa-pkcs1',
-                                     [b'n', common.MP(data['n'])[4:]],
-                                     [b'e', common.MP(data['e'])[4:]],
-                                     [b'd', common.MP(data['d'])[4:]],
+                                     [b'n', common.MP(data[b'n'])[4:]],
+                                     [b'e', common.MP(data[b'e'])[4:]],
+                                     [b'd', common.MP(data[b'd'])[4:]],
                                      [b'p', common.MP(q)[4:]],
                                      [b'q', common.MP(p)[4:]],
                                      [b'a', common.MP(
-                                         data['d'] % (q - 1))[4:]],
+                                         data[b'd'] % (q - 1))[4:]],
                                      [b'b', common.MP(
-                                         data['d'] % (p - 1))[4:]],
-                                     [b'c', common.MP(data['u'])[4:]]]]])
+                                         data[b'd'] % (p - 1))[4:]],
+                                     [b'c', common.MP(data[b'u'])[4:]]]]])
             elif type == b'DSA':
                 return sexpy.pack([[b'private-key',
                                     [b'dsa',
-                                     [b'p', common.MP(data['p'])[4:]],
-                                     [b'q', common.MP(data['q'])[4:]],
-                                     [b'g', common.MP(data['g'])[4:]],
-                                     [b'y', common.MP(data['y'])[4:]],
-                                     [b'x', common.MP(data['x'])[4:]]]]])
+                                     [b'p', common.MP(data[b'p'])[4:]],
+                                     [b'q', common.MP(data[b'q'])[4:]],
+                                     [b'g', common.MP(data[b'g'])[4:]],
+                                     [b'y', common.MP(data[b'y'])[4:]],
+                                     [b'x', common.MP(data[b'x'])[4:]]]]])
             else:
-                raise BadKeyError("%s is not b'RSA' or b'DSA'" % (type,))
+                raise BadKeyError("unknown key type %s'" % (type,))
 
 
     def _toString_AGENTV3(self):
@@ -761,11 +763,11 @@ class Key(object):
         data = self.data()
         if not self.isPublic():
             if self.type() == b'RSA':
-                values = (data['e'], data['d'], data['n'], data['u'],
-                          data['p'], data['q'])
+                values = (data[b'e'], data[b'd'], data[b'n'], data[b'u'],
+                          data[b'p'], data[b'q'])
             elif self.type() == b'DSA':
-                values = (data['p'], data['q'], data['g'], data['y'],
-                          data['x'])
+                values = (data[b'p'], data[b'q'], data[b'g'], data[b'y'],
+                          data[b'x'])
             return common.NS(self.sshType()) + b''.join(map(common.MP, values))
 
 
@@ -791,7 +793,7 @@ class Key(object):
             ret = common.NS(Util.number.long_to_bytes(sig[0], 20) +
                             Util.number.long_to_bytes(sig[1], 20))
         else:
-            raise BadKeyError("%s is not b'RSA' or b'DSA'" % (self.type(),))
+            raise BadKeyError("unknown key type %s" % (self.type(),))
         return common.NS(self.sshType()) + ret
 
 
