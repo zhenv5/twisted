@@ -114,7 +114,7 @@ class Key(object):
             integer g
             integer y
 
-        @type blob: C{str}
+        @type blob: C{bytes}
         @return: a C{Crypto.PublicKey.pubkey.pubkey} object
         @raises BadKeyError: if the key type (the first string) is unknown.
         """
@@ -152,7 +152,7 @@ class Key(object):
             integer y
             integer x
 
-        @type blob: C{str}
+        @type blob: C{bytes}
         @return: a C{Crypto.PublicKey.pubkey.pubkey} object
         @raises BadKeyError: if the key type (the first string) is unknown.
         """
@@ -177,7 +177,7 @@ class Key(object):
         string.  The format of an OpenSSH public key string is::
             <key type> <base64-encoded public key blob>
 
-        @type data: C{str}
+        @type data: C{bytes}
         @return: A {Crypto.PublicKey.pubkey.pubkey} object
         @raises BadKeyError: if the blob type is unknown.
         """
@@ -205,8 +205,8 @@ class Key(object):
         The ASN.1 structure of a DSA key is::
             (0, p, q, g, y, x)
 
-        @type data: C{str}
-        @type passphrase: C{str}
+        @type data: C{bytes}
+        @type passphrase: C{bytes}
         @return: a C{Crypto.PublicKey.pubkey.pubkey} object
         @raises BadKeyError: if
             * a passphrase is provided for an unencrypted key
@@ -291,7 +291,7 @@ class Key(object):
         The names for a RSA (key type 'rsa-pkcs1-sha1') key are: n, e.
         The names for a DSA (key type 'dsa') key are: y, g, p, q.
 
-        @type data: C{str}
+        @type data: C{bytes}
         @return: a C{Crypto.PublicKey.pubkey.pubkey} object
         @raises BadKeyError: if the key type is unknown
         """
@@ -319,7 +319,7 @@ class Key(object):
         The names for a RSA (key type 'rsa-pkcs1-sha1') key are: n, e, d, p, q.
         The names for a DSA (key type 'dsa') key are: y, g, p, q, x.
 
-        @type data: C{str}
+        @type data: C{bytes}
         @return: a {Crypto.PublicKey.pubkey.pubkey} object
         @raises BadKeyError: if the key type is unknown
         """
@@ -365,7 +365,7 @@ class Key(object):
             integer y
             integer x
 
-        @type data: C{str}
+        @type data: C{bytes}
         @return: a C{Crypto.PublicKey.pubkey.pubkey} object
         @raises BadKeyError: if the key type (the first string) is unknown
         """
@@ -505,9 +505,10 @@ class Key(object):
         @return: the user presentation of this L{Key}'s fingerprint, as a
         string.
 
-        @rtype: L{str}
+        @rtype: L{bytes}
         """
-        return ':'.join([x.encode('hex') for x in md5(self.blob()).digest()])
+        return ':'.join([x.encode('hex')
+                         for x in md5(self.blob()).digest()]).encode('ascii')
 
 
     def type(self):
@@ -566,7 +567,7 @@ class Key(object):
             integer g
             integer y
 
-        @rtype: C{str}
+        @rtype: C{bytes}
         """
         type = self.type()
         data = self.data()
@@ -632,9 +633,9 @@ class Key(object):
             is not part of the key itself.  For public OpenSSH keys, this is
             a comment.  For private OpenSSH keys, this is a passphrase to
             encrypt with.
-        @type extra: L{str} or L{NoneType}
+        @type extra: L{bytes} or L{NoneType}
 
-        @rtype: L{str}
+        @rtype: L{bytes}
         """
         method = getattr(self, '_toString_%s' % type.upper(), None)
         if method is None:
@@ -654,9 +655,9 @@ class Key(object):
 
         @param extra: Comment for a public key or passphrase for a
             private key
-        @type extra: C{str}
+        @type extra: C{bytes}
 
-        @rtype: C{str}
+        @rtype: C{bytes}
         """
         data = self.data()
         if self.isPublic():
@@ -702,7 +703,7 @@ class Key(object):
         Return a public or private LSH key.  See _fromString_PUBLIC_LSH and
         _fromString_PRIVATE_LSH for the key formats.
 
-        @rtype: C{str}
+        @rtype: C{bytes}
         """
         data = self.data()
         type = self.type()
@@ -755,7 +756,7 @@ class Key(object):
         Return a private Secure Shell Agent v3 key.  See
         _fromString_AGENTV3 for the key format.
 
-        @rtype: C{str}
+        @rtype: C{bytes}
         """
         data = self.data()
         if not self.isPublic():
@@ -772,8 +773,8 @@ class Key(object):
         """
         Returns a signature with this Key.
 
-        @type data: C{str}
-        @rtype: C{str}
+        @type data: C{bytes}
+        @rtype: C{bytes}
         """
         if self.type() == b'RSA':
             digest = pkcs1Digest(data, self.keyObject.size() // 8)
@@ -850,7 +851,7 @@ def objectType(obj):
 def pkcs1Pad(data, messageLength):
     """
     Pad out data to messageLength according to the PKCS#1 standard.
-    @type data: C{str}
+    @type data: C{bytes}
     @type messageLength: C{int}
     """
     lenPad = messageLength - 2 - len(data)
@@ -862,8 +863,8 @@ def pkcs1Digest(data, messageLength):
     """
     Create a message digest using the SHA1 hash algorithm according to the
     PKCS#1 standard.
-    @type data: C{str}
-    @type messageLength: C{str}
+    @type data: C{bytes}
+    @type messageLength: C{int}
     """
     digest = sha1(data).digest()
     return pkcs1Pad(ID_SHA1 + digest, messageLength)
