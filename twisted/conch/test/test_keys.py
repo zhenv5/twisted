@@ -27,7 +27,7 @@ from twisted.conch.test import keydata
 from twisted.python import randbytes
 from twisted.trial import unittest
 
-from twisted.python.compat import long
+from twisted.python.compat import long, _PY3
 
 
 class HelpersTests(unittest.TestCase):
@@ -101,6 +101,8 @@ class ObjectTypeTests(unittest.TestCase):
 
     if Crypto is None:
         skip = "Cannot run without PyCrypto."
+    if _PY3:
+        skip = "objectType is deprecated and is not being ported to Python 3."
 
 
     def getRSAKey(self):

@@ -822,6 +822,8 @@ class Key(object):
                     (signature[:20], signature[20:])
                 ]
             digest = sha1(data).digest()
+        else:
+            raise BadKeyError("unknown key type %s" % (self.type(),))
         return self.keyObject.verify(digest, numbers)
 
 
@@ -884,3 +886,6 @@ def lenSig(obj):
 
 
 ID_SHA1 = b'\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14'
+
+if _PY3:
+    del objectType
