@@ -37,13 +37,16 @@ class HelpersTests(unittest.TestCase):
     if pyasn1 is None:
         skip = "Cannot run without PyASN1"
 
+
     def setUp(self):
         self._secureRandom = randbytes.secureRandom
         randbytes.secureRandom = lambda x: b'\x55' * x
 
+
     def tearDown(self):
         randbytes.secureRandom = self._secureRandom
         self._secureRandom = None
+
 
     def test_pkcs1(self):
         """
@@ -58,15 +61,18 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(keys.pkcs1Digest(b'', messageSize),
                 b'\x01\xff\xff\xff\x00' + keys.ID_SHA1 + hash)
 
+
     def _signRSA(self, data):
         key = keys.Key.fromString(keydata.privateRSA_openssh)
         sig = key.sign(data)
         return key.keyObject, sig
 
+
     def _signDSA(self, data):
         key = keys.Key.fromString(keydata.privateDSA_openssh)
         sig = key.sign(data)
         return key.keyObject, sig
+
 
     def test_signRSA(self):
         """
@@ -78,6 +84,7 @@ class HelpersTests(unittest.TestCase):
         v = key.sign(sigData, b'')[0]
         self.assertEqual(sig, common.NS(b'ssh-rsa') + common.MP(v))
         return key, sig
+
 
     def test_signDSA(self):
         """
@@ -201,6 +208,7 @@ class KeyTests(unittest.TestCase):
     if pyasn1 is None:
         skip = "Cannot run without PyASN1"
 
+
     def setUp(self):
         self.rsaObj = Crypto.PublicKey.RSA.construct((long(1), long(2),
                                                       long(3), long(4),
@@ -216,19 +224,21 @@ class KeyTests(unittest.TestCase):
             b'\xcd*\xd4\xbd\xc0wt\xf7y\xcd\xf0\xb7\x7f\xfb\x1e>\xf9r'
             b'\x8c\xba')
         self.dsaSignature = (
-            b'\x00\x00\x00\x07ssh-dss\x00\x00\x00(?\xc7\xeb\x86;\xd5TFA\xb4\xdf'
-            b'\x0c\xc4E@4,d\xbc\t\xd9\xae\xdd[\xed-\x82nQ\x8cf\x9b\xe8\xe1jrg'
-            b'\x84p<'
+            b'\x00\x00\x00\x07ssh-dss\x00\x00\x00(?\xc7\xeb\x86;\xd5TFA\xb4'
+            b'\xdf\x0c\xc4E@4,d\xbc\t\xd9\xae\xdd[\xed-\x82nQ\x8cf\x9b\xe8\xe1'
+            b'jrg\x84p<'
         )
         self.oldSecureRandom = randbytes.secureRandom
         randbytes.secureRandom = lambda x: b'\xff' * x
         self.keyFile = self.mktemp()
         open(self.keyFile, 'wb').write(keydata.privateRSA_lsh)
 
+
     def tearDown(self):
         randbytes.secureRandom = self.oldSecureRandom
         del self.oldSecureRandom
         os.unlink(self.keyFile)
+
 
     def test__guessStringType(self):
         """
@@ -264,9 +274,11 @@ class KeyTests(unittest.TestCase):
         self.assertEqual(keys.Key._guessStringType(b'not a key'),
                 None)
 
+
     def _testPublicPrivateFromString(self, public, private, type, data):
         self._testPublicFromString(public, type, data)
         self._testPrivateFromString(private, type, data)
+
 
     def _testPublicFromString(self, public, type, data):
         publicKey = keys.Key.fromString(public)
@@ -275,12 +287,14 @@ class KeyTests(unittest.TestCase):
         for k, v in publicKey.data().items():
             self.assertEqual(data[k], v)
 
+
     def _testPrivateFromString(self, private, type, data):
         privateKey = keys.Key.fromString(private)
         self.assertFalse(privateKey.isPublic())
         self.assertEqual(privateKey.type(), type)
         for k, v in data.items():
             self.assertEqual(privateKey.data()[k], v)
+
 
     def test_fromOpenSSH(self):
         """
@@ -297,6 +311,7 @@ class KeyTests(unittest.TestCase):
             keys.Key.fromString(keydata.privateRSA_openssh))
         self._testPublicPrivateFromString(keydata.publicDSA_openssh,
                 keydata.privateDSA_openssh, b'DSA', keydata.DSAData)
+
 
     def test_fromOpenSSH_with_whitespace(self):
         """
@@ -318,6 +333,7 @@ SUrCyZXsNh6VXwjs3gKQ
 -----END DSA PRIVATE KEY-----"""
         self.assertEqual(keys.Key.fromString(privateDSAData),
                          keys.Key.fromString(privateDSAData + b'\n'))
+
 
     def test_fromNewerOpenSSH(self):
         """
@@ -348,6 +364,7 @@ SUrCyZXsNh6VXwjs3gKQ
         self.assertRaises(keys.BadKeyError, keys.Key.fromString,
                 sexp)
 
+
     def test_fromAgentv3(self):
         """
         Test that keys are correctly generated from Agent v3 strings.
@@ -358,6 +375,7 @@ SUrCyZXsNh6VXwjs3gKQ
                 keydata.DSAData)
         self.assertRaises(keys.BadKeyError, keys.Key.fromString,
                 b'\x00\x00\x00\x07ssh-foo'+b'\x00\x00\x00\x01\x01'*5)
+
 
     def test_fromStringErrors(self):
         """
@@ -509,6 +527,7 @@ CfI51GQLw7pUPeO2WNt6yZO/YkzZrqvTj5FEwybkUyBv7L0gkqu9wjfDdUw0fVHE
 xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
 -----END RSA PRIVATE KEY-----""", passphrase='encrypted')
 
+
     def test_fromFile(self):
         """
         Test that fromFile works correctly.
@@ -520,6 +539,7 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         self.assertRaises(keys.BadKeyError, keys.Key.fromFile,
                 self.keyFile, passphrase='unencrypted')
 
+
     def test_init(self):
         """
         Test that the PublicKey object is initialized correctly.
@@ -527,6 +547,7 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         obj = Crypto.PublicKey.RSA.construct((long(1), long(2)))
         key = keys.Key(obj)
         self.assertEqual(key.keyObject, obj)
+
 
     def test_equal(self):
         """
@@ -542,6 +563,7 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         self.assertFalse(rsa1 == object)
         self.assertFalse(rsa1 == None)
 
+
     def test_notEqual(self):
         """
         Test that Key objects are not-compared correctly.
@@ -556,6 +578,7 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         self.assertTrue(rsa1 != object)
         self.assertTrue(rsa1 != None)
 
+
     def test_type(self):
         """
         Test that the type method returns the correct type for an object.
@@ -568,6 +591,7 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         self.assertRaises(RuntimeError, keys.Key(None).sshType)
         self.assertRaises(RuntimeError, keys.Key(self).type)
         self.assertRaises(RuntimeError, keys.Key(self).sshType)
+
 
     def test_fromBlob(self):
         """
@@ -663,6 +687,7 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         self.assertEqual(key.public().toString('openssh'),
                 keydata.publicDSA_openssh[:-8]) # no comment
 
+
     def test_toLSH(self):
         """
         Test that the Key object generates LSH keys correctly.
@@ -676,6 +701,7 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         self.assertEqual(key.public().toString('lsh'),
                 keydata.publicDSA_lsh)
 
+
     def test_toAgentv3(self):
         """
         Test that the Key object generates Agent v3 keys correctly.
@@ -685,12 +711,14 @@ xEm4DxjEoaIp8dW/JOzXQ2EF+WaSOgdYsw3Ac+rnnjnNptCdOEDGP6QBkt+oXj4P
         key = keys.Key.fromString(keydata.privateDSA_openssh)
         self.assertEqual(key.toString('agentv3'), keydata.privateDSA_agentv3)
 
+
     def test_toStringErrors(self):
         """
         Test that toString raises errors appropriately.
         """
         self.assertRaises(keys.BadKeyError, keys.Key(self.rsaObj).toString,
                 'bad_type')
+
 
     def test_sign(self):
         """

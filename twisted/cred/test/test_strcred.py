@@ -35,6 +35,7 @@ except ImportError:
     spwd = None
 
 
+
 def getInvalidAuthType():
     """
     Helper method to produce an auth type that doesn't exist.
