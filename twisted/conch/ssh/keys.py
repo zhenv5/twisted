@@ -66,7 +66,8 @@ class Key(object):
         Return a Key object corresponding to the data in filename.  type
         and passphrase function as they do in fromString.
         """
-        return Class.fromString(open(filename, 'rb').read(), type, passphrase)
+        with open(filename, 'rb') as f:
+            return Class.fromString(f.read(), type, passphrase)
     fromFile = classmethod(fromFile)
 
 
@@ -517,6 +518,8 @@ class Key(object):
         """
         Return the type of the object we wrap.  Currently this can only be
         'RSA' or 'DSA'.
+
+        @rtype: L{str}
         """
         # the class is Crypto.PublicKey.<type>.<stuff we don't care about>
         mod = self.keyObject.__class__.__module__
@@ -890,4 +893,5 @@ def lenSig(obj):
 ID_SHA1 = b'\x30\x21\x30\x09\x06\x05\x2b\x0e\x03\x02\x1a\x05\x00\x04\x14'
 
 if _PY3:
+    # objectType is deprecated and not being ported to Python 3.
     del objectType
