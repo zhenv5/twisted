@@ -227,7 +227,7 @@ class Key(object):
                 _, cipher_iv_info = lines[2].split(b' ', 1)
                 cipher, ivdata = cipher_iv_info.rstrip().split(b',', 1)
             except ValueError:
-                raise BadKeyError('invalid DEK-info %r' % lines[2])
+                raise BadKeyError('invalid DEK-info %r' % (lines[2],))
 
             if cipher == b'AES-128-CBC':
                 CipherClass = AES
@@ -240,7 +240,7 @@ class Key(object):
                 if len(ivdata) != 16:
                     raise BadKeyError('DES encrypted key with a bad IV')
             else:
-                raise BadKeyError('unknown encryption type %r' % cipher)
+                raise BadKeyError('unknown encryption type %r' % (cipher,))
 
             # extract keyData for decoding
             iv = bytes(bytearray([int(ivdata[i:i + 2], 16)
@@ -261,7 +261,8 @@ class Key(object):
         try:
             decodedKey = berDecoder.decode(keyData)[0]
         except PyAsn1Error as e:
-            raise BadKeyError('Failed to decode key (Bad Passphrase?): %s' % e)
+            raise BadKeyError(
+                'Failed to decode key (Bad Passphrase?): %s' % (e,))
 
         if kind == b'RSA':
             if len(decodedKey) == 2:  # alternate RSA key
@@ -307,7 +308,7 @@ class Key(object):
         elif sexp[1][0] == b'rsa-pkcs1-sha1':
             return Class(RSA.construct((kd[b'n'], kd[b'e'])))
         else:
-            raise BadKeyError('unknown lsh key type %s' % sexp[1][0])
+            raise BadKeyError('unknown lsh key type %s' % (sexp[1][0],))
     _fromString_PUBLIC_LSH = classmethod(_fromString_PUBLIC_LSH)
 
 
@@ -340,7 +341,7 @@ class Key(object):
             return Class(RSA.construct((kd[b'n'], kd[b'e'], kd[b'd'],
                                         kd[b'p'], kd[b'q'])))
         else:
-            raise BadKeyError('unknown lsh key type %s' % sexp[1][0])
+            raise BadKeyError('unknown lsh key type %s' % (sexp[1][0],))
     _fromString_PRIVATE_LSH = classmethod(_fromString_PRIVATE_LSH)
 
 
@@ -387,7 +388,7 @@ class Key(object):
             q, data = common.getMP(data)
             return Class(RSA.construct((n, e, d, p, q, u)))
         else:
-            raise BadKeyError("unknown key type %s" % keyType)
+            raise BadKeyError("unknown key type %s" % (keyType,))
     _fromString_AGENTV3 = classmethod(_fromString_AGENTV3)
 
 
@@ -510,8 +511,7 @@ class Key(object):
 
         @rtype: L{str}
         """
-        return ':'.join([x.encode('hex')
-                         for x in md5(self.blob()).digest()])
+        return ':'.join([x.encode('hex') for x in md5(self.blob()).digest()])
 
 
     def type(self):
@@ -526,11 +526,11 @@ class Key(object):
         if mod.startswith('Crypto.PublicKey'):
             type = mod.split('.')[2]
         else:
-            raise RuntimeError('unknown type of object: %r' % self.keyObject)
+            raise RuntimeError('unknown type of object: %r' % (self.keyObject,))
         if type in ('RSA', 'DSA'):
             return type
         else:
-            raise RuntimeError('unknown type of key: %s' % type)
+            raise RuntimeError('unknown type of key: %s' % (type,))
 
 
     def sshType(self):
@@ -644,7 +644,7 @@ class Key(object):
         """
         method = getattr(self, '_toString_%s' % type.upper(), None)
         if method is None:
-            raise BadKeyError('unknown type: %s' % type)
+            raise BadKeyError('unknown key type: %s' % (type,))
         if method.__code__.co_argcount == 2:
             return method(extra)
         else:
