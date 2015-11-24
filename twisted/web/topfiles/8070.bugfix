@@ -1,0 +1,1 @@
+twisted.web.client.URI.fromBytes handles brackets in IPv6 URI's correctly

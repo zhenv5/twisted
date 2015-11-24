@@ -601,7 +601,7 @@ class URI(object):
         """
         self.scheme = scheme
         self.netloc = netloc
-        self.host = host
+        self.host = host.strip(b'[]')
         self.port = port
         self.path = path
         self.params = params
@@ -641,7 +641,6 @@ class URI(object):
                 host, port = netloc, defaultPort
         else:
             host, port = netloc, defaultPort
-
         return cls(scheme, netloc, host, port, path, params, query, fragment)
 
 
