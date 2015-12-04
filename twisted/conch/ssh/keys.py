@@ -526,7 +526,8 @@ class Key(object):
         if mod.startswith('Crypto.PublicKey'):
             type = mod.split('.')[2]
         else:
-            raise RuntimeError('unknown type of object: %r' % (self.keyObject,))
+            raise RuntimeError(
+                'unknown type of object: %r' % (self.keyObject,))
         if type in ('RSA', 'DSA'):
             return type
         else:
@@ -535,8 +536,12 @@ class Key(object):
 
     def sshType(self):
         """
-        Return the type of the object we wrap as defined in the ssh protocol.
-        Currently this can only be b'ssh-rsa' or b'ssh-dss'.
+        Get the type of the object we wrap as defined in the SSH protocol,
+        defined in RFC 4253, Section 6.6. Currently this can only be b'ssh-rsa'
+        or b'ssh-dss'.
+
+        @return: The key type format.
+        @rtype: L{bytes}
         """
         return {'RSA': b'ssh-rsa', 'DSA': b'ssh-dss'}[self.type()]
 
@@ -687,8 +692,8 @@ class Key(object):
             asn1Data = berEncoder.encode(asn1Sequence)
             if extra:
                 iv = randbytes.secureRandom(8)
-                hexiv = ''.join(['%02X' % ord(x)
-                                 for x in iterbytes(iv)]).encode('ascii')
+                hexiv = ''.join(['%02X' % ord(x) for x in iterbytes(iv)])
+                hexiv = hexiv.encode('ascii')
                 lines.append(b'Proc-Type: 4,ENCRYPTED')
                 lines.append(b'DEK-Info: DES-EDE3-CBC,' + hexiv + b'\n')
                 ba = md5(extra + iv).digest()
