@@ -2,12 +2,13 @@
 # Copyright (c) Twisted Matrix Laboratories.
 # See LICENSE for details.
 
-
 """
 Common functions for the SSH classes.
 
 Maintainer: Paul Swartz
 """
+
+from __future__ import absolute_import, division
 
 import struct
 import warnings
