@@ -3,20 +3,109 @@
 
 """
 An implementation of
-U{Web Resource Gateway Interface<http://www.python.org/dev/peps/pep-0333/>}.
+U{Python Web Server Gateway Interface v1.0.1<http://www.python.org/dev/peps/pep-3333/>}.
 """
 
 __metaclass__ = type
 
 from sys import exc_info
 
-from zope.interface import implements
+from zope.interface import implementer
 
+from twisted.python.compat import reraise
 from twisted.python.log import msg, err
 from twisted.python.failure import Failure
 from twisted.web.resource import IResource
 from twisted.web.server import NOT_DONE_YET
 from twisted.web.http import INTERNAL_SERVER_ERROR
+
+
+
+# PEP-3333 -- which has superseded PEP-333 -- states that, in both Python 2
+# and Python 3, text strings MUST be represented using the platform's native
+# string type, limited to characters defined in ISO-8859-1. Byte strings are
+# used only for values read from wsgi.input, passed to write() or yielded by
+# the application.
+#
+# Put another way:
+#
+# - In Python 2, all text strings and binary data are of type str/bytes and
+#   NEVER of type unicode. Whether the strings contain binary data or
+#   ISO-8859-1 text depends on context.
+#
+# - In Python 3, all text strings are of type str, and all binary data are of
+#   type bytes. Text MUST always be limited to that which can be encoded as
+#   ISO-8859-1, U+0000 to U+00FF inclusive.
+#
+# The following pair of functions -- _wsgiString() and _wsgiStringToBytes() --
+# are used to make Twisted's WSGI support compliant with the standard.
+if str is bytes:
+    def _wsgiString(string):  # Python 2.
+        """
+        Convert C{string} to an ISO-8859-1 byte string, if it is not already.
+
+        @type string: C{str}/C{bytes} or C{unicode}
+        @rtype: C{str}/C{bytes}
+
+        @raise UnicodeEncodeError: If C{string} contains non-ISO-8859-1 chars.
+        """
+        if isinstance(string, str):
+            return string
+        else:
+            return string.encode('iso-8859-1')
+
+    def _wsgiStringToBytes(string):  # Python 2.
+        """
+        Return C{string} if it is a byte string.
+
+        @type string: C{str}/C{bytes}
+        @rtype: C{str}/C{bytes}
+
+        @raise TypeError: If C{string} is not a byte string.
+        """
+        if isinstance(string, str):
+            return string
+        else:
+            raise TypeError(
+                "string must be str/bytes, not %r (%s)"
+                % (string, type(string).__name__))
+
+else:
+    def _wsgiString(string):  # Python 3.
+        """
+        Convert C{string} to a WSGI "bytes-as-unicode" string.
+
+        If it's a byte string, decode as ISO-8859-1. If it's a Unicode string,
+        round-trip it to bytes and back using ISO-8859-1 as the encoding.
+
+        @type string: C{str} or C{bytes}
+        @rtype: str
+
+        @raise UnicodeEncodeError: If C{string} contains non-ISO-8859-1 chars.
+        """
+        if isinstance(string, str):
+            return string.encode("iso-8859-1").decode('iso-8859-1')
+        else:
+            return string.decode("iso-8859-1")
+
+    def _wsgiStringToBytes(string):  # Python 3.
+        """
+        Convert C{string} from a WSGI "bytes-as-unicode" string to an
+        ISO-8859-1 byte string.
+
+        @type string: C{str}
+        @rtype: bytes
+
+        @raise UnicodeEncodeError: If C{string} contains non-ISO-8859-1 chars.
+        @raise TypeError: If C{string} is not a byte string.
+        """
+        if isinstance(string, str):
+            return string.encode("iso-8859-1")
+        else:
+            raise TypeError(
+                "string must be str, not %r (%s)"
+                % (string, type(string).__name__))
+
 
 
 class _ErrorStream:
@@ -30,14 +119,23 @@ class _ErrorStream:
     to expose more information in the events it logs, such as the application
     object which generated the message.
     """
-    def write(self, bytes):
+
+    def write(self, data):
         """
         Generate an event for the logging system with the given bytes as the
         message.
 
         This is called in a WSGI application thread, not the I/O thread.
+
+        @type data: str
+
+        @raise TypeError: If C{data} is not a native string.
         """
-        msg(bytes, system='wsgi', isError=True)
+        if not isinstance(data, str):
+            raise TypeError(
+                "write() argument must be str, not %r (%s)"
+                % (data, type(data).__name__))
+        msg(data, system='wsgi', isError=True)
 
 
     def writelines(self, iovec):
@@ -49,6 +147,8 @@ class _ErrorStream:
 
         @param iovec: A C{list} of C{'\\n'}-terminated C{str} which will be
             logged.
+
+        @raise TypeError: If C{iovec} contains any non-native strings.
         """
         self.write(''.join(iovec))
 
@@ -174,33 +274,36 @@ class _WSGIResponse:
         self.request.notifyFinish().addBoth(self._finished)
 
         if request.prepath:
-            scriptName = '/' + '/'.join(request.prepath)
+            scriptName = b'/' + b'/'.join(request.prepath)
         else:
-            scriptName = ''
+            scriptName = b''
 
         if request.postpath:
-            pathInfo = '/' + '/'.join(request.postpath)
+            pathInfo = b'/' + b'/'.join(request.postpath)
         else:
-            pathInfo = ''
+            pathInfo = b''
 
-        parts = request.uri.split('?', 1)
+        parts = request.uri.split(b'?', 1)
         if len(parts) == 1:
-            queryString = ''
+            queryString = b''
         else:
             queryString = parts[1]
 
+        # All keys and values need to be native strings, i.e. of type str in
+        # *both* Python 2 and Python 3, so says PEP-3333.
         self.environ = {
-            'REQUEST_METHOD': request.method,
-            'REMOTE_ADDR': request.getClientIP(),
-            'SCRIPT_NAME': scriptName,
-            'PATH_INFO': pathInfo,
-            'QUERY_STRING': queryString,
-            'CONTENT_TYPE': request.getHeader('content-type') or '',
-            'CONTENT_LENGTH': request.getHeader('content-length') or '',
-            'SERVER_NAME': request.getRequestHostname(),
-            'SERVER_PORT': str(request.getHost().port),
-            'SERVER_PROTOCOL': request.clientproto}
-
+            'REQUEST_METHOD': _wsgiString(request.method),
+            'REMOTE_ADDR': _wsgiString(request.getClientIP()),
+            'SCRIPT_NAME': _wsgiString(scriptName),
+            'PATH_INFO': _wsgiString(pathInfo),
+            'QUERY_STRING': _wsgiString(queryString),
+            'CONTENT_TYPE': _wsgiString(
+                request.getHeader(b'content-type') or ''),
+            'CONTENT_LENGTH': _wsgiString(
+                request.getHeader(b'content-length') or ''),
+            'SERVER_NAME': _wsgiString(request.getRequestHostname()),
+            'SERVER_PORT': _wsgiString(str(request.getHost().port)),
+            'SERVER_PROTOCOL': _wsgiString(request.clientproto)}
 
         # The application object is entirely in control of response headers;
         # disable the default Content-Type value normally provided by
@@ -208,11 +311,11 @@ class _WSGIResponse:
         self.request.defaultContentType = None
 
         for name, values in request.requestHeaders.getAllRawHeaders():
-            name = 'HTTP_' + name.upper().replace('-', '_')
+            name = 'HTTP_' + _wsgiString(name).upper().replace('-', '_')
             # It might be preferable for http.HTTPChannel to clear out
             # newlines.
-            self.environ[name] = ','.join([
-                    v.replace('\n', ' ') for v in values])
+            self.environ[name] = _wsgiString(
+                b','.join(values)).replace('\n', ' ')
 
         self.environ.update({
                 'wsgi.version': (1, 0),
@@ -254,24 +357,78 @@ class _WSGIResponse:
         This will be called in a non-I/O thread.
         """
         if self.started and excInfo is not None:
-            raise excInfo[0], excInfo[1], excInfo[2]
+            reraise(excInfo[1], excInfo[2])
+
+        # PEP-3333 mandates that status should be a native string.
+        if not isinstance(status, str):
+            raise TypeError(
+                "status must be str, not %r (%s)"
+                % (status, type(status).__name__))
+
+        # PEP-3333 mandates a plain list.
+        if not isinstance(headers, list):
+            raise TypeError(
+                "headers must be a list, not %r (%s)"
+                % (status, type(status).__name__))
+
+        # PEP-3333 mandates that each header should be a (str, str) tuple.
+        for header in headers:
+            is_okay = (
+                isinstance(header, tuple) and len(header) == 2 and
+                isinstance(header[0], str) and isinstance(header[1], str)
+            )
+            if not is_okay:
+                raise TypeError(
+                    "header must be (str, str) tuple, not %r"
+                    % (status, type(status).__name__))
+
         self.status = status
         self.headers = headers
         return self.write
 
 
-    def write(self, bytes):
+    def write(self, data):
         """
         The WSGI I{write} callable returned by the I{start_response} callable.
         The given bytes will be written to the response body, possibly flushing
         the status and headers first.
 
         This will be called in a non-I/O thread.
+
+        @raise TypeError: If C{data} is not a byte string.
         """
+        # Check that `data` is bytes now because we will not get any feedback
+        # from callFromThread() later on.
+        if not isinstance(data, bytes):
+            raise TypeError(
+                "write() argument must be bytes, not %r (%s)"
+                % (data, type(data).__name__))
+
         def wsgiWrite(started):
             if not started:
                 self._sendResponseHeaders()
-            self.request.write(bytes)
+            self.request.write(data)
+
+        # PEP-3333 states:
+        #
+        #   The server or gateway must transmit the yielded bytestrings to the
+        #   client in an unbuffered fashion, completing the transmission of
+        #   each bytestring before requesting another one.
+        #
+        # This write() method is used for the imperative and (indirectly) for
+        # the more familiar iterable-of-bytestrings WSGI mechanism, but offers
+        # no back-pressure, and so violates this part of PEP-3333.
+        #
+        # PEP-3333 also says that a server may:
+        #
+        #   Use a different thread to ensure that the block continues to be
+        #   transmitted while the application produces the next block.
+        #
+        # Which suggests that this is actually compliant with PEP-3333,
+        # because writes are done in the reactor thread.
+        #
+        # However, providing some back-pressure may nevertheless be a Good
+        # Thing at some point in the future.
         self.reactor.callFromThread(wsgiWrite, self.started)
         self.started = True
 
@@ -287,12 +444,13 @@ class _WSGIResponse:
         """
         code, message = self.status.split(None, 1)
         code = int(code)
-        self.request.setResponseCode(code, message)
+        self.request.setResponseCode(code, _wsgiStringToBytes(message))
 
         for name, value in self.headers:
             # Don't allow the application to control these required headers.
             if name.lower() not in ('server', 'date'):
-                self.request.responseHeaders.addRawHeader(name, value)
+                self.request.responseHeaders.addRawHeader(
+                    _wsgiStringToBytes(name), _wsgiStringToBytes(value))
 
 
     def start(self):
@@ -341,6 +499,7 @@ class _WSGIResponse:
 
 
 
+@implementer(IResource)
 class WSGIResource:
     """
     An L{IResource} implementation which delegates responsibility for all
@@ -354,7 +513,6 @@ class WSGIResource:
 
     @ivar _application: The WSGI application object.
     """
-    implements(IResource)
 
     # Further resource segments are left up to the WSGI application object to
     # handle.
