@@ -10,6 +10,7 @@ __metaclass__ = type
 from sys import exc_info
 import tempfile
 import traceback
+import warnings
 
 from zope.interface.verify import verifyObject
 
@@ -244,7 +245,7 @@ class WSGITestsMixin:
                     content = application(environ, startResponse)
             except:
                 result.errback()
-                startResponse('500 Error', [], exc_info())
+                startResponse('500 Error', [])
                 return iter(())
             else:
                 result.callback((environ, startResponse))
@@ -800,7 +801,8 @@ class EnvironTests(WSGITestsMixin, TestCase):
     def test_wsgiErrorsAcceptsOnlyNativeStrings(self):
         """
         The C{'wsgi.errors'} file-like object from the C{environ} C{dict} will
-        permit writes of only native strings.
+        permit writes of only native strings in Python 3, and will warn
+        against the use of non-native strings in Python 2.
         """
         request, result = self.prepareRequest()
         request.requestReceived()
@@ -808,9 +810,21 @@ class EnvironTests(WSGITestsMixin, TestCase):
         errors = environ["wsgi.errors"]
 
         if _PY3:
-            self.assertRaises(TypeError, errors.write, b"fred")
+            # In Python 3, TypeError is raised.
+            error = self.assertRaises(TypeError, errors.write, b"fred")
+            self.assertEqual(
+                "write() argument must be str, not b'fred' (bytes)",
+                str(error))
         else:
-            self.assertRaises(TypeError, errors.write, u"fred")
+            # In Python 2, only a warning is issued; existing WSGI
+            # applications may rely on this non-compliant behaviour.
+            with warnings.catch_warnings(record=True) as caught:
+                errors.write(u"fred")
+            self.assertEqual(1, len(caught))
+            self.assertEqual(UnicodeWarning, caught[0].category)
+            self.assertEqual(
+                "write() argument should be str, not u'fred' (unicode)",
+                str(caught[0].message))
 
 
 
@@ -1203,7 +1217,7 @@ class StartResponseTests(WSGITestsMixin, TestCase):
     def test_statusMustBeNativeString(self):
         """
         The response status passed to the I{start_response} callable MUST be a
-        native string.
+        native string in Python 2 and Python 3.
         """
         status = b"200 OK" if _PY3 else u"200 OK"
 
@@ -1275,29 +1289,79 @@ class StartResponseTests(WSGITestsMixin, TestCase):
             [b'Baz: quux', b'Foo: bar'])
 
 
-    def test_headersMustBePlainList(self):
+    def test_headersMustBeSequence(self):
         """
-        The headers passed to the I{start_response} callable MUST be in a
-        plain list.
+        The headers passed to the I{start_response} callable MUST be a
+        sequence.
         """
+        headers = [("key", "value")]
+
         def application(environ, startResponse):
-            startResponse("200 OK", (("not", "list"),))
+            startResponse("200 OK", iter(headers))
             return iter(())
 
         request, result = self.prepareRequest(application)
         request.requestReceived()
 
         def checkMessage(error):
-            self.assertEqual(
-                "headers must be a list, not (('not', 'list'),) (tuple)",
-                str(error))
+            self.assertRegexpMatches(
+                str(error), "headers must be a list, not "
+                "<list_?iterator .+> [(]list_?iterator[)]")
 
         return self.assertFailure(result, TypeError).addCallback(checkMessage)
 
 
-    def test_headersMustEachBeTuple(self):
+    @inlineCallbacks
+    def test_headersShouldBePlainList(self):
         """
-        Each header passed to the I{start_response} callable MUST be in a
+        The headers passed to the I{start_response} callable SHOULD be a plain
+        list.
+        """
+        def application(environ, startResponse):
+            startResponse("200 OK", (("not", "list"),))
+            return iter(())
+
+        request, result = self.prepareRequest(application)
+
+        # In both Python 2 and Python 3, only a warning is issued; existing
+        # WSGI applications may rely on this non-compliant behaviour, and we
+        # can actually work with any sequence type.
+        with warnings.catch_warnings(record=True) as caught:
+            request.requestReceived()
+            yield result
+        self.assertEqual(1, len(caught))
+        self.assertEqual(RuntimeWarning, caught[0].category)
+        self.assertEqual(
+            "headers should be a list, not (('not', 'list'),) (tuple)",
+            str(caught[0].message))
+
+
+    def test_headersMustEachBeSequence(self):
+        """
+        Each header passed to the I{start_response} callable MUST be a
+        sequence.
+        """
+        header = ("key", "value")
+
+        def application(environ, startResponse):
+            startResponse("200 OK", [iter(header)])
+            return iter(())
+
+        request, result = self.prepareRequest(application)
+        request.requestReceived()
+
+        def checkMessage(error):
+            self.assertRegexpMatches(
+                str(error), "header must be a [(]str, str[)] tuple, not "
+                "<tuple_?iterator .+> [(]tuple_?iterator[)]")
+
+        return self.assertFailure(result, TypeError).addCallback(checkMessage)
+
+
+    @inlineCallbacks
+    def test_headersShouldEachBeTuple(self):
+        """
+        Each header passed to the I{start_response} callable SHOULD be a
         tuple.
         """
         def application(environ, startResponse):
@@ -1305,12 +1369,36 @@ class StartResponseTests(WSGITestsMixin, TestCase):
             return iter(())
 
         request, result = self.prepareRequest(application)
+
+        # In both Python 2 and Python 3, only a warning is issued; existing
+        # WSGI applications may rely on this non-compliant behaviour, and we
+        # can actually work with any sequence type.
+        with warnings.catch_warnings(record=True) as caught:
+            request.requestReceived()
+            yield result
+        self.assertEqual(1, len(caught))
+        self.assertEqual(RuntimeWarning, caught[0].category)
+        self.assertEqual(
+            "header should be a (str, str) tuple, not ['not', 'tuple'] (list)",
+            str(caught[0].message))
+
+
+    def test_headersShouldEachHaveKeyAndValue(self):
+        """
+        Each header passed to the I{start_response} callable MUST hold a key
+        and a value, and ONLY a key and a value.
+        """
+        def application(environ, startResponse):
+            startResponse("200 OK", [("too", "many", "cooks")])
+            return iter(())
+
+        request, result = self.prepareRequest(application)
         request.requestReceived()
 
         def checkMessage(error):
             self.assertEqual(
-                "header must be (str, str) tuple, not ['not', 'tuple'] (list)",
-                str(error))
+                "header must be a (str, str) tuple, not "
+                "('too', 'many', 'cooks')", str(error))
 
         return self.assertFailure(result, TypeError).addCallback(checkMessage)
 
@@ -1318,7 +1406,7 @@ class StartResponseTests(WSGITestsMixin, TestCase):
     def test_headerKeyMustBeNativeString(self):
         """
         Each header key passed to the I{start_response} callable MUST be at
-        native string.
+        native string in Python 2 and Python 3.
         """
         key = b"key" if _PY3 else u"key"
 
@@ -1340,7 +1428,7 @@ class StartResponseTests(WSGITestsMixin, TestCase):
     def test_headerValueMustBeNativeString(self):
         """
         Each header value passed to the I{start_response} callable MUST be at
-        native string.
+        native string in Python 2 and Python 3.
         """
         value = b"value" if _PY3 else u"value"
 
@@ -1652,11 +1740,11 @@ class StartResponseTests(WSGITestsMixin, TestCase):
         def checkMessage(error):
             if _PY3:
                 self.assertEqual(
-                    "write() argument must be bytes, not 'bogus' (str)",
+                    "Can only write bytes to a transport, not 'bogus'",
                     str(error))
             else:
                 self.assertEqual(
-                    "write() argument must be bytes, not u'bogus' (unicode)",
+                    "Can only write bytes to a transport, not u'bogus'",
                     str(error))
 
         return self.assertFailure(result, TypeError).addCallback(checkMessage)
