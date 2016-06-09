@@ -25,8 +25,7 @@ ALLFILTERS='/var/lib/courier/allfilters'
 FILTERNAME='twistedfilter'
 
 import email.parser
-import email.message
-import os, os.path 
+import os, os.path
 from syslog import syslog, openlog, LOG_MAIL
 
 def trace_dump():
@@ -55,12 +54,14 @@ class DieWhenLost(Protocol):
 
 
 class MailProcessor(basic.LineReceiver):
-    """I process a mail message.
-    
-    Override filterMessage to do any filtering you want."""
+    """
+    I process a mail message.
+
+    Override filterMessage to do any filtering you want.
+    """
     messageFilename = None
     delimiter = '\n'
-    
+
     def connectionMade(self):
         log.msg('Connection from %r' % self.transport)
         self.state = 'connected'
@@ -86,12 +87,12 @@ class MailProcessor(basic.LineReceiver):
         """
         try:
             emailParser = email.parser.Parser()
-            m = emailParser.parse(open(self.messageFilename))
+            emailParser.parse(open(self.messageFilename))
             self.sendLine('200 Ok')
         except:
             trace_dump()
             self.sendLine('435 %s processing error' % FILTERNAME)
-        
+
 
 def main():
     # Listen on the UNIX socket
@@ -104,7 +105,7 @@ def main():
     reactor.callLater(0, os.close, 3)
 
     # When stdin is closed, it's time to exit.
-    s = stdio.StandardIO(DieWhenLost())
+    stdio.StandardIO(DieWhenLost())
 
     # Go!
     reactor.run()
