@@ -29,10 +29,12 @@ python:
 
 env:
   global:
-    - TRIAL_REPORTER=text
+    - TRIAL_REPORTER=verbose
+    - TWISTED_REACTOR=select
 
 # Travis-CI has an old version of PyPy so we install a newer version on the
 # fly.
+# Source: https://github.com/saghul/pycares/blob/master/.travis.yml
 install:
   - |
       if [ "$TRAVIS_PYTHON_VERSION" = "pypy" ]; then
@@ -42,7 +44,7 @@ install:
         else
           rm -rf "$PYENV_ROOT" && git clone --depth 1 https://github.com/yyuu/pyenv.git "$PYENV_ROOT"
         fi
-        export PYPY_VERSION="5.0.1"
+        export PYPY_VERSION="5.3.1"
         "$PYENV_ROOT/bin/pyenv" install --skip-existing "pypy-$PYPY_VERSION"
         virtualenv --python="$PYENV_ROOT/versions/pypy-$PYPY_VERSION/bin/python" "$HOME/virtualenvs/pypy-$PYPY_VERSION"
         source "$HOME/virtualenvs/pypy-$PYPY_VERSION/bin/activate"
