@@ -4,6 +4,9 @@ sudo: false
 matrix:
   include:
     - python: pypy
+      env: TOXENV=pypy-coverage-posix
+    - python: 2.7
+      env: TOXENV=topfile,narrativedocs,pyflakes
   allow_failures:
     - python: pypy
 
@@ -29,7 +32,7 @@ python:
 
 env:
   global:
-    - TRIAL_REPORTER=verbose
+    - TRIAL_REPORTER=text
 
 # Travis-CI has an old version of PyPy so we install a newer version on the
 # fly.
