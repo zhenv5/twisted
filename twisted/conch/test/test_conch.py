@@ -289,7 +289,17 @@ class ConchServerSetupMixin:
     if not pyasn1:
         skip = "Cannot run without PyASN1"
 
-    skip = "PyPy known_host not working."
+    # FIXME: https://twistedmatrix.com/trac/ticket/8503
+    # This should be replaced with _PYPY
+    # FIXME: https://twistedmatrix.com/trac/ticket/8506
+    # This should be enable on Travis after the ticket is fixed.
+    # For now is enabled so that we can continue with fixing other
+    # stuff using Travis.
+    if (
+        '__pypy__' in sys.builtin_module_names and
+        os.environ.get('TRAVIS', None) == 'true'
+            ):
+        skip = 'PyPy known_host not working yet on Travis.'
 
     realmFactory = staticmethod(lambda: ConchTestRealm('testuser'))
 
