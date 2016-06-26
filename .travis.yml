@@ -30,7 +30,6 @@ python:
 env:
   global:
     - TRIAL_REPORTER=verbose
-    - TWISTED_REACTOR=select
 
 # Travis-CI has an old version of PyPy so we install a newer version on the
 # fly.
