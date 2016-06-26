@@ -1,6 +1,12 @@
 language: python
 sudo: false
 
+matrix:
+  include:
+    - python: pypy
+  allow_failures:
+    - python: pypy
+
 branches:
   only:
     - trunk
