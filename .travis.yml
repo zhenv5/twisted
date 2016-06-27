@@ -2,8 +2,6 @@ language: python
 sudo: false
 
 # This is the matrix which is build on top of tox-travis one.
-# * tox-travis fails to run on pypy
-#   See: https://github.com/ryanhiebert/tox-travis/issues/16
 # * non-trial tests have a dedicated job to make it easier to search the log.
 matrix:
   include:
@@ -33,6 +31,7 @@ python:
   - "3.3"
   - "3.4"
   - "3.5"
+  - "pypy"
 
 env:
   global:
