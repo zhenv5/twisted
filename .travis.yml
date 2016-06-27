@@ -59,4 +59,5 @@ before_script:
   - git fetch origin trunk
 
 script:
+  - printenv
   - tox
