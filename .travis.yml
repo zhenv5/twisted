@@ -1,14 +1,14 @@
 language: python
 sudo: false
 
-# This is the matrix which is build on top of tox-travis one.
-# * non-trial tests have a dedicated job to make it easier to search the log.
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "pypy"
+
 matrix:
-  include:
-    - python: pypy
-      env: TOXENV=pypy-coverage-posix
-    - python: 2.7
-      env: TOXENV=narrativedocs,pyflakes,topfile
   allow_failures:
     - python: pypy
 
@@ -25,13 +25,6 @@ addons:
 cache:
   directories:
     - $HOME/.cache/pip
-
-python:
-  - "2.7"
-  - "3.3"
-  - "3.4"
-  - "3.5"
-  - "pypy"
 
 env:
   global:
