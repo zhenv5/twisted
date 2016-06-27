@@ -297,7 +297,7 @@ class ConchServerSetupMixin:
     # stuff using Travis.
     if (
         '__pypy__' in sys.builtin_module_names and
-        os.environ.get('TRAVIS', None) == 'true'
+        os.environ.get('TRAVIS', '').strip().lower() == 'true'
             ):
         skip = 'PyPy known_host not working yet on Travis.'
 
