@@ -46,8 +46,7 @@ install:
         "$PYENV_ROOT/bin/pyenv" install --skip-existing "pypy-$PYPY_VERSION"
         virtualenv --python="$PYENV_ROOT/versions/pypy-$PYPY_VERSION/bin/python" "$HOME/virtualenvs/pypy-$PYPY_VERSION"
         source "$HOME/virtualenvs/pypy-$PYPY_VERSION/bin/activate"
-        echo "import sys; sys.setrecursionlimit(10000)" > $HOME/virtualenvs/pypy-$PYPY_VERSION/
-/lib-python/2.7/sitecustomize.py
+        echo "import sys; sys.setrecursionlimit(10000)" > $HOME/virtualenvs/pypy-$PYPY_VERSION/lib-python/2.7/sitecustomize.py
       fi
   - pip install tox tox-travis
 
