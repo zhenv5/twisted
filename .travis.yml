@@ -12,10 +12,6 @@ matrix:
   allow_failures:
     - python: pypy
 
-branches:
-  only:
-    - trunk
-
 addons:
   apt:
     packages:
